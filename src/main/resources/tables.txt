@@ -1,0 +1,247 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{longtable}
+\usepackage{setspace}
+
+\title{\textbf{Svasthya Fresh Backend Database Design}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\onehalfspacing
+
+\section{Introduction}
+This document describes the database schema for the \textbf{Svasthya Fresh Backend Application}.
+The schema supports authentication, inventory management, coupon handling, order processing,
+payment integration, and audit features such as price history tracking.
+
+% ================= USER =================
+
+\section{User Management Tables}
+
+\subsection{users}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+name & User full name \\ \hline
+email & Unique email \\ \hline
+mobile & Unique mobile number \\ \hline
+password\_hash & Encrypted password \\ \hline
+role & ADMIN / CUSTOMER \\ \hline
+is\_active & Account status \\ \hline
+created\_at & Creation timestamp \\ \hline
+updated\_at & Update timestamp \\ \hline
+\end{longtable}
+
+\subsection{addresses}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+user\_id & FK referencing users \\ \hline
+building\_no & Building number \\ \hline
+building\_name & Building name \\ \hline
+street\_no & Street number \\ \hline
+area\_name & Area / locality \\ \hline
+city & City \\ \hline
+state & State \\ \hline
+pincode & Postal code \\ \hline
+is\_default & Default address \\ \hline
+created\_at & Creation timestamp \\ \hline
+\end{longtable}
+
+% ================= AUTH =================
+
+\section{Authentication \& Security Tables}
+
+\subsection{tokens}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+user\_id & FK referencing users \\ \hline
+access\_token & JWT access token \\ \hline
+ip\_address & IP address at login \\ \hline
+issued\_at & Token issue time \\ \hline
+expires\_at & Token expiry time \\ \hline
+created\_at & Creation timestamp \\ \hline
+\end{longtable}
+
+\subsection{active\_tokens}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+user\_id & FK referencing users \\ \hline
+token\_id & FK referencing tokens \\ \hline
+last\_used\_at & Last access time \\ \hline
+is\_active & Session status \\ \hline
+created\_at & Creation timestamp \\ \hline
+\end{longtable}
+
+\subsection{email\_otp}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+user\_id & FK referencing users (nullable) \\ \hline
+email & Email address \\ \hline
+otp\_code & One-time password \\ \hline
+expires\_at & Expiry time \\ \hline
+is\_used & Usage flag \\ \hline
+attempt\_count & Attempt counter \\ \hline
+created\_at & Creation timestamp \\ \hline
+\end{longtable}
+
+\subsection{password\_reset}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+email\_otp\_id & FK referencing email\_otp \\ \hline
+reset\_token & Secure reset token \\ \hline
+expires\_at & Token expiry time \\ \hline
+generated\_at & Token generation time \\ \hline
+attempt\_count & Reset attempt counter \\ \hline
+ip\_address & IP address of request \\ \hline
+\end{longtable}
+
+% ================= INVENTORY =================
+
+\section{Inventory Management Tables}
+
+\subsection{categories}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+name & Category name \\ \hline
+description & Category description \\ \hline
+is\_active & Status \\ \hline
+created\_at & Creation timestamp \\ \hline
+\end{longtable}
+
+\subsection{products}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+name & Product name \\ \hline
+description & Product description \\ \hline
+category\_id & FK referencing categories \\ \hline
+is\_active & Active or Inactive flag \\ \hline
+created\_at & Creation timestamp \\ \hline
+updated\_at & Update timestamp \\ \hline
+\end{longtable}
+
+\subsection{product\_variants}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+product\_id & FK referencing products \\ \hline
+variant\_name & Variant label \\ \hline
+sku & Unique SKU \\ \hline
+mrp & Maximum retail price \\ \hline
+price & Selling price \\ \hline
+discount & Discount value \\ \hline
+stock\_quantity & Available stock \\ \hline
+availability\_status & Availability flag \\ \hline
+is\_active & Variant status \\ \hline
+created\_at & Creation timestamp \\ \hline
+updated\_at & Update timestamp \\ \hline
+\end{longtable}
+
+\subsection{product\_images}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+product\_id & FK referencing products \\ \hline
+image\_url & Image URL \\ \hline
+\end{longtable}
+
+\subsection{price\_history}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+product\_id & FK referencing products \\ \hline
+variant\_id & FK referencing product\_variants (nullable) \\ \hline
+price & Price at the time of change \\ \hline
+changed\_by & FK referencing admin user \\ \hline
+changed\_at & Change timestamp \\ \hline
+\end{longtable}
+
+% ================= COUPONS =================
+
+\section{Coupon Management Tables}
+
+\subsection{coupons}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+code & Coupon code \\ \hline
+discount\_type & Percentage / Flat \\ \hline
+discount\_value & Discount value \\ \hline
+min\_order\_amount & Minimum order value \\ \hline
+max\_discount\_amount & Maximum discount \\ \hline
+expiry\_date & Expiry date \\ \hline
+usage\_limit\_per\_user & Usage limit \\ \hline
+is\_active & Status \\ \hline
+created\_at & Creation timestamp \\ \hline
+\end{longtable}
+
+\subsection{coupon\_usage}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+coupon\_id & FK referencing coupons \\ \hline
+user\_id & FK referencing users \\ \hline
+usage\_count & Usage count \\ \hline
+\end{longtable}
+
+% ================= ORDERS =================
+
+\section{Order Management Tables}
+
+\subsection{orders}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+user\_id & FK referencing users \\ \hline
+address\_id & FK referencing addresses \\ \hline
+total\_amount & Total amount \\ \hline
+discount\_amount & Discount amount \\ \hline
+final\_amount & Payable amount \\ \hline
+coupon\_applied & Coupon applied flag \\ \hline
+payment\_id & FK referencing payments \\ \hline
+order\_status & Order lifecycle status \\ \hline
+created\_at & Creation timestamp \\ \hline
+\end{longtable}
+
+\subsection{order\_items}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+order\_id & FK referencing orders \\ \hline
+variant\_id & FK referencing product\_variants \\ \hline
+price\_at\_purchase & Locked selling price \\ \hline
+quantity & Quantity ordered \\ \hline
+subtotal & Item subtotal \\ \hline
+\end{longtable}
+
+% ================= PAYMENTS =================
+
+\section{Payment Management Table}
+
+\subsection{payments}
+\begin{longtable}{|p{4cm}|p{9cm}|}
+\hline
+id & Primary key \\ \hline
+order\_id & FK referencing orders \\ \hline
+razorpay\_order\_id & Razorpay order ID \\ \hline
+razorpay\_payment\_id & Razorpay payment ID \\ \hline
+amount & Payment amount \\ \hline
+payment\_status & Payment status \\ \hline
+payment\_method & Payment method \\ \hline
+created\_at & Payment timestamp \\ \hline
+\end{longtable}
+
+\section{Conclusion}
+This schema follows normalization principles, ensures secure authentication,
+supports password recovery flows, variant-level inventory, and price auditability,
+while maintaining clean separation between orders and payments.
+
+\end{document}
