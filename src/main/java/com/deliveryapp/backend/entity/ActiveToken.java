@@ -1,10 +1,18 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "active_tokens")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ActiveToken {
 
     @Id
@@ -25,7 +33,4 @@ public class ActiveToken {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-
-    public ActiveToken() {
-    }
 }

@@ -1,11 +1,19 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "coupons")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Coupon {
 
     @Id
@@ -37,7 +45,4 @@ public class Coupon {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-
-    public Coupon() {
-    }
 }

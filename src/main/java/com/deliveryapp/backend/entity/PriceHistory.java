@@ -1,11 +1,19 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "price_history")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class PriceHistory {
 
     @Id
@@ -25,7 +33,4 @@ public class PriceHistory {
 
     @Column(name = "changed_at")
     private LocalDateTime changedAt;
-
-    public PriceHistory() {
-    }
 }

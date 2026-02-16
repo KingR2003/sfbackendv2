@@ -1,9 +1,17 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "product_images")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductImage {
 
     @Id
@@ -15,7 +23,4 @@ public class ProductImage {
 
     @Column(name = "image_url")
     private String imageUrl;
-
-    public ProductImage() {
-    }
 }

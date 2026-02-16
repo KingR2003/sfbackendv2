@@ -1,11 +1,19 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "product_variants")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductVariant {
 
     @Id
@@ -40,7 +48,4 @@ public class ProductVariant {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    public ProductVariant() {
-    }
 }
