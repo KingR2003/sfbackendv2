@@ -73,8 +73,12 @@
     <version>2.2</version>
     <scope>compile</scope>
 </dependency>
-
-
+<!-- Lombok for auto-generating getters/setters -->
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <optional>true</optional>
+</dependency>
 
 	</dependencies>
 

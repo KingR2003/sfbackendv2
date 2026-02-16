@@ -1,9 +1,17 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "coupon_usage")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class CouponUsage {
 
     @Id
@@ -18,7 +26,4 @@ public class CouponUsage {
 
     @Column(name = "usage_count")
     private Integer usageCount;
-
-    public CouponUsage() {
-    }
 }
