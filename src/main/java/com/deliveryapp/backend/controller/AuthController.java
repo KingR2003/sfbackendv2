@@ -11,13 +11,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
-import java.util.Optional;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
+
+    @Autowired
+    private org.springframework.security.authentication.AuthenticationManager authenticationManager;
+
+    @Autowired
+    private com.deliveryapp.backend.security.JwtUtil jwtUtil;
 
     @Autowired
     private UserService userService;
@@ -28,36 +32,22 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         try {
-            // Check if user exists by email
-            java.util.List<User> users = userService.getAllUsers();
-            Optional<User> userOpt = users.stream()
-                    .filter(u -> u.getEmail().equals(loginRequest.getEmail()))
-                    .findFirst();
+            org.springframework.security.core.Authentication authentication = authenticationManager.authenticate(
+                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                            loginRequest.getEmail(), loginRequest.getPassword()));
 
-            if (!userOpt.isPresent()) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ApiResponse<>(false, "Invalid email or password", null));
-            }
-
-            User user = userOpt.get();
-
-            // Validate password
-            if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPasswordHash())) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ApiResponse<>(false, "Invalid email or password", null));
-            }
-
-            // Generate token (simple UUID for now, can enhance with JWT)
-            String token = "Bearer " + UUID.randomUUID().toString();
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String token = jwtUtil.generateToken(loginRequest.getEmail());
 
             LoginResponse response = new LoginResponse(
-                    user.getId(),
-                    user.getEmail(),
                     token,
                     "Login successful");
 
             return ResponseEntity.ok(response);
 
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse<>(false, "Invalid email or password", null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(false, "An error occurred: " + e.getMessage(), null));
@@ -88,10 +78,10 @@ public class AuthController {
             // newUser.setCreatedAt(LocalDateTime.now());
             // newUser.setUpdatedAt(LocalDateTime.now());
 
-            User createdUser = userService.createUser(newUser);
+            userService.createUser(newUser);
 
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ApiResponse<>(true, "User registered successfully", createdUser));
+                    .body(new ApiResponse<>(true, "User registered successfully", null));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
