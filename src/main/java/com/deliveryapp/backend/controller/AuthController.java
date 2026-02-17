@@ -5,13 +5,20 @@ import com.deliveryapp.backend.dto.LoginResponse;
 import com.deliveryapp.backend.dto.RegisterRequest;
 import com.deliveryapp.backend.dto.ApiResponse;
 import com.deliveryapp.backend.entity.User;
+import com.deliveryapp.backend.entity.Token;
+import com.deliveryapp.backend.entity.ActiveToken;
 import com.deliveryapp.backend.service.UserService;
+import com.deliveryapp.backend.repository.TokenRepository;
+import com.deliveryapp.backend.repository.ActiveTokenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.context.SecurityContextHolder;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -29,8 +36,14 @@ public class AuthController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private TokenRepository tokenRepository;
+
+    @Autowired
+    private ActiveTokenRepository activeTokenRepository;
+
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         try {
             org.springframework.security.core.Authentication authentication = authenticationManager.authenticate(
                     new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
@@ -38,6 +51,37 @@ public class AuthController {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             String token = jwtUtil.generateToken(loginRequest.getEmail());
+
+            // Get user by email
+            java.util.List<User> users = userService.getAllUsers();
+            Optional<User> userOpt = users.stream()
+                    .filter(u -> u.getEmail().equals(loginRequest.getEmail()))
+                    .findFirst();
+
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                
+                // Save token to tokens table
+                Token tokenEntity = new Token();
+                tokenEntity.setUserId(user.getId());
+                tokenEntity.setAccessToken(token);
+                tokenEntity.setIpAddress(getClientIpAddress(request));
+                tokenEntity.setIssuedAt(LocalDateTime.now());
+                tokenEntity.setExpiresAt(LocalDateTime.now().plusHours(24));
+                tokenEntity.setCreatedAt(LocalDateTime.now());
+                
+                Token savedToken = tokenRepository.save(tokenEntity);
+                
+                // Save to active_tokens table
+                ActiveToken activeToken = new ActiveToken();
+                activeToken.setUserId(user.getId());
+                activeToken.setTokenId(savedToken.getId());
+                activeToken.setIsActive(true);
+                activeToken.setLastUsedAt(LocalDateTime.now());
+                activeToken.setCreatedAt(LocalDateTime.now());
+                
+                activeTokenRepository.save(activeToken);
+            }
 
             LoginResponse response = new LoginResponse(
                     token,
@@ -87,5 +131,13 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(false, "An error occurred: " + e.getMessage(), null));
         }
+    }
+
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }
