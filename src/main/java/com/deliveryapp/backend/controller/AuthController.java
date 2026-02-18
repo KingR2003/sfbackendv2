@@ -4,6 +4,8 @@ import com.deliveryapp.backend.dto.LoginRequest;
 import com.deliveryapp.backend.dto.LoginResponse;
 import com.deliveryapp.backend.dto.RegisterRequest;
 import com.deliveryapp.backend.dto.ApiResponse;
+import com.deliveryapp.backend.dto.RegisterResponse;
+import com.deliveryapp.backend.dto.LoginErrorResponse;
 import com.deliveryapp.backend.entity.User;
 import com.deliveryapp.backend.entity.Token;
 import com.deliveryapp.backend.entity.ActiveToken;
@@ -91,10 +93,10 @@ public class AuthController {
 
         } catch (org.springframework.security.core.AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ApiResponse<>(false, "Invalid email or password", null));
+                    .body(new LoginErrorResponse(false, "Invalid email or password", 401));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse<>(false, "An error occurred: " + e.getMessage(), null));
+                    .body(new LoginErrorResponse(false, "An error occurred: " + e.getMessage(), 500));
         }
     }
 
@@ -108,7 +110,7 @@ public class AuthController {
 
             if (emailExists) {
                 return ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body(new ApiResponse<>(false, "Email already registered", null));
+                        .body(new RegisterResponse(false, "Email already registered", 409));
             }
 
             // Create new user
@@ -125,11 +127,11 @@ public class AuthController {
             userService.createUser(newUser);
 
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ApiResponse<>(true, "User registered successfully", null));
+                    .body(new RegisterResponse(true, "User registered successfully", 201));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse<>(false, "An error occurred: " + e.getMessage(), null));
+                    .body(new RegisterResponse(false, "An error occurred: " + e.getMessage(), 500));
         }
     }
 

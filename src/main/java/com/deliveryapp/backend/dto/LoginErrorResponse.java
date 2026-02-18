@@ -1,25 +1,23 @@
 package com.deliveryapp.backend.dto;
 
-public class LoginResponse {
-    private String token;
+
+public class LoginErrorResponse {
+    private boolean success;
     private String message;
     private int status;
 
-    public LoginResponse() {
-    }
-
-    public LoginResponse(String token, String message) {
-        this.token = token;
+    public LoginErrorResponse(boolean success, String message, int status) {
+        this.success = success;
         this.message = message;
-        this.status = 200; // default for success
+        this.status = status;
     }
 
-    public String getToken() {
-        return token;
+    public boolean isSuccess() {
+        return success;
     }
 
-    public void setToken(String token) {
-        this.token = token;
+    public void setSuccess(boolean success) {
+        this.success = success;
     }
 
     public String getMessage() {
