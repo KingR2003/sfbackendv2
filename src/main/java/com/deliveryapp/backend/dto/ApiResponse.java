@@ -1,21 +1,39 @@
 package com.deliveryapp.backend.dto;
 
+@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
-    private boolean success;
+    private Boolean success;
     private String message;
     private T data;
+    private Integer status;
 
-    public ApiResponse(boolean success, String message, T data) {
+    public ApiResponse(Boolean success, String message, T data) {
         this.success = success;
         this.message = message;
         this.data = data;
     }
 
-    public boolean isSuccess() {
+    public ApiResponse(Integer status, String message, T data) {
+        this.status = status;
+        this.message = message;
+        this.data = data;
+    }
+
+    public ApiResponse(Integer status, T data) {
+        this.status = status;
+        this.data = data;
+    }
+
+    public ApiResponse(Integer status, String message) {
+        this.status = status;
+        this.message = message;
+    }
+
+    public Boolean isSuccess() {
         return success;
     }
 
-    public void setSuccess(boolean success) {
+    public void setSuccess(Boolean success) {
         this.success = success;
     }
 
@@ -33,5 +51,13 @@ public class ApiResponse<T> {
 
     public void setData(T data) {
         this.data = data;
+    }
+
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
     }
 }
