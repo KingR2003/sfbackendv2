@@ -29,4 +29,12 @@ public class ProductImage {
 
     @Column(name = "image_url")
     private String imageUrl;
+
+    @Column(name = "product_variant_id", insertable = false, updatable = false)
+    private Long productVariantId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_variant_id")
+    @JsonIgnore
+    private ProductVariant productVariant;
 }

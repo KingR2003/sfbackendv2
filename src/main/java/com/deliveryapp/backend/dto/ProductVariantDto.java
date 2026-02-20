@@ -20,4 +20,5 @@ public class ProductVariantDto {
     private Integer stockQuantity;
     private String availabilityStatus;
     private Boolean isActive;
+    private java.util.List<ProductImageDto> images;
 }

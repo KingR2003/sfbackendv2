@@ -12,4 +12,5 @@ import lombok.Setter;
 public class ProductImageDto {
     private Long id;
     private String imageUrl;
+    private Long productVariantId;
 }

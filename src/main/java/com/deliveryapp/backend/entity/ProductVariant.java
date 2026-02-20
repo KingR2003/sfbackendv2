@@ -54,4 +54,7 @@ public class ProductVariant {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "productVariant", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private java.util.List<ProductImage> images = new java.util.ArrayList<>();
 }
