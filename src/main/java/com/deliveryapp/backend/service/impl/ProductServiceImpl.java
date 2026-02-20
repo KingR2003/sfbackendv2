@@ -25,9 +25,12 @@ public class ProductServiceImpl implements ProductService {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private com.deliveryapp.backend.service.S3Service s3Service;
+
     @Override
     @Transactional
-    public ProductResponse createProduct(ProductRequest request) {
+    public ProductResponse createProduct(ProductRequest request, org.springframework.web.multipart.MultipartFile imageFile) {
         Product product = new Product();
         product.setName(request.getName());
         product.setDescription(request.getDescription());
@@ -41,6 +44,19 @@ public class ProductServiceImpl implements ProductService {
                 image.setImageUrl(imgDto.getImageUrl());
                 image.setProduct(product);
                 product.getImages().add(image);
+            }
+        }
+
+        // Upload and add main image if provided
+        if (imageFile != null && !imageFile.isEmpty()) {
+            try {
+                String imageUrl = s3Service.uploadFile(imageFile.getBytes(), imageFile.getOriginalFilename(), imageFile.getContentType());
+                ProductImage image = new ProductImage();
+                image.setImageUrl(imageUrl);
+                image.setProduct(product);
+                product.getImages().add(image);
+            } catch (java.io.IOException e) {
+                throw new RuntimeException("Failed to upload image", e);
             }
         }
 
@@ -178,5 +194,21 @@ public class ProductServiceImpl implements ProductService {
         response.setVariants(variantDtos);
 
         return response;
+    }
+
+    @Override
+    @Transactional
+    public void addProductImage(Long productId, String imageUrl) {
+        Optional<Product> productOpt = productRepository.findById(productId);
+        if (productOpt.isPresent()) {
+            Product product = productOpt.get();
+            ProductImage image = new ProductImage();
+            image.setImageUrl(imageUrl);
+            image.setProduct(product);
+            product.getImages().add(image);
+            productRepository.save(product);
+        } else {
+            throw new RuntimeException("Product not found");
+        }
     }
 }

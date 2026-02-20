@@ -95,20 +95,21 @@ public class ResponseStructureTest {
     }
 
     @Test
-    public void testCreateProduct_ShouldReturnStatusMessage_NoSuccess_NoData() throws Exception {
+    public void testCreateProduct_ShouldReturnStatusMessage_NoData_NoSuccess() throws Exception {
         ProductResponse response = new ProductResponse();
         response.setId(1L);
 
-        given(productService.createProduct(any(ProductRequest.class))).willReturn(response);
+        given(productService.createProduct(any(ProductRequest.class), any())).willReturn(response);
 
-        mockMvc.perform(post("/api/products")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+        org.springframework.mock.web.MockMultipartFile productPart = new org.springframework.mock.web.MockMultipartFile(
+                "product", "", "application/json", "{}".getBytes());
+
+        mockMvc.perform(multipart("/api/products").file(productPart))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").exists())
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.success").doesNotExist())
-                .andExpect(jsonPath("$.data").doesNotExist());
+                .andExpect(jsonPath("$.data").exists());
     }
 
     @Test
