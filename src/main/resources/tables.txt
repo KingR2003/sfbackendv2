@@ -46,8 +46,7 @@ area\_name & Area / locality \\ \hline
 city & City \\ \hline
 state & State \\ \hline
 pincode & Postal code \\ \hline
-is\_default & Default address \\ \hline
-created\_at & Creation timestamp \\ \hline
+is\_default & Default address \\ \hlineaddress_type & Address type (home/office/other) \\ \hlinecreated\_at & Creation timestamp \\ \hline
 \end{longtable}
 
 % ================= AUTH =================

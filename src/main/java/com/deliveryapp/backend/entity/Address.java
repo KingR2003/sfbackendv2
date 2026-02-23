@@ -43,6 +43,9 @@ public class Address {
     @Column(name = "is_default")
     private Boolean isDefault;
 
+    @Column(name = "address_type")
+    private String addressType;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 }
