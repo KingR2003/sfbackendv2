@@ -12,6 +12,7 @@ import com.deliveryapp.backend.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -30,35 +31,21 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public ProductResponse createProduct(ProductRequest request,
-            org.springframework.web.multipart.MultipartFile imageFile) {
+    public ProductResponse createProduct(ProductRequest request, List<MultipartFile> images) {
         Product product = new Product();
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setCategoryId(request.getCategoryId());
         product.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
 
-        // Map images
+        // Map product-level images
         if (request.getImages() != null) {
             for (ProductImageDto imgDto : request.getImages()) {
                 ProductImage image = new ProductImage();
-                image.setImageUrl(imgDto.getImageUrl());
+                String url = resolveImageUrl(imgDto.getImageUrl(), images);
+                image.setImageUrl(url);
                 image.setProduct(product);
                 product.getImages().add(image);
-            }
-        }
-
-        // Upload and add main image if provided
-        if (imageFile != null && !imageFile.isEmpty()) {
-            try {
-                String imageUrl = s3Service.uploadFile(imageFile.getBytes(), imageFile.getOriginalFilename(),
-                        imageFile.getContentType());
-                ProductImage image = new ProductImage();
-                image.setImageUrl(imageUrl);
-                image.setProduct(product);
-                product.getImages().add(image);
-            } catch (java.io.IOException e) {
-                throw new RuntimeException("Failed to upload image", e);
             }
         }
 
@@ -82,7 +69,8 @@ public class ProductServiceImpl implements ProductService {
                 if (varDto.getImages() != null) {
                     for (ProductImageDto imgDto : varDto.getImages()) {
                         ProductImage image = new ProductImage();
-                        image.setImageUrl(imgDto.getImageUrl());
+                        String url = resolveImageUrl(imgDto.getImageUrl(), images);
+                        image.setImageUrl(url);
                         image.setProduct(product);
                         image.setProductVariant(variant);
                         variant.getImages().add(image);
@@ -95,6 +83,26 @@ public class ProductServiceImpl implements ProductService {
 
         Product saved = productRepository.save(product);
         return toResponse(saved);
+    }
+
+    private String resolveImageUrl(String imageUrl, List<MultipartFile> images) {
+        if (images == null || images.isEmpty() || imageUrl == null) {
+            return imageUrl;
+        }
+
+        // Check if imageUrl matches any original filename in the uploaded files
+        for (MultipartFile file : images) {
+            if (imageUrl.equals(file.getOriginalFilename())) {
+                try {
+                    return s3Service.uploadFile(file.getBytes(), file.getOriginalFilename(), file.getContentType());
+                } catch (java.io.IOException e) {
+                    throw new RuntimeException("Failed to upload image: " + file.getOriginalFilename(), e);
+                }
+            }
+        }
+
+        // If no match found, treat as literal URL
+        return imageUrl;
     }
 
     @Override
@@ -113,7 +121,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public ProductResponse updateProduct(Long id, ProductRequest request) {
+    public ProductResponse updateProduct(Long id, ProductRequest request, List<MultipartFile> images) {
         Optional<Product> optionalProduct = productRepository.findById(id);
         if (optionalProduct.isEmpty()) {
             return null;
@@ -132,7 +140,8 @@ public class ProductServiceImpl implements ProductService {
         if (request.getImages() != null) {
             for (ProductImageDto imgDto : request.getImages()) {
                 ProductImage image = new ProductImage();
-                image.setImageUrl(imgDto.getImageUrl());
+                String url = resolveImageUrl(imgDto.getImageUrl(), images);
+                image.setImageUrl(url);
                 image.setProduct(product);
                 product.getImages().add(image);
             }
@@ -159,7 +168,8 @@ public class ProductServiceImpl implements ProductService {
                 if (varDto.getImages() != null) {
                     for (ProductImageDto imgDto : varDto.getImages()) {
                         ProductImage image = new ProductImage();
-                        image.setImageUrl(imgDto.getImageUrl());
+                        String url = resolveImageUrl(imgDto.getImageUrl(), images);
+                        image.setImageUrl(url);
                         image.setProduct(product);
                         image.setProductVariant(variant);
                         variant.getImages().add(image);
