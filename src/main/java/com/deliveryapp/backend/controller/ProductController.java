@@ -28,17 +28,19 @@ public class ProductController {
     @Autowired
     private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-    @PostMapping(consumes = {"multipart/form-data"})
+    @PostMapping(consumes = { "multipart/form-data" })
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
             @RequestPart("product") String productStr,
-            @RequestPart(value = "image", required = false) MultipartFile image) {
+            @RequestPart(value = "image", required = false) List<MultipartFile> images) {
         try {
             ProductRequest request = objectMapper.readValue(productStr, ProductRequest.class);
-            ProductResponse createdProduct = productService.createProduct(request, image);
-            return new ResponseEntity<>(new ApiResponse<>(HttpStatus.CREATED.value(), "Product created successfully", createdProduct),
+            ProductResponse createdProduct = productService.createProduct(request, images);
+            return new ResponseEntity<>(
+                    new ApiResponse<>(HttpStatus.CREATED.value(), "Product created successfully", createdProduct),
                     HttpStatus.CREATED);
         } catch (IOException e) {
-             return new ResponseEntity<>(new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage(), null),
+            return new ResponseEntity<>(
+                    new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage(), null),
                     HttpStatus.BAD_REQUEST);
         }
     }
@@ -62,16 +64,25 @@ public class ProductController {
                 HttpStatus.OK);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = { "multipart/form-data" })
     public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(@PathVariable("id") Long id,
-            @RequestBody ProductRequest request) {
-        ProductResponse updated = productService.updateProduct(id, request);
-        if (updated != null) {
-            return new ResponseEntity<>(new ApiResponse<>(HttpStatus.OK.value(), "Product updated successfully"),
-                    HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), "Product not found", null),
-                    HttpStatus.NOT_FOUND);
+            @RequestPart("product") String productStr,
+            @RequestPart(value = "image", required = false) List<MultipartFile> images) {
+        try {
+            ProductRequest request = objectMapper.readValue(productStr, ProductRequest.class);
+            ProductResponse updatedProduct = productService.updateProduct(id, request, images);
+            if (updatedProduct != null) {
+                return new ResponseEntity<>(
+                        new ApiResponse<>(HttpStatus.OK.value(), "Product updated successfully", updatedProduct),
+                        HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), "Product not found", null),
+                        HttpStatus.NOT_FOUND);
+            }
+        } catch (IOException e) {
+            return new ResponseEntity<>(
+                    new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage(), null),
+                    HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -84,7 +95,7 @@ public class ProductController {
 
     @PostMapping("/{id}/upload-image")
     public ResponseEntity<ApiResponse<String>> uploadProductImage(@PathVariable("id") Long productId,
-                                                                   @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file) {
         try {
             if (file.isEmpty()) {
                 return new ResponseEntity<>(new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), "File is empty", null),
@@ -97,10 +108,12 @@ public class ProductController {
             // Save to database
             productService.addProductImage(productId, imageUrl);
 
-            return new ResponseEntity<>(new ApiResponse<>(HttpStatus.OK.value(), "Image uploaded successfully", imageUrl),
+            return new ResponseEntity<>(
+                    new ApiResponse<>(HttpStatus.OK.value(), "Image uploaded successfully", imageUrl),
                     HttpStatus.OK);
         } catch (IOException e) {
-            return new ResponseEntity<>(new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Failed to upload image", null),
+            return new ResponseEntity<>(
+                    new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Failed to upload image", null),
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

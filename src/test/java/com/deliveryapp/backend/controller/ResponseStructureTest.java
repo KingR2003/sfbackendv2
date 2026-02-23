@@ -2,6 +2,8 @@ package com.deliveryapp.backend.controller;
 
 import com.deliveryapp.backend.dto.ProductRequest;
 import com.deliveryapp.backend.dto.ProductResponse;
+import com.deliveryapp.backend.dto.ProductImageDto;
+import com.deliveryapp.backend.dto.ProductVariantDto;
 import com.deliveryapp.backend.entity.Category;
 import com.deliveryapp.backend.service.CategoryService;
 import com.deliveryapp.backend.service.ProductService;
@@ -42,6 +44,9 @@ public class ResponseStructureTest {
 
     @MockBean
     private ProductService productService;
+
+    @MockBean
+    private com.deliveryapp.backend.service.S3Service s3Service;
 
     @MockBean
     private CustomUserDetailsService customUserDetailsService;
@@ -125,5 +130,30 @@ public class ResponseStructureTest {
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.data").exists())
                 .andExpect(jsonPath("$.success").doesNotExist());
+    }
+
+    @Test
+    public void testGetProduct_WithVariantImages_ShouldIncludeVariantId() throws Exception {
+        ProductResponse response = new ProductResponse();
+        response.setId(1L);
+        response.setName("Test Product");
+
+        ProductVariantDto variant = new ProductVariantDto();
+        variant.setId(10L);
+        variant.setVariantName("Test Variant");
+
+        ProductImageDto image = new ProductImageDto();
+        image.setId(100L);
+        image.setImageUrl("http://example.com/image.jpg");
+        image.setProductVariantId(10L);
+
+        variant.setImages(java.util.List.of(image));
+        response.setVariants(java.util.List.of(variant));
+
+        given(productService.getProductById(1L)).willReturn(Optional.of(response));
+
+        mockMvc.perform(get("/api/products/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.variants[0].images[0].productVariantId").value(10L));
     }
 }
