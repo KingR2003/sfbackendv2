@@ -30,7 +30,8 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public ProductResponse createProduct(ProductRequest request, org.springframework.web.multipart.MultipartFile imageFile) {
+    public ProductResponse createProduct(ProductRequest request,
+            org.springframework.web.multipart.MultipartFile imageFile) {
         Product product = new Product();
         product.setName(request.getName());
         product.setDescription(request.getDescription());
@@ -50,7 +51,8 @@ public class ProductServiceImpl implements ProductService {
         // Upload and add main image if provided
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
-                String imageUrl = s3Service.uploadFile(imageFile.getBytes(), imageFile.getOriginalFilename(), imageFile.getContentType());
+                String imageUrl = s3Service.uploadFile(imageFile.getBytes(), imageFile.getOriginalFilename(),
+                        imageFile.getContentType());
                 ProductImage image = new ProductImage();
                 image.setImageUrl(imageUrl);
                 image.setProduct(product);
@@ -75,6 +77,18 @@ public class ProductServiceImpl implements ProductService {
                 variant.setCreatedAt(LocalDateTime.now());
                 variant.setUpdatedAt(LocalDateTime.now());
                 variant.setProduct(product);
+
+                // Map variant images
+                if (varDto.getImages() != null) {
+                    for (ProductImageDto imgDto : varDto.getImages()) {
+                        ProductImage image = new ProductImage();
+                        image.setImageUrl(imgDto.getImageUrl());
+                        image.setProduct(product);
+                        image.setProductVariant(variant);
+                        variant.getImages().add(image);
+                    }
+                }
+
                 product.getVariants().add(variant);
             }
         }
@@ -140,6 +154,18 @@ public class ProductServiceImpl implements ProductService {
                 variant.setCreatedAt(LocalDateTime.now());
                 variant.setUpdatedAt(LocalDateTime.now());
                 variant.setProduct(product);
+
+                // Map variant images
+                if (varDto.getImages() != null) {
+                    for (ProductImageDto imgDto : varDto.getImages()) {
+                        ProductImage image = new ProductImage();
+                        image.setImageUrl(imgDto.getImageUrl());
+                        image.setProduct(product);
+                        image.setProductVariant(variant);
+                        variant.getImages().add(image);
+                    }
+                }
+
                 product.getVariants().add(variant);
             }
         }
@@ -167,10 +193,13 @@ public class ProductServiceImpl implements ProductService {
         List<ProductImageDto> imageDtos = new ArrayList<>();
         if (product.getImages() != null) {
             for (ProductImage img : product.getImages()) {
-                ProductImageDto dto = new ProductImageDto();
-                dto.setId(img.getId());
-                dto.setImageUrl(img.getImageUrl());
-                imageDtos.add(dto);
+                // Only include generic images (not linked to a variant)
+                if (img.getProductVariant() == null) {
+                    ProductImageDto dto = new ProductImageDto();
+                    dto.setId(img.getId());
+                    dto.setImageUrl(img.getImageUrl());
+                    imageDtos.add(dto);
+                }
             }
         }
         response.setImages(imageDtos);
@@ -188,6 +217,20 @@ public class ProductServiceImpl implements ProductService {
                 dto.setStockQuantity(var.getStockQuantity());
                 dto.setAvailabilityStatus(var.getAvailabilityStatus());
                 dto.setIsActive(var.getIsActive());
+
+                // Map variant images
+                List<ProductImageDto> variantImageDtos = new ArrayList<>();
+                if (var.getImages() != null) {
+                    for (ProductImage img : var.getImages()) {
+                        ProductImageDto imgDto = new ProductImageDto();
+                        imgDto.setId(img.getId());
+                        imgDto.setImageUrl(img.getImageUrl());
+                        imgDto.setProductVariantId(var.getId());
+                        variantImageDtos.add(imgDto);
+                    }
+                }
+                dto.setImages(variantImageDtos);
+
                 variantDtos.add(dto);
             }
         }
