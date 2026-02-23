@@ -29,18 +29,18 @@ public class ProductController {
     private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @PostMapping(consumes = { "multipart/form-data" })
-    public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
+    public ResponseEntity<ApiResponse<Void>> createProduct(
             @RequestPart("product") String productStr,
             @RequestPart(value = "image", required = false) List<MultipartFile> images) {
         try {
             ProductRequest request = objectMapper.readValue(productStr, ProductRequest.class);
             ProductResponse createdProduct = productService.createProduct(request, images);
             return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.CREATED.value(), "Product created successfully", createdProduct),
+                    new ApiResponse<>(HttpStatus.CREATED.value(), "Product created successfully"),
                     HttpStatus.CREATED);
         } catch (IOException e) {
             return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage(), null),
+                    new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage()),
                     HttpStatus.BAD_REQUEST);
         }
     }
