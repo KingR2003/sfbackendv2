@@ -1,8 +1,8 @@
 package com.deliveryapp.backend.controller;
 
+import com.deliveryapp.backend.dto.AdminRegisterRequest;
 import com.deliveryapp.backend.dto.LoginRequest;
 import com.deliveryapp.backend.dto.LoginResponse;
-import com.deliveryapp.backend.dto.RegisterRequest;
 import com.deliveryapp.backend.dto.RegisterResponse;
 import com.deliveryapp.backend.dto.LoginErrorResponse;
 import com.deliveryapp.backend.entity.User;
@@ -26,12 +26,15 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
- * User (CUSTOMER) authentication endpoint.
- * Admins are explicitly blocked from logging in here.
+ * Admin authentication endpoint.
+ * Registration requires a secret key. Regular CUSTOMER accounts are blocked from logging in here.
  */
 @RestController
-@RequestMapping("/api/v1/auth")
-public class AuthController {
+@RequestMapping("/api/v1/admin/auth")
+public class AdminAuthController {
+
+    /** Hardcoded admin registration secret key. */
+    private static final String ADMIN_SECRET_KEY = "asd456";
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -52,7 +55,45 @@ public class AuthController {
     private ActiveTokenRepository activeTokenRepository;
 
     // ---------------------------------------------------------------
-    // POST /api/v1/auth/login  — CUSTOMER login only
+    // POST /api/v1/admin/auth/register  — ADMIN registration only
+    // ---------------------------------------------------------------
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody AdminRegisterRequest registerRequest) {
+        try {
+            // 1. Validate secret key — blocks unauthorised admin account creation
+            if (!ADMIN_SECRET_KEY.equals(registerRequest.getSecretKey())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new RegisterResponse(false, "Invalid admin secret key", 403));
+            }
+
+            // 2. Parameterised duplicate-email check (SQL-injection safe)
+            if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(new RegisterResponse(false, "Email already registered", 409));
+            }
+
+            // 3. Create admin user — role is always ADMIN regardless of request body
+            User newAdmin = new User();
+            newAdmin.setName(registerRequest.getName());
+            newAdmin.setEmail(registerRequest.getEmail());
+            newAdmin.setMobile(registerRequest.getMobile());
+            newAdmin.setPasswordHash(passwordEncoder.encode(registerRequest.getPassword()));
+            newAdmin.setRole("ADMIN");
+            newAdmin.setIsActive(true);
+
+            userRepository.save(newAdmin);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new RegisterResponse(true, "Admin registered successfully", 201));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new RegisterResponse(false, "An error occurred: " + e.getMessage(), 500));
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // POST /api/v1/admin/auth/login  — ADMIN login only
     // ---------------------------------------------------------------
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest,
@@ -75,11 +116,11 @@ public class AuthController {
 
             User user = userOpt.get();
 
-            // 3. Block admin accounts from using this endpoint
-            if ("ADMIN".equalsIgnoreCase(user.getRole())) {
+            // 3. Block CUSTOMER accounts from using this admin endpoint
+            if (!"ADMIN".equalsIgnoreCase(user.getRole())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new LoginErrorResponse(false,
-                                "Access denied: admin accounts cannot login here", 403));
+                                "Access denied: this endpoint is for admins only", 403));
             }
 
             // 4. Generate JWT with role embedded
@@ -88,7 +129,7 @@ public class AuthController {
             // 5. Persist token records
             persistToken(user, token, request);
 
-            return ResponseEntity.ok(new LoginResponse(token, "Login successful"));
+            return ResponseEntity.ok(new LoginResponse(token, "Admin login successful"));
 
         } catch (AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -96,38 +137,6 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new LoginErrorResponse(false, "An error occurred: " + e.getMessage(), 500));
-        }
-    }
-
-    // ---------------------------------------------------------------
-    // POST /api/v1/auth/register  — CUSTOMER registration only
-    // ---------------------------------------------------------------
-    @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {
-        try {
-            // Parameterised lookup — SQL-injection safe
-            if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
-                return ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body(new RegisterResponse(false, "Email already registered", 409));
-            }
-
-            User newUser = new User();
-            newUser.setName(registerRequest.getName());
-            newUser.setEmail(registerRequest.getEmail());
-            newUser.setMobile(registerRequest.getMobile());
-            newUser.setPasswordHash(passwordEncoder.encode(registerRequest.getPassword()));
-            // Role is always CUSTOMER — callers cannot override this
-            newUser.setRole("CUSTOMER");
-            newUser.setIsActive(true);
-
-            userRepository.save(newUser);
-
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new RegisterResponse(true, "User registered successfully", 201));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new RegisterResponse(false, "An error occurred: " + e.getMessage(), 500));
         }
     }
 

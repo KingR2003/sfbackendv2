@@ -36,9 +36,23 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**", "/h2-console/**", "/v3/api-docs/**", "/swagger-ui/**")
-                        .permitAll()
-                        .anyRequest().authenticated())
+                        // ── Public auth endpoints ──────────────────────────────────────────
+                        .requestMatchers(
+                                "/api/v1/auth/**",          // customer login + register
+                                "/api/v1/admin/auth/**",    // admin login + register (secret-key protected)
+                                "/h2-console/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**"
+                        ).permitAll()
+
+                        // ── Admin-only area ────────────────────────────────────────────────
+                        // All /api/v1/admin/** routes (except /auth above) require ADMIN role.
+                        // This covers the web-application dashboard and admin management APIs.
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+
+                        // ── Everything else requires authentication ────────────────────────
+                        .anyRequest().authenticated()
+                )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
