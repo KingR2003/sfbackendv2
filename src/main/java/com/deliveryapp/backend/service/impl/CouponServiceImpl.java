@@ -55,4 +55,52 @@ public class CouponServiceImpl implements CouponService {
 
         return coupon;
     }
+
+    @Override
+    public Coupon createCoupon(com.deliveryapp.backend.dto.CouponRequest request) {
+        Coupon coupon = new Coupon();
+        return updateCouponFromRequest(coupon, request);
+    }
+
+    @Override
+    public List<Coupon> getAllCoupons() {
+        return couponRepository.findAll();
+    }
+
+    @Override
+    public Coupon getCouponById(Long id) {
+        return couponRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Coupon not found with id: " + id));
+    }
+
+    @Override
+    public Coupon updateCoupon(Long id, com.deliveryapp.backend.dto.CouponRequest request) {
+        Coupon coupon = getCouponById(id);
+        return updateCouponFromRequest(coupon, request);
+    }
+
+    @Override
+    public void deleteCoupon(Long id) {
+        if (!couponRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Coupon not found with id: " + id);
+        }
+        couponRepository.deleteById(id);
+    }
+
+    private Coupon updateCouponFromRequest(Coupon coupon, com.deliveryapp.backend.dto.CouponRequest request) {
+        coupon.setCode(request.getCode());
+        coupon.setDiscountType(request.getDiscountType());
+        coupon.setDiscountValue(request.getDiscountValue());
+        coupon.setMinOrderAmount(request.getMinOrderAmount());
+        coupon.setMaxDiscountAmount(request.getMaxDiscountAmount());
+        coupon.setExpiryDate(request.getExpiryDate());
+        coupon.setUsageLimitPerUser(request.getUsageLimitPerUser());
+        coupon.setIsActive(request.getIsActive());
+
+        if (coupon.getCreatedAt() == null) {
+            coupon.setCreatedAt(LocalDateTime.now());
+        }
+
+        return couponRepository.save(coupon);
+    }
 }
