@@ -1,163 +1,105 @@
 package com.deliveryapp.backend.controller;
 
-import com.deliveryapp.backend.dto.LoginRequest;
-import com.deliveryapp.backend.dto.LoginResponse;
-import com.deliveryapp.backend.dto.RegisterRequest;
-import com.deliveryapp.backend.dto.RegisterResponse;
-import com.deliveryapp.backend.dto.LoginErrorResponse;
-import com.deliveryapp.backend.entity.User;
-import com.deliveryapp.backend.entity.Token;
-import com.deliveryapp.backend.entity.ActiveToken;
-import com.deliveryapp.backend.repository.UserRepository;
-import com.deliveryapp.backend.repository.TokenRepository;
-import com.deliveryapp.backend.repository.ActiveTokenRepository;
-import com.deliveryapp.backend.security.JwtUtil;
+import com.deliveryapp.backend.dto.OtpResponse;
+import com.deliveryapp.backend.dto.SendOtpRequest;
+import com.deliveryapp.backend.dto.VerifyOtpRequest;
+import com.deliveryapp.backend.exception.InvalidOtpException;
+import com.deliveryapp.backend.exception.OtpExpiredException;
+import com.deliveryapp.backend.exception.OtpRateLimitException;
+import com.deliveryapp.backend.exception.TooManyOtpAttemptsException;
+import com.deliveryapp.backend.service.OtpService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletRequest;
-import java.time.LocalDateTime;
-import java.util.Optional;
 
 /**
- * User (CUSTOMER) authentication endpoint.
- * Admins are explicitly blocked from logging in here.
+ * Customer (CUSTOMER role) authentication via mobile OTP.
+ *
+ * POST /api/v1/auth/send-otp   — generate & send 6-digit OTP via AWS SNS
+ * POST /api/v1/auth/verify-otp — verify OTP; returns JWT on success
+ *
+ * Admin authentication is handled by AdminAuthController (/api/v1/admin/auth/**).
  */
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
     @Autowired
-    private AuthenticationManager authenticationManager;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private TokenRepository tokenRepository;
-
-    @Autowired
-    private ActiveTokenRepository activeTokenRepository;
+    private OtpService otpService;
 
     // ---------------------------------------------------------------
-    // POST /api/v1/auth/login  — CUSTOMER login only
+    // POST /api/v1/auth/send-otp
     // ---------------------------------------------------------------
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest,
-                                   HttpServletRequest request) {
-        try {
-            // 1. Authenticate credentials via Spring Security
-            org.springframework.security.core.Authentication authentication =
-                    authenticationManager.authenticate(
-                            new UsernamePasswordAuthenticationToken(
-                                    loginRequest.getEmail(), loginRequest.getPassword()));
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            // 2. Load user from DB using parameterised repository (SQL-injection safe)
-            Optional<User> userOpt = userRepository.findByEmail(loginRequest.getEmail());
-            if (userOpt.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new LoginErrorResponse(false, "User not found", 401));
-            }
-
-            User user = userOpt.get();
-
-            // 3. Block admin accounts from using this endpoint
-            if ("ADMIN".equalsIgnoreCase(user.getRole())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new LoginErrorResponse(false,
-                                "Access denied: admin accounts cannot login here", 403));
-            }
-
-            // 4. Generate JWT with role embedded
-            String token = jwtUtil.generateToken(loginRequest.getEmail(), user.getRole());
-
-            // 5. Persist token records
-            persistToken(user, token, request);
-
-            return ResponseEntity.ok(new LoginResponse(token, "Login successful"));
-
-        } catch (AuthenticationException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new LoginErrorResponse(false, "Invalid email or password", 401));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new LoginErrorResponse(false, "An error occurred: " + e.getMessage(), 500));
-        }
+    /**
+     * Accepts a mobile number in E.164 format, generates a 6-digit OTP,
+     * stores it with a 5-minute expiry, and dispatches it via AWS SNS SMS.
+     * The OTP is deliberately NOT returned in the response.
+     */
+    @PostMapping("/send-otp")
+    public ResponseEntity<OtpResponse> sendOtp(@Valid @RequestBody SendOtpRequest request) {
+        return sendOtpInternal(request);
     }
 
-    // ---------------------------------------------------------------
-    // POST /api/v1/auth/register  — CUSTOMER registration only
-    // ---------------------------------------------------------------
+    /**
+     * Alias for send-otp — accepts mobile number and dispatches OTP via SNS.
+     * Use this as the entry point for new customer registration / first-time login.
+     */
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {
+    public ResponseEntity<OtpResponse> register(@Valid @RequestBody SendOtpRequest request) {
+        return sendOtpInternal(request);
+    }
+
+    private ResponseEntity<OtpResponse> sendOtpInternal(SendOtpRequest request) {
         try {
-            // Parameterised lookup — SQL-injection safe
-            if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
-                return ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body(new RegisterResponse(false, "Email already registered", 409));
-            }
+            otpService.sendOtp(request.getMobileNumber());
+            return ResponseEntity.ok(
+                    new OtpResponse(true, "OTP sent successfully to " + request.getMobileNumber(), 200));
 
-            User newUser = new User();
-            newUser.setName(registerRequest.getName());
-            newUser.setEmail(registerRequest.getEmail());
-            newUser.setMobile(registerRequest.getMobile());
-            newUser.setPasswordHash(passwordEncoder.encode(registerRequest.getPassword()));
-            // Role is always CUSTOMER — callers cannot override this
-            newUser.setRole("CUSTOMER");
-            newUser.setIsActive(true);
-
-            userRepository.save(newUser);
-
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new RegisterResponse(true, "User registered successfully", 201));
+        } catch (OtpRateLimitException e) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(new OtpResponse(false, e.getMessage(), 429));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new RegisterResponse(false, "An error occurred: " + e.getMessage(), 500));
+                    .body(new OtpResponse(false, "Failed to send OTP: " + e.getMessage(), 500));
         }
     }
 
     // ---------------------------------------------------------------
-    // Helpers
+    // POST /api/v1/auth/verify-otp
     // ---------------------------------------------------------------
-    private void persistToken(User user, String token, HttpServletRequest request) {
-        Token tokenEntity = new Token();
-        tokenEntity.setUserId(user.getId());
-        tokenEntity.setAccessToken(token);
-        tokenEntity.setIpAddress(getClientIpAddress(request));
-        tokenEntity.setIssuedAt(LocalDateTime.now());
-        tokenEntity.setExpiresAt(LocalDateTime.now().plusHours(24));
-        tokenEntity.setCreatedAt(LocalDateTime.now());
-        Token savedToken = tokenRepository.save(tokenEntity);
 
-        ActiveToken activeToken = new ActiveToken();
-        activeToken.setUserId(user.getId());
-        activeToken.setTokenId(savedToken.getId());
-        activeToken.setIsActive(true);
-        activeToken.setLastUsedAt(LocalDateTime.now());
-        activeToken.setCreatedAt(LocalDateTime.now());
-        activeTokenRepository.save(activeToken);
-    }
+    /**
+     * Accepts mobile number + OTP code. On success:
+     * - Validates OTP (expiry, attempt count, code match)
+     * - Finds or auto-creates a CUSTOMER user for the mobile number
+     * - Returns a signed JWT token
+     */
+    @PostMapping("/verify-otp")
+    public ResponseEntity<OtpResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        try {
+            String token = otpService.verifyOtpAndLogin(request.getMobileNumber(), request.getOtpCode());
+            return ResponseEntity.ok(
+                    new OtpResponse(true, "Login successful", 200, token));
 
-    private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+        } catch (OtpExpiredException e) {
+            return ResponseEntity.status(HttpStatus.GONE)
+                    .body(new OtpResponse(false, e.getMessage(), 410));
+
+        } catch (TooManyOtpAttemptsException e) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(new OtpResponse(false, e.getMessage(), 429));
+
+        } catch (InvalidOtpException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new OtpResponse(false, e.getMessage(), 400));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new OtpResponse(false, "Verification failed: " + e.getMessage(), 500));
         }
-        return request.getRemoteAddr();
     }
 }
