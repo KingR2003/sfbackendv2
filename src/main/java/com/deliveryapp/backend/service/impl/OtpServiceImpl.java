@@ -1,5 +1,6 @@
 package com.deliveryapp.backend.service.impl;
 
+import com.deliveryapp.backend.dto.LoginResult;
 import com.deliveryapp.backend.entity.ActiveToken;
 import com.deliveryapp.backend.entity.MobileOtp;
 import com.deliveryapp.backend.entity.Token;
@@ -28,17 +29,26 @@ public class OtpServiceImpl implements OtpService {
 
     private static final int OTP_EXPIRY_MINUTES = 5;
     private static final int MAX_ATTEMPTS = 3;
-    /** Minimum seconds that must pass before a new OTP can be sent to the same number */
+    /**
+     * Minimum seconds that must pass before a new OTP can be sent to the same
+     * number
+     */
     private static final int RESEND_COOLDOWN_SECONDS = 60;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
-    @Autowired private MobileOtpRepository mobileOtpRepository;
-    @Autowired private UserRepository userRepository;
-    @Autowired private TokenRepository tokenRepository;
-    @Autowired private ActiveTokenRepository activeTokenRepository;
-    @Autowired private SnsService snsService;
-    @Autowired private JwtUtil jwtUtil;
+    @Autowired
+    private MobileOtpRepository mobileOtpRepository;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private TokenRepository tokenRepository;
+    @Autowired
+    private ActiveTokenRepository activeTokenRepository;
+    @Autowired
+    private SnsService snsService;
+    @Autowired
+    private JwtUtil jwtUtil;
 
     // ---------------------------------------------------------------
     // Send OTP
@@ -46,9 +56,10 @@ public class OtpServiceImpl implements OtpService {
     @Override
     @Transactional
     public void sendOtp(String mobileNumber) {
-        // Rate-limiting: reject if a non-expired OTP was sent within the cooldown window
-        Optional<MobileOtp> recent =
-                mobileOtpRepository.findTopByMobileNumberAndVerifiedFalseOrderByCreatedAtDesc(mobileNumber);
+        // Rate-limiting: reject if a non-expired OTP was sent within the cooldown
+        // window
+        Optional<MobileOtp> recent = mobileOtpRepository
+                .findTopByMobileNumberAndVerifiedFalseOrderByCreatedAtDesc(mobileNumber);
 
         if (recent.isPresent()) {
             MobileOtp existing = recent.get();
@@ -58,7 +69,7 @@ public class OtpServiceImpl implements OtpService {
             if (stillWithinCooldown && existing.getExpiresAt().isAfter(LocalDateTime.now())) {
                 throw new OtpRateLimitException(
                         "Please wait " + RESEND_COOLDOWN_SECONDS +
-                        " seconds before requesting a new OTP.");
+                                " seconds before requesting a new OTP.");
             }
         }
 
@@ -85,11 +96,12 @@ public class OtpServiceImpl implements OtpService {
     // ---------------------------------------------------------------
     @Override
     @Transactional
-    public String verifyOtpAndLogin(String mobileNumber, String otpCode) {
+    public LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode) {
         // Load the most recent OTP for this number
         MobileOtp otp = mobileOtpRepository
                 .findTopByMobileNumberOrderByCreatedAtDesc(mobileNumber)
-                .orElseThrow(() -> new InvalidOtpException("No OTP found for this mobile number. Please request a new OTP."));
+                .orElseThrow(() -> new InvalidOtpException(
+                        "No OTP found for this mobile number. Please request a new OTP."));
 
         // Check if already verified (replay attack prevention)
         if (Boolean.TRUE.equals(otp.getVerified())) {
@@ -116,7 +128,8 @@ public class OtpServiceImpl implements OtpService {
             mobileOtpRepository.save(otp); // persist incremented attempt count
             int remaining = MAX_ATTEMPTS - otp.getAttemptCount();
             throw new InvalidOtpException(
-                    "Invalid OTP. " + (remaining > 0 ? remaining + " attempt(s) remaining." : "No attempts remaining."));
+                    "Invalid OTP. "
+                            + (remaining > 0 ? remaining + " attempt(s) remaining." : "No attempts remaining."));
         }
 
         // Mark as verified
@@ -124,7 +137,10 @@ public class OtpServiceImpl implements OtpService {
         mobileOtpRepository.save(otp);
 
         // Find or create CUSTOMER user
-        User user = userRepository.findByMobile(mobileNumber).orElseGet(() -> {
+        Optional<User> existingUser = userRepository.findByMobile(mobileNumber);
+        boolean isNewUser = existingUser.isEmpty();
+
+        User user = existingUser.orElseGet(() -> {
             User newUser = new User();
             newUser.setMobile(mobileNumber);
             newUser.setName("Customer"); // default name; can be updated via profile API
@@ -139,7 +155,7 @@ public class OtpServiceImpl implements OtpService {
         // Persist token records (same pattern as password-based login)
         persistToken(user, jwtToken);
 
-        return jwtToken;
+        return new LoginResult(jwtToken, isNewUser);
     }
 
     // ---------------------------------------------------------------

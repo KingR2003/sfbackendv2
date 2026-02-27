@@ -1,5 +1,7 @@
 package com.deliveryapp.backend.service;
 
+import com.deliveryapp.backend.dto.LoginResult;
+
 /**
  * Business logic for mobile OTP generation, storage, and verification.
  */
@@ -18,7 +20,7 @@ public interface OtpService {
      *
      * @param mobileNumber E.164 formatted mobile number
      * @param otpCode      6-digit OTP supplied by the user
-     * @return JWT access token
+     * @return LoginResult containing JWT token and isNewUser flag
      */
-    String verifyOtpAndLogin(String mobileNumber, String otpCode);
+    LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode);
 }

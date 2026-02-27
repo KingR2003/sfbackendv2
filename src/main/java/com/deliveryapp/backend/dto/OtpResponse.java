@@ -20,6 +20,9 @@ public class OtpResponse {
     /** JWT token — only present after successful OTP verification */
     private String token;
 
+    /** Flag to indicate if the user is logging in for the first time */
+    private Boolean isNewUser;
+
     /** Constructor for send-otp or error responses (no token) */
     public OtpResponse(boolean success, String message, int statusCode) {
         this.success = success;

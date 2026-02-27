@@ -1,5 +1,6 @@
 package com.deliveryapp.backend.controller;
 
+import com.deliveryapp.backend.dto.LoginResult;
 import com.deliveryapp.backend.dto.OtpResponse;
 import com.deliveryapp.backend.dto.SendOtpRequest;
 import com.deliveryapp.backend.dto.VerifyOtpRequest;
@@ -17,10 +18,11 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Customer (CUSTOMER role) authentication via mobile OTP.
  *
- * POST /api/v1/auth/send-otp   — generate & send 6-digit OTP via AWS SNS
+ * POST /api/v1/auth/send-otp — generate & send 6-digit OTP via AWS SNS
  * POST /api/v1/auth/verify-otp — verify OTP; returns JWT on success
  *
- * Admin authentication is handled by AdminAuthController (/api/v1/admin/auth/**).
+ * Admin authentication is handled by AdminAuthController
+ * (/api/v1/admin/auth/**).
  */
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -81,9 +83,9 @@ public class AuthController {
     @PostMapping("/verify-otp")
     public ResponseEntity<OtpResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
         try {
-            String token = otpService.verifyOtpAndLogin(request.getMobileNumber(), request.getOtpCode());
+            LoginResult result = otpService.verifyOtpAndLogin(request.getMobileNumber(), request.getOtpCode());
             return ResponseEntity.ok(
-                    new OtpResponse(true, "Login successful", 200, token));
+                    new OtpResponse(true, "Login successful", 200, result.getToken(), result.isNewUser()));
 
         } catch (OtpExpiredException e) {
             return ResponseEntity.status(HttpStatus.GONE)
