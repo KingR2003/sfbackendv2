@@ -503,6 +503,80 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Increment Item in Cart",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{Token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cart/increment/:variantId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cart",
+                "increment",
+                ":variantId"
+              ],
+              "variable": [
+                {
+                  "key": "variantId",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Decrement Item in Cart",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{Token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cart/decrement/:variantId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cart",
+                "decrement",
+                ":variantId"
+              ],
+              "variable": [
+                {
+                  "key": "variantId",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },

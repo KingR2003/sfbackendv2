@@ -52,6 +52,20 @@ public class CartController {
         return ResponseEntity.ok(new ApiResponse<>(200, "Cart cleared successfully"));
     }
 
+    @PostMapping("/increment/{variantId}")
+    public ResponseEntity<ApiResponse<String>> incrementQuantity(@PathVariable Long variantId) {
+        Long userId = getAuthenticatedUserId();
+        cartService.incrementQuantity(userId, variantId);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Item quantity incremented"));
+    }
+
+    @PostMapping("/decrement/{variantId}")
+    public ResponseEntity<ApiResponse<String>> decrementQuantity(@PathVariable Long variantId) {
+        Long userId = getAuthenticatedUserId();
+        cartService.decrementQuantity(userId, variantId);
+        return ResponseEntity.ok(new ApiResponse<>(200, "Item quantity decremented"));
+    }
+
     private Long getAuthenticatedUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {

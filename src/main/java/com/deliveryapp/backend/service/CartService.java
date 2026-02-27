@@ -11,4 +11,8 @@ public interface CartService {
     void removeFromCart(Long userId, Long variantId);
 
     void clearCart(Long userId);
+
+    void incrementQuantity(Long userId, Long variantId);
+
+    void decrementQuantity(Long userId, Long variantId);
 }

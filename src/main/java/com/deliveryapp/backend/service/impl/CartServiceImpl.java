@@ -92,4 +92,26 @@ public class CartServiceImpl implements CartService {
                 subtotal,
                 imageUrl);
     }
+
+    @Override
+    @Transactional
+    public void incrementQuantity(Long userId, Long variantId) {
+        CartItem cartItem = cartRepository.findByUserIdAndVariantId(userId, variantId)
+                .orElse(new CartItem(null, userId, variantId, 0));
+        cartItem.setQuantity(cartItem.getQuantity() + 1);
+        cartRepository.save(cartItem);
+    }
+
+    @Override
+    @Transactional
+    public void decrementQuantity(Long userId, Long variantId) {
+        cartRepository.findByUserIdAndVariantId(userId, variantId).ifPresent(cartItem -> {
+            if (cartItem.getQuantity() > 1) {
+                cartItem.setQuantity(cartItem.getQuantity() - 1);
+                cartRepository.save(cartItem);
+            } else {
+                cartRepository.delete(cartItem);
+            }
+        });
+    }
 }
