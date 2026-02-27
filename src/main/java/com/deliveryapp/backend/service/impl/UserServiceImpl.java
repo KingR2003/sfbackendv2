@@ -42,4 +42,18 @@ public class UserServiceImpl implements UserService {
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
     }
+
+    @Override
+    public User updateProfile(String identifier, com.deliveryapp.backend.dto.UpdateProfileRequest request) {
+        // Try finding by mobile (primary for customers) then by email
+        User user = userRepository.findByMobile(identifier)
+                .orElseGet(() -> userRepository.findByEmail(identifier)
+                        .orElseThrow(() -> new RuntimeException("User not found with identifier: " + identifier)));
+
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setUpdatedAt(java.time.LocalDateTime.now());
+
+        return userRepository.save(user);
+    }
 }

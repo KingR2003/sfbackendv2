@@ -1,11 +1,14 @@
 package com.deliveryapp.backend.controller;
 
 import com.deliveryapp.backend.dto.ApiResponse;
+import com.deliveryapp.backend.dto.UpdateProfileRequest;
 import com.deliveryapp.backend.entity.User;
 import com.deliveryapp.backend.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
@@ -30,6 +33,20 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(false, "An error occurred: " + e.getMessage(), null));
+        }
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(@Valid @RequestBody UpdateProfileRequest request,
+            Authentication authentication) {
+        try {
+            // identifier is either mobile (for customers) or email (for admins)
+            String identifier = authentication.getName();
+            User updatedUser = userService.updateProfile(identifier, request);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Profile updated successfully", updatedUser));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "Failed to update profile: " + e.getMessage(), null));
         }
     }
 }
