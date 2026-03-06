@@ -39,9 +39,21 @@ public class ProductServiceTest {
 
         when(categoryRepository.existsById(999L)).thenReturn(false);
 
-        assertThrows(ResourceNotFoundException.class, () -> {
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> {
             productService.createProduct(request, null);
         });
+        org.junit.jupiter.api.Assertions.assertEquals("Category is required and must be valid", exception.getMessage());
+    }
+
+    @Test
+    public void testCreateProduct_NullCategory_ShouldThrowException() {
+        ProductRequest request = new ProductRequest();
+        request.setCategoryId(null);
+
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> {
+            productService.createProduct(request, null);
+        });
+        org.junit.jupiter.api.Assertions.assertEquals("Category is required and must be valid", exception.getMessage());
     }
 
     @Test

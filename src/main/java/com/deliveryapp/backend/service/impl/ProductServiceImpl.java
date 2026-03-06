@@ -37,10 +37,8 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductResponse createProduct(ProductRequest request, List<MultipartFile> images) {
-        if (request.getCategoryId() != null) {
-            if (!categoryRepository.existsById(request.getCategoryId())) {
-                throw new ResourceNotFoundException("Category not found with id: " + request.getCategoryId());
-            }
+        if (request.getCategoryId() == null || !categoryRepository.existsById(request.getCategoryId())) {
+            throw new ResourceNotFoundException("Category is required and must be valid");
         }
 
         Product product = new Product();
@@ -138,10 +136,8 @@ public class ProductServiceImpl implements ProductService {
             return null;
         }
 
-        if (request.getCategoryId() != null) {
-            if (!categoryRepository.existsById(request.getCategoryId())) {
-                throw new ResourceNotFoundException("Category not found with id: " + request.getCategoryId());
-            }
+        if (request.getCategoryId() == null || !categoryRepository.existsById(request.getCategoryId())) {
+            throw new ResourceNotFoundException("Category is required and must be valid");
         }
 
         Product product = optionalProduct.get();
