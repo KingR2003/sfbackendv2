@@ -7,6 +7,8 @@ import com.deliveryapp.backend.dto.ProductVariantDto;
 import com.deliveryapp.backend.entity.Product;
 import com.deliveryapp.backend.entity.ProductImage;
 import com.deliveryapp.backend.entity.ProductVariant;
+import com.deliveryapp.backend.exception.ResourceNotFoundException;
+import com.deliveryapp.backend.repository.CategoryRepository;
 import com.deliveryapp.backend.repository.ProductRepository;
 import com.deliveryapp.backend.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,11 +29,20 @@ public class ProductServiceImpl implements ProductService {
     private ProductRepository productRepository;
 
     @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
     private com.deliveryapp.backend.service.S3Service s3Service;
 
     @Override
     @Transactional
     public ProductResponse createProduct(ProductRequest request, List<MultipartFile> images) {
+        if (request.getCategoryId() != null) {
+            if (!categoryRepository.existsById(request.getCategoryId())) {
+                throw new ResourceNotFoundException("Category not found with id: " + request.getCategoryId());
+            }
+        }
+
         Product product = new Product();
         product.setName(request.getName());
         product.setDescription(request.getDescription());
@@ -125,6 +136,12 @@ public class ProductServiceImpl implements ProductService {
         Optional<Product> optionalProduct = productRepository.findById(id);
         if (optionalProduct.isEmpty()) {
             return null;
+        }
+
+        if (request.getCategoryId() != null) {
+            if (!categoryRepository.existsById(request.getCategoryId())) {
+                throw new ResourceNotFoundException("Category not found with id: " + request.getCategoryId());
+            }
         }
 
         Product product = optionalProduct.get();

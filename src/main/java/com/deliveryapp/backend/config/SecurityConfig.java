@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/v1/auth/**", // customer login + register
                                 "/api/v1/admin/auth/**", // admin login + register (secret-key protected)
+                                "/api/v1/health",
                                 "/h2-console/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**")

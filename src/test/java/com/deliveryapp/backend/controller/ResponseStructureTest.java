@@ -11,6 +11,7 @@ import com.deliveryapp.backend.security.CustomUserDetailsService;
 import com.deliveryapp.backend.security.JwtAuthenticationEntryPoint;
 import com.deliveryapp.backend.security.JwtAuthenticationFilter;
 import com.deliveryapp.backend.repository.UserRepository;
+import com.deliveryapp.backend.exception.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -114,7 +115,7 @@ public class ResponseStructureTest {
                 .andExpect(jsonPath("$.status").exists())
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.success").doesNotExist())
-                .andExpect(jsonPath("$.data").exists());
+                .andExpect(jsonPath("$.data").doesNotExist());
     }
 
     @Test
@@ -155,5 +156,17 @@ public class ResponseStructureTest {
         mockMvc.perform(get("/api/products/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.variants[0].images[0].productVariantId").value(10L));
+    }
+
+    @Test
+    public void testCreateProduct_CategoryNotFound_ShouldReturn404() throws Exception {
+        given(productService.createProduct(any(ProductRequest.class), any()))
+                .willThrow(new ResourceNotFoundException("Category not found with id: 999"));
+
+        org.springframework.mock.web.MockMultipartFile productPart = new org.springframework.mock.web.MockMultipartFile(
+                "product", "", "application/json", "{\"categoryId\": 999}".getBytes());
+
+        mockMvc.perform(multipart("/api/products").file(productPart))
+                .andExpect(status().isNotFound());
     }
 }
