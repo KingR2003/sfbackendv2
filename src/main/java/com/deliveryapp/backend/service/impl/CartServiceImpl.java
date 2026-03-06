@@ -47,9 +47,13 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public void addToCart(Long userId, CartItemRequest request) {
-        productVariantRepository.findById(request.getVariantId())
+        ProductVariant variant = productVariantRepository.findById(request.getVariantId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Product Variant not found with id: " + request.getVariantId()));
+
+        if (variant.getStockQuantity() < request.getQuantity()) {
+            throw new IllegalArgumentException("Insufficient stock for variant: " + variant.getVariantName());
+        }
 
         CartItem cartItem = cartRepository.findByUserIdAndVariantId(userId, request.getVariantId())
                 .orElse(new CartItem(null, userId, request.getVariantId(), 0));
@@ -83,6 +87,8 @@ public class CartServiceImpl implements CartService {
             imageUrl = variant.getProduct().getImages().get(0).getImageUrl();
         }
 
+        boolean isAvailable = variant.getStockQuantity() > 0 && variant.getStockQuantity() >= item.getQuantity();
+
         return new CartItemDto(
                 item.getVariantId(),
                 variant.getProduct().getName(),
@@ -90,6 +96,7 @@ public class CartServiceImpl implements CartService {
                 item.getQuantity(),
                 variant.getPrice(),
                 subtotal,
+                isAvailable,
                 imageUrl);
     }
 

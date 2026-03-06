@@ -40,6 +40,25 @@ public class CouponServiceImpl implements CouponService {
             throw new IllegalArgumentException("Coupon " + code + " has expired");
         }
 
+        // Day of week check
+        if (coupon.getDaysOfWeek() != null && !coupon.getDaysOfWeek().isEmpty()) {
+            String currentDay = java.time.LocalDate.now().getDayOfWeek().name();
+            if (!coupon.getDaysOfWeek().toUpperCase().contains(currentDay)) {
+                throw new IllegalArgumentException("Coupon " + code + " is not available on " + currentDay);
+            }
+        }
+
+        // Time check
+        if (coupon.getStartTime() != null || coupon.getEndTime() != null) {
+            java.time.LocalTime now = java.time.LocalTime.now();
+            if (coupon.getStartTime() != null && now.isBefore(coupon.getStartTime())) {
+                throw new IllegalArgumentException("Coupon " + code + " is not yet available for today");
+            }
+            if (coupon.getEndTime() != null && now.isAfter(coupon.getEndTime())) {
+                throw new IllegalArgumentException("Coupon " + code + " has already expired for today");
+            }
+        }
+
         if (coupon.getMinOrderAmount() != null && orderAmount.compareTo(coupon.getMinOrderAmount()) < 0) {
             throw new IllegalArgumentException(
                     "Minimum order amount for coupon " + code + " is " + coupon.getMinOrderAmount());
@@ -87,6 +106,11 @@ public class CouponServiceImpl implements CouponService {
         couponRepository.deleteById(id);
     }
 
+    @Override
+    public java.util.Optional<Coupon> findByCode(String code) {
+        return couponRepository.findByCode(code);
+    }
+
     private Coupon updateCouponFromRequest(Coupon coupon, com.deliveryapp.backend.dto.CouponRequest request) {
         coupon.setCode(request.getCode());
         coupon.setDiscountType(request.getDiscountType());
@@ -95,6 +119,9 @@ public class CouponServiceImpl implements CouponService {
         coupon.setMaxDiscountAmount(request.getMaxDiscountAmount());
         coupon.setExpiryDate(request.getExpiryDate());
         coupon.setUsageLimitPerUser(request.getUsageLimitPerUser());
+        coupon.setDaysOfWeek(request.getDaysOfWeek());
+        coupon.setStartTime(request.getStartTime());
+        coupon.setEndTime(request.getEndTime());
         coupon.setIsActive(request.getIsActive());
 
         if (coupon.getCreatedAt() == null) {

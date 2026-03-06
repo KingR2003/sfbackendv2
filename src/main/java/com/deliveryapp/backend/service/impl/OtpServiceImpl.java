@@ -145,7 +145,7 @@ public class OtpServiceImpl implements OtpService {
             newUser.setMobile(mobileNumber);
             newUser.setName("Customer"); // default name; can be updated via profile API
             newUser.setRole("CUSTOMER");
-            newUser.setIsActive(true);
+            newUser.setActive(true);
             return userRepository.save(newUser);
         });
 

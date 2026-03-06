@@ -9,8 +9,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -21,32 +24,56 @@ public class UserController {
     private UserService userService;
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getUserById(@PathVariable Long id) {
-        try {
-            Optional<User> user = userService.getUserById(id);
-            if (user.isPresent()) {
-                return ResponseEntity.ok(user.get());
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new ApiResponse<>(false, "User not found", null));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse<>(false, "An error occurred: " + e.getMessage(), null));
+    public ResponseEntity<Object> getUserById(@PathVariable Long id) {
+        Optional<User> userOpt = userService.getUserById(id);
+        if (userOpt.isPresent()) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", 200);
+            response.put("message", "User found");
+            response.put("user", userOpt.get());
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse(404, "User not found"));
+        }
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<Object> getMyProfile() {
+        Long userId = getAuthenticatedUserId();
+        Optional<User> userOpt = userService.getUserById(userId);
+        if (userOpt.isPresent()) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", 200);
+            response.put("message", "Profile retrieved successfully");
+            response.put("user", userOpt.get());
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse(404, "Profile not found"));
         }
     }
 
     @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(@Valid @RequestBody UpdateProfileRequest request,
-            Authentication authentication) {
-        try {
-            // identifier is either mobile (for customers) or email (for admins)
-            String identifier = authentication.getName();
-            User updatedUser = userService.updateProfile(identifier, request);
-            return ResponseEntity.ok(new ApiResponse<>(true, "Profile updated successfully", updatedUser));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse<>(false, "Failed to update profile: " + e.getMessage(), null));
+    public ResponseEntity<Object> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String identifier = authentication.getName();
+        User updated = userService.updateProfile(identifier, request);
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", 200);
+        response.put("message", "Profile updated successfully");
+        response.put("user", updated);
+        return ResponseEntity.ok(response);
+    }
+
+    private Long getAuthenticatedUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            return ((User) authentication.getPrincipal()).getId();
         }
+        // This should ideally not happen if security is configured correctly
+        // Or throw an appropriate exception if user is not authenticated or principal
+        // is not a User object
+        throw new IllegalStateException("Authenticated user ID not found.");
     }
 }

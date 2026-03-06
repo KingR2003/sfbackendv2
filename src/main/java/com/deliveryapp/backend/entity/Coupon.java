@@ -40,6 +40,15 @@ public class Coupon {
     @Column(name = "usage_limit_per_user")
     private Integer usageLimitPerUser;
 
+    @Column(name = "days_of_week")
+    private String daysOfWeek; // e.g., "MONDAY,TUESDAY"
+
+    @Column(name = "start_time")
+    private java.time.LocalTime startTime;
+
+    @Column(name = "end_time")
+    private java.time.LocalTime endTime;
+
     @Column(name = "is_active")
     private Boolean isActive;
 

@@ -33,5 +33,9 @@ public class CouponRequest {
 
     private Integer usageLimitPerUser;
 
+    private String daysOfWeek;
+    private java.time.LocalTime startTime;
+    private java.time.LocalTime endTime;
+
     private Boolean isActive = true;
 }

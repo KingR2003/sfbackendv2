@@ -29,76 +29,85 @@ public class ProductController {
     private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @PostMapping(consumes = { "multipart/form-data" })
-    public ResponseEntity<ApiResponse<Void>> createProduct(
+    public ResponseEntity<ApiResponse> createProduct(
             @RequestPart("product") String productStr,
             @RequestPart(value = "image", required = false) List<MultipartFile> images) {
         try {
             ProductRequest request = objectMapper.readValue(productStr, ProductRequest.class);
-            ProductResponse createdProduct = productService.createProduct(request, images);
+            productService.createProduct(request, images);
             return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.CREATED.value(), "Product created successfully"),
+                    new ApiResponse(HttpStatus.CREATED.value(), "Product created successfully"),
                     HttpStatus.CREATED);
         } catch (IOException e) {
             return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage()),
+                    new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage()),
                     HttpStatus.BAD_REQUEST);
         }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable("id") Long id) {
+    public ResponseEntity<Object> getProductById(@PathVariable("id") Long id) {
         Optional<ProductResponse> product = productService.getProductById(id);
-        return product
-                .map(value -> new ResponseEntity<>(new ApiResponse<>(HttpStatus.OK.value(), "Product found", value),
-                        HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(
-                        new ApiResponse<>(HttpStatus.NOT_FOUND.value(), "Product not found", null),
-                        HttpStatus.NOT_FOUND));
+        if (product.isPresent()) {
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("status", HttpStatus.OK.value());
+            response.put("message", "Product found");
+            response.put("product", product.get());
+            return ResponseEntity.ok(response);
+        } else {
+            return new ResponseEntity<>(
+                    new ApiResponse(HttpStatus.NOT_FOUND.value(), "Product not found"),
+                    HttpStatus.NOT_FOUND);
+        }
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ProductResponse>>> getAllProducts() {
+    public ResponseEntity<Object> getAllProducts() {
         List<ProductResponse> products = productService.getAllProducts();
-        return new ResponseEntity<>(
-                new ApiResponse<>(HttpStatus.OK.value(), "Products retrieved successfully", products),
-                HttpStatus.OK);
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("status", HttpStatus.OK.value());
+        response.put("message", "Products retrieved successfully");
+        response.put("products", products);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping(value = "/{id}", consumes = { "multipart/form-data" })
-    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(@PathVariable("id") Long id,
+    public ResponseEntity<Object> updateProduct(@PathVariable("id") Long id,
             @RequestPart("product") String productStr,
             @RequestPart(value = "image", required = false) List<MultipartFile> images) {
         try {
             ProductRequest request = objectMapper.readValue(productStr, ProductRequest.class);
             ProductResponse updatedProduct = productService.updateProduct(id, request, images);
             if (updatedProduct != null) {
-                return new ResponseEntity<>(
-                        new ApiResponse<>(HttpStatus.OK.value(), "Product updated successfully", updatedProduct),
-                        HttpStatus.OK);
+                java.util.Map<String, Object> response = new java.util.HashMap<>();
+                response.put("status", HttpStatus.OK.value());
+                response.put("message", "Product updated successfully");
+                response.put("product", updatedProduct);
+                return ResponseEntity.ok(response);
             } else {
-                return new ResponseEntity<>(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), "Product not found", null),
+                return new ResponseEntity<>(new ApiResponse(HttpStatus.NOT_FOUND.value(), "Product not found"),
                         HttpStatus.NOT_FOUND);
             }
         } catch (IOException e) {
             return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage(), null),
+                    new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage()),
                     HttpStatus.BAD_REQUEST);
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable("id") Long id) {
+    public ResponseEntity<ApiResponse> deleteProduct(@PathVariable("id") Long id) {
         productService.deleteProduct(id);
-        return new ResponseEntity<>(new ApiResponse<>(HttpStatus.OK.value(), "Product deleted successfully"),
+        return new ResponseEntity<>(new ApiResponse(HttpStatus.OK.value(), "Product deleted successfully"),
                 HttpStatus.OK);
     }
 
     @PostMapping("/{id}/upload-image")
-    public ResponseEntity<ApiResponse<String>> uploadProductImage(@PathVariable("id") Long productId,
+    public ResponseEntity<Object> uploadProductImage(@PathVariable("id") Long productId,
             @RequestParam("file") MultipartFile file) {
         try {
             if (file.isEmpty()) {
-                return new ResponseEntity<>(new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), "File is empty", null),
+                return new ResponseEntity<>(new ApiResponse(HttpStatus.BAD_REQUEST.value(), "File is empty"),
                         HttpStatus.BAD_REQUEST);
             }
 
@@ -108,12 +117,14 @@ public class ProductController {
             // Save to database
             productService.addProductImage(productId, imageUrl);
 
-            return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.OK.value(), "Image uploaded successfully", imageUrl),
-                    HttpStatus.OK);
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("status", HttpStatus.OK.value());
+            response.put("message", "Image uploaded successfully");
+            response.put("imageUrl", imageUrl);
+            return ResponseEntity.ok(response);
         } catch (IOException e) {
             return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Failed to upload image", null),
+                    new ApiResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Failed to upload image"),
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

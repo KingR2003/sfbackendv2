@@ -58,15 +58,15 @@ public class AuthController {
         try {
             otpService.sendOtp(request.getMobileNumber());
             return ResponseEntity.ok(
-                    new OtpResponse(true, "OTP sent successfully to " + request.getMobileNumber(), 200));
+                    new OtpResponse(200, "OTP sent successfully to " + request.getMobileNumber()));
 
         } catch (OtpRateLimitException e) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(new OtpResponse(false, e.getMessage(), 429));
+                    .body(new OtpResponse(429, e.getMessage()));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new OtpResponse(false, "Failed to send OTP: " + e.getMessage(), 500));
+                    .body(new OtpResponse(500, "Failed to send OTP: " + e.getMessage()));
         }
     }
 
@@ -85,23 +85,23 @@ public class AuthController {
         try {
             LoginResult result = otpService.verifyOtpAndLogin(request.getMobileNumber(), request.getOtpCode());
             return ResponseEntity.ok(
-                    new OtpResponse(true, "Login successful", 200, result.getToken(), result.isNewUser()));
+                    new OtpResponse(200, "Login successful", result.getToken(), result.isNewUser()));
 
         } catch (OtpExpiredException e) {
             return ResponseEntity.status(HttpStatus.GONE)
-                    .body(new OtpResponse(false, e.getMessage(), 410));
+                    .body(new OtpResponse(410, e.getMessage()));
 
         } catch (TooManyOtpAttemptsException e) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(new OtpResponse(false, e.getMessage(), 429));
+                    .body(new OtpResponse(429, e.getMessage()));
 
         } catch (InvalidOtpException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new OtpResponse(false, e.getMessage(), 400));
+                    .body(new OtpResponse(400, e.getMessage()));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new OtpResponse(false, "Verification failed: " + e.getMessage(), 500));
+                    .body(new OtpResponse(500, "Verification failed: " + e.getMessage()));
         }
     }
 }

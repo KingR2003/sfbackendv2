@@ -7,6 +7,7 @@ import com.deliveryapp.backend.entity.*;
 import com.deliveryapp.backend.repository.CouponUsageRepository;
 import com.deliveryapp.backend.repository.OrderItemRepository;
 import com.deliveryapp.backend.repository.OrderRepository;
+import com.deliveryapp.backend.exception.ResourceNotFoundException;
 import com.deliveryapp.backend.service.CartService;
 import com.deliveryapp.backend.service.CouponService;
 import com.deliveryapp.backend.service.OrderService;
@@ -65,6 +66,9 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.deleteById(id);
     }
 
+    @Autowired
+    private com.deliveryapp.backend.repository.ProductVariantRepository productVariantRepository;
+
     @Override
     @Transactional
     public OrderEntity checkout(Long userId, CheckoutRequest request) {
@@ -74,6 +78,15 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalArgumentException("Cart is empty");
         }
 
+        // 1.1 Verify all items are available
+        for (CartItemDto item : cart.getItems()) {
+            ProductVariant variant = productVariantRepository.findById(item.getVariantId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Variant not found: " + item.getVariantId()));
+            if (variant.getStockQuantity() < item.getQuantity()) {
+                throw new IllegalArgumentException("Product " + item.getProductName() + " is out of stock!");
+            }
+        }
+
         BigDecimal totalAmount = cart.getTotalAmount();
         BigDecimal discountAmount = BigDecimal.ZERO;
         boolean couponApplied = false;
@@ -81,6 +94,7 @@ public class OrderServiceImpl implements OrderService {
         // 2. Apply Coupon if present
         if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
             Coupon coupon = couponService.verifyCoupon(request.getCouponCode(), userId, totalAmount);
+            // Re-verify specific business rules here if needed
 
             if ("PERCENTAGE".equalsIgnoreCase(coupon.getDiscountType())) {
                 discountAmount = totalAmount.multiply(coupon.getDiscountValue()).divide(new BigDecimal(100));
@@ -88,7 +102,6 @@ public class OrderServiceImpl implements OrderService {
                 discountAmount = coupon.getDiscountValue();
             }
 
-            // Cap discount if maxDiscountAmount is set
             if (coupon.getMaxDiscountAmount() != null && discountAmount.compareTo(coupon.getMaxDiscountAmount()) > 0) {
                 discountAmount = coupon.getMaxDiscountAmount();
             }
@@ -104,7 +117,14 @@ public class OrderServiceImpl implements OrderService {
 
         BigDecimal finalAmount = totalAmount.subtract(discountAmount);
 
-        // 3. Create Order
+        // 3. Update stock and create order items
+        for (CartItemDto cartItem : cart.getItems()) {
+            ProductVariant variant = productVariantRepository.findById(cartItem.getVariantId()).get();
+            variant.setStockQuantity(variant.getStockQuantity() - cartItem.getQuantity());
+            productVariantRepository.save(variant);
+        }
+
+        // 4. Create Order
         OrderEntity order = new OrderEntity();
         order.setUserId(userId);
         order.setAddressId(request.getAddressId());
@@ -117,7 +137,7 @@ public class OrderServiceImpl implements OrderService {
 
         OrderEntity savedOrder = orderRepository.save(order);
 
-        // 4. Create Order Items
+        // 5. Create Order Items
         for (CartItemDto cartItem : cart.getItems()) {
             OrderItem orderItem = new OrderItem();
             orderItem.setOrderId(savedOrder.getId());
@@ -128,7 +148,7 @@ public class OrderServiceImpl implements OrderService {
             orderItemRepository.save(orderItem);
         }
 
-        // 5. Clear Cart
+        // 6. Clear Cart
         cartService.clearCart(userId);
 
         return savedOrder;

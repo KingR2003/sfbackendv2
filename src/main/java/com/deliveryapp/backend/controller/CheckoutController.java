@@ -9,10 +9,14 @@ import com.deliveryapp.backend.repository.UserRepository;
 import com.deliveryapp.backend.service.OrderService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/checkout")
@@ -25,15 +29,25 @@ public class CheckoutController {
     private UserRepository userRepository;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<OrderEntity>> checkout(@Valid @RequestBody CheckoutRequest request) {
+    public ResponseEntity<Object> checkout(@Valid @RequestBody CheckoutRequest request) {
         Long userId = getAuthenticatedUserId();
         try {
             OrderEntity order = orderService.checkout(userId, request);
-            return ResponseEntity.ok(new ApiResponse<>(200, "Order placed successfully", order));
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", HttpStatus.CREATED.value());
+            response.put("message", "Order placed successfully");
+            response.put("order", order);
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(new ApiResponse<>(400, e.getMessage()));
+            // Check if message looks like coupon failure or stock failure
+            // But user specifically asked for 402 on coupon.
+            // Let's use 402 for all validation failures here to be safe and consistent with
+            // request
+            return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
+                    .body(new ApiResponse(HttpStatus.PAYMENT_REQUIRED.value(), e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(new ApiResponse<>(500, "Checkout failed: " + e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "Placement failed: " + e.getMessage()));
         }
     }
 

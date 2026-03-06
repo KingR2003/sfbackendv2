@@ -28,10 +28,12 @@ public class User {
     @Column(name = "password_hash")
     private String passwordHash;
 
-    private String role;
+    private String role; // "CUSTOMER" or "ADMIN"
+    private boolean active = true;
 
-    @Column(name = "is_active")
-    private Boolean isActive;
+    // Added fields
+    private String gender;
+    private java.time.LocalDate dateOfBirth;
 
     @Column(name = "created_at", updatable = false)
     @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")

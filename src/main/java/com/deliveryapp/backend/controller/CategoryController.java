@@ -19,49 +19,58 @@ public class CategoryController {
     private CategoryService categoryService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Category>> createCategory(@RequestBody Category category) {
+    public ResponseEntity<ApiResponse> createCategory(@RequestBody Category category) {
         categoryService.createCategory(category);
-        return new ResponseEntity<>(new ApiResponse<>(HttpStatus.CREATED.value(), "Category created successfully"),
+        return new ResponseEntity<>(new ApiResponse(HttpStatus.CREATED.value(), "Category created successfully"),
                 HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Category>> getCategoryById(@PathVariable("id") Long id) {
+    public ResponseEntity<Object> getCategoryById(@PathVariable("id") Long id) {
         Optional<Category> category = categoryService.getCategoryById(id);
-        return category
-                .map(value -> new ResponseEntity<>(new ApiResponse<>(HttpStatus.OK.value(), "Category found", value),
-                        HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(
-                        new ApiResponse<>(HttpStatus.NOT_FOUND.value(), "Category not found", null),
-                        HttpStatus.NOT_FOUND));
+        if (category.isPresent()) {
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("status", HttpStatus.OK.value());
+            response.put("message", "Category found");
+            response.put("category", category.get());
+            return ResponseEntity.ok(response);
+        } else {
+            return new ResponseEntity<>(
+                    new ApiResponse(HttpStatus.NOT_FOUND.value(), "Category not found"),
+                    HttpStatus.NOT_FOUND);
+        }
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Category>>> getAllCategories() {
+    public ResponseEntity<Object> getAllCategories() {
         List<Category> categories = categoryService.getAllCategories();
-        return new ResponseEntity<>(
-                new ApiResponse<>(HttpStatus.OK.value(), "Categories retrieved successfully", categories),
-                HttpStatus.OK);
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("status", HttpStatus.OK.value());
+        response.put("message", "Categories retrieved successfully");
+        response.put("categories", categories);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Category>> updateCategory(@PathVariable("id") Long id,
+    public ResponseEntity<Object> updateCategory(@PathVariable("id") Long id,
             @RequestBody Category category) {
         Category updatedCategory = categoryService.updateCategory(id, category);
         if (updatedCategory != null) {
-            return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.OK.value(), "Category updated successfully", updatedCategory),
-                    HttpStatus.OK);
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("status", HttpStatus.OK.value());
+            response.put("message", "Category updated successfully");
+            response.put("category", updatedCategory);
+            return ResponseEntity.ok(response);
         } else {
-            return new ResponseEntity<>(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), "Category not found", null),
+            return new ResponseEntity<>(new ApiResponse(HttpStatus.NOT_FOUND.value(), "Category not found"),
                     HttpStatus.NOT_FOUND);
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable("id") Long id) {
+    public ResponseEntity<ApiResponse> deleteCategory(@PathVariable("id") Long id) {
         categoryService.deleteCategory(id);
-        return new ResponseEntity<>(new ApiResponse<>(HttpStatus.OK.value(), "Category deleted successfully"),
+        return new ResponseEntity<>(new ApiResponse(HttpStatus.OK.value(), "Category deleted successfully"),
                 HttpStatus.OK);
     }
 }
