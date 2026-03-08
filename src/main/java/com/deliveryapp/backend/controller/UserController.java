@@ -58,11 +58,10 @@ public class UserController {
     public ResponseEntity<Object> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String identifier = authentication.getName();
-        User updated = userService.updateProfile(identifier, request);
+        userService.updateProfile(identifier, request);
         Map<String, Object> response = new HashMap<>();
         response.put("status", 200);
         response.put("message", "Profile updated successfully");
-        response.put("user", updated);
         return ResponseEntity.ok(response);
     }
 
