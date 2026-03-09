@@ -15,4 +15,7 @@ public class SendOtpRequest {
         message = "Mobile number must be in E.164 format, e.g. +919876543210"
     )
     private String mobileNumber;
+
+    /** Optional: user's display name. Saved on first-time registration. */
+    private String name;
 }
