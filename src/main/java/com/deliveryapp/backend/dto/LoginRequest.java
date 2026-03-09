@@ -3,6 +3,7 @@ package com.deliveryapp.backend.dto;
 public class LoginRequest {
     private String email;
     private String password;
+    private String clientType = "ADMIN_WEB"; // Default to ADMIN_WEB for this endpoint
 
     public LoginRequest() {
     }
@@ -26,5 +27,13 @@ public class LoginRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getClientType() {
+        return clientType;
+    }
+
+    public void setClientType(String clientType) {
+        this.clientType = clientType;
     }
 }

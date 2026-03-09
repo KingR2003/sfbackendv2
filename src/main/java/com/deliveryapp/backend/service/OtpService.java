@@ -20,7 +20,8 @@ public interface OtpService {
      *
      * @param mobileNumber E.164 formatted mobile number
      * @param otpCode      6-digit OTP supplied by the user
+     * @param clientType   The type of client (MOBILE or WEBSITE)
      * @return LoginResult containing JWT token and isNewUser flag
      */
-    LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode);
+    LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode, String clientType);
 }

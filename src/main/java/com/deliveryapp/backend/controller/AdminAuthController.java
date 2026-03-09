@@ -85,7 +85,7 @@ public class AdminAuthController {
 
             // After successful registration, generate a token and return LoginResponse
             // This assumes the user should be logged in immediately after registration
-            String token = jwtUtil.generateToken(newAdmin.getEmail(), newAdmin.getRole());
+            String token = jwtUtil.generateToken(newAdmin.getEmail(), newAdmin.getRole(), "ADMIN_WEB");
             // Note: persistToken requires HttpServletRequest, which is not available here.
             // For simplicity, we'll omit token persistence for now or assume it's handled
             // elsewhere.
@@ -131,11 +131,12 @@ public class AdminAuthController {
                         .body(new ApiResponse(403, "Access denied: this endpoint is for admins only"));
             }
 
-            // 4. Generate JWT with role embedded
-            String token = jwtUtil.generateToken(loginRequest.getEmail(), user.getRole());
+            // 4. Generate JWT with role and clientType embedded
+            String clientType = loginRequest.getClientType();
+            String token = jwtUtil.generateToken(loginRequest.getEmail(), user.getRole(), clientType);
 
             // 5. Persist token records
-            persistToken(user, token, request);
+            persistToken(user, token, clientType, request);
 
             return ResponseEntity.ok((Object) new LoginResponse(user.getEmail(), token, "Admin login successful", 200));
 
@@ -151,13 +152,19 @@ public class AdminAuthController {
     // ---------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------
-    private void persistToken(User user, String token, HttpServletRequest request) {
+    private void persistToken(User user, String token, String clientType, HttpServletRequest request) {
         Token tokenEntity = new Token();
         tokenEntity.setUserId(user.getId());
         tokenEntity.setAccessToken(token);
         tokenEntity.setIpAddress(getClientIpAddress(request));
         tokenEntity.setIssuedAt(LocalDateTime.now());
-        tokenEntity.setExpiresAt(LocalDateTime.now().plusHours(24));
+        
+        // Use client-specific expiration for DB persistence
+        long expMs = "WEBSITE".equalsIgnoreCase(clientType) ? 30L * 60 * 1000 : 
+                     "ADMIN_WEB".equalsIgnoreCase(clientType) ? 5L * 60 * 1000 : // Inactivity threshold
+                     5L * 24 * 60 * 60 * 1000; // Mobile
+        
+        tokenEntity.setExpiresAt(LocalDateTime.now().plusNanos(expMs * 1_000_000));
         tokenEntity.setCreatedAt(LocalDateTime.now());
         Token savedToken = tokenRepository.save(tokenEntity);
 

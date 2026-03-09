@@ -16,7 +16,11 @@ import java.util.function.Function;
 public class JwtUtil {
 
     private static final Key SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private static final long EXPIRATION_TIME = 86400000; // 24 hours
+    
+    // Expiration times in milliseconds
+    private static final long MOBILE_EXP = 5L * 24 * 60 * 60 * 1000; // 5 days
+    private static final long WEBSITE_EXP = 30L * 60 * 1000;        // 30 mins
+    private static final long ADMIN_WEB_EXP = 5L * 60 * 1000;       // 5 mins (inactivity limit)
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -24,6 +28,10 @@ public class JwtUtil {
 
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
+    }
+
+    public String extractClientType(String token) {
+        return extractClaim(token, claims -> claims.get("clientType", String.class));
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -39,29 +47,39 @@ public class JwtUtil {
         return extractExpiration(token).before(new Date());
     }
 
-    public String generateToken(String username) {
-        Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, username);
+    public String generateToken(String username, String role) {
+        return generateToken(username, role, "MOBILE"); // Default
     }
 
-    public String generateToken(String username, String role) {
+    public String generateToken(String username, String role, String clientType) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
-        return createToken(claims, username);
+        claims.put("clientType", clientType);
+        return createToken(claims, username, clientType);
     }
 
     public String extractRole(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
     }
 
-    private String createToken(Map<String, Object> claims, String subject) {
+    private String createToken(Map<String, Object> claims, String subject, String clientType) {
+        long expiration = getExpirationForClient(clientType);
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(SECRET_KEY, SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    private long getExpirationForClient(String clientType) {
+        if ("WEBSITE".equalsIgnoreCase(clientType)) {
+            return WEBSITE_EXP;
+        } else if ("ADMIN_WEB".equalsIgnoreCase(clientType)) {
+            return ADMIN_WEB_EXP;
+        }
+        return MOBILE_EXP;
     }
 
     public Boolean validateToken(String token, String username) {

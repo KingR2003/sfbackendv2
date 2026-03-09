@@ -17,12 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Customer (CUSTOMER role) authentication via mobile OTP.
- *
- * POST /api/v1/auth/send-otp — generate & send 6-digit OTP via AWS SNS
- * POST /api/v1/auth/verify-otp — verify OTP; returns JWT on success
- *
- * Admin authentication is handled by AdminAuthController
- * (/api/v1/admin/auth/**).
  */
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -31,26 +25,20 @@ public class AuthController {
     @Autowired
     private OtpService otpService;
 
-    // ---------------------------------------------------------------
-    // POST /api/v1/auth/send-otp
-    // ---------------------------------------------------------------
-
     /**
-     * Accepts a mobile number in E.164 format, generates a 6-digit OTP,
-     * stores it with a 5-minute expiry, and dispatches it via AWS SNS SMS.
-     * The OTP is deliberately NOT returned in the response.
+     * Entry point for customer registration / first-time login.
+     * Generates and sends a 6-digit OTP via AWS SNS SMS.
      */
-    @PostMapping("/send-otp")
-    public ResponseEntity<OtpResponse> sendOtp(@Valid @RequestBody SendOtpRequest request) {
+    @PostMapping("/register")
+    public ResponseEntity<OtpResponse> register(@Valid @RequestBody SendOtpRequest request) {
         return sendOtpInternal(request);
     }
 
     /**
-     * Alias for send-otp — accepts mobile number and dispatches OTP via SNS.
-     * Use this as the entry point for new customer registration / first-time login.
+     * Backward compatibility / Internal alias for register.
      */
-    @PostMapping("/register")
-    public ResponseEntity<OtpResponse> register(@Valid @RequestBody SendOtpRequest request) {
+    @PostMapping("/send-otp")
+    public ResponseEntity<OtpResponse> sendOtp(@Valid @RequestBody SendOtpRequest request) {
         return sendOtpInternal(request);
     }
 
@@ -58,50 +46,58 @@ public class AuthController {
         try {
             otpService.sendOtp(request.getMobileNumber());
             return ResponseEntity.ok(
-                    new OtpResponse(200, "OTP sent successfully to " + request.getMobileNumber()));
+                    new OtpResponse(HttpStatus.OK.value(), "OTP sent successfully to " + request.getMobileNumber()));
 
         } catch (OtpRateLimitException e) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(new OtpResponse(429, e.getMessage()));
+                    .body(new OtpResponse(HttpStatus.TOO_MANY_REQUESTS.value(), e.getMessage()));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new OtpResponse(500, "Failed to send OTP: " + e.getMessage()));
+                    .body(new OtpResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Failed to send OTP: " + e.getMessage()));
         }
     }
 
-    // ---------------------------------------------------------------
-    // POST /api/v1/auth/verify-otp
-    // ---------------------------------------------------------------
+    /**
+     * Final step of login / registration. Verifies OTP and returns JWT.
+     */
+    @PostMapping("/login")
+    public ResponseEntity<OtpResponse> login(@Valid @RequestBody VerifyOtpRequest request) {
+        return verifyOtpInternal(request);
+    }
 
     /**
-     * Accepts mobile number + OTP code. On success:
-     * - Validates OTP (expiry, attempt count, code match)
-     * - Finds or auto-creates a CUSTOMER user for the mobile number
-     * - Returns a signed JWT token
+     * Backward compatibility alias for login.
      */
     @PostMapping("/verify-otp")
     public ResponseEntity<OtpResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        return verifyOtpInternal(request);
+    }
+
+    private ResponseEntity<OtpResponse> verifyOtpInternal(VerifyOtpRequest request) {
         try {
-            LoginResult result = otpService.verifyOtpAndLogin(request.getMobileNumber(), request.getOtpCode());
+            LoginResult result = otpService.verifyOtpAndLogin(
+                request.getMobileNumber(),
+                request.getOtpCode(),
+                request.getClientType());
             return ResponseEntity.ok(
-                    new OtpResponse(200, "Login successful", result.getToken(), result.isNewUser()));
+                    new OtpResponse(HttpStatus.OK.value(), "Login successful", result.getToken(), result.isNewUser()));
 
         } catch (OtpExpiredException e) {
             return ResponseEntity.status(HttpStatus.GONE)
-                    .body(new OtpResponse(410, e.getMessage()));
+                    .body(new OtpResponse(HttpStatus.GONE.value(), e.getMessage()));
 
         } catch (TooManyOtpAttemptsException e) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(new OtpResponse(429, e.getMessage()));
+                    .body(new OtpResponse(HttpStatus.TOO_MANY_REQUESTS.value(), e.getMessage()));
 
         } catch (InvalidOtpException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new OtpResponse(400, e.getMessage()));
+                    .body(new OtpResponse(HttpStatus.BAD_REQUEST.value(), e.getMessage()));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new OtpResponse(500, "Verification failed: " + e.getMessage()));
+                    .body(new OtpResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Verification failed: " + e.getMessage()));
         }
     }
 }

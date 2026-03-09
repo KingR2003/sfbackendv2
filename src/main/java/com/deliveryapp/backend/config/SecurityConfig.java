@@ -36,10 +36,12 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // ── Public auth endpoints ──────────────────────────────────────────
+                        // ── Public endpoints ──────────────────────────────────────────────
                         .requestMatchers(
                                 "/api/v1/auth/**", // customer login + register
-                                "/api/v1/admin/auth/**", // admin login + register (secret-key protected)
+                                "/api/v1/admin/auth/**", // admin login + register
+                                "/api/v1/products/**", // public product view
+                                "/api/v1/categories/**", // public category view
                                 "/api/v1/health",
                                 "/h2-console/**",
                                 "/v3/api-docs/**",
@@ -47,11 +49,7 @@ public class SecurityConfig {
                         .permitAll()
 
                         // ── Admin-only area ────────────────────────────────────────────────
-                        // All /api/v1/admin/**, /api/products/**, and /api/categories/** routes require
-                        // ADMIN role.
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/products/**").hasRole("ADMIN")
-                        .requestMatchers("/api/categories/**").hasRole("ADMIN")
 
                         // ── Everything else requires authentication ────────────────────────
                         .anyRequest().authenticated())

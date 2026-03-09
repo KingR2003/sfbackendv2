@@ -96,7 +96,7 @@ public class OtpServiceImpl implements OtpService {
     // ---------------------------------------------------------------
     @Override
     @Transactional
-    public LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode) {
+    public LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode, String clientType) {
         // Load the most recent OTP for this number
         MobileOtp otp = mobileOtpRepository
                 .findTopByMobileNumberOrderByCreatedAtDesc(mobileNumber)
@@ -150,24 +150,25 @@ public class OtpServiceImpl implements OtpService {
         });
 
         // Generate JWT — subject is the mobile number for customer OTP logins
-        String jwtToken = jwtUtil.generateToken(mobileNumber, "CUSTOMER");
+        String jwtToken = jwtUtil.generateToken(mobileNumber, "CUSTOMER", clientType);
 
-        // Persist token records (same pattern as password-based login)
-        persistToken(user, jwtToken);
+        // Persist token records
+        persistToken(user, jwtToken, clientType);
 
         return new LoginResult(jwtToken, isNewUser);
     }
 
-    // ---------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------
-    private void persistToken(User user, String token) {
+    private void persistToken(User user, String token, String clientType) {
         Token tokenEntity = new Token();
         tokenEntity.setUserId(user.getId());
         tokenEntity.setAccessToken(token);
         tokenEntity.setIpAddress("OTP-Login");
         tokenEntity.setIssuedAt(LocalDateTime.now());
-        tokenEntity.setExpiresAt(LocalDateTime.now().plusHours(24));
+        
+        // Use client-specific expiration for DB persistence
+        long expMs = "WEBSITE".equalsIgnoreCase(clientType) ? 30L * 60 * 1000 : 5L * 24 * 60 * 60 * 1000;
+        tokenEntity.setExpiresAt(LocalDateTime.now().plusNanos(expMs * 1_000_000));
+        
         tokenEntity.setCreatedAt(LocalDateTime.now());
         Token savedToken = tokenRepository.save(tokenEntity);
 

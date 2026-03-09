@@ -20,4 +20,6 @@ public class VerifyOtpRequest {
     @NotBlank(message = "OTP code is required")
     @Size(min = 6, max = 6, message = "OTP must be exactly 6 digits")
     private String otpCode;
+
+    private String clientType = "MOBILE"; // Default to MOBILE
 }
