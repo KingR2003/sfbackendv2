@@ -22,4 +22,8 @@ public class VerifyOtpRequest {
     private String otpCode;
 
     private String clientType = "MOBILE"; // Default to MOBILE
+
+    /** Optional: user's display name (used if not provided at send-otp step) */
+    private String name;
 }
+

@@ -44,7 +44,7 @@ public class AuthController {
 
     private ResponseEntity<OtpResponse> sendOtpInternal(SendOtpRequest request) {
         try {
-            otpService.sendOtp(request.getMobileNumber());
+            otpService.sendOtp(request.getMobileNumber(), request.getName());
             return ResponseEntity.ok(
                     new OtpResponse(HttpStatus.OK.value(), "OTP sent successfully to " + request.getMobileNumber()));
 
@@ -79,9 +79,10 @@ public class AuthController {
             LoginResult result = otpService.verifyOtpAndLogin(
                 request.getMobileNumber(),
                 request.getOtpCode(),
-                request.getClientType());
+                request.getClientType(),
+                request.getName());
             return ResponseEntity.ok(
-                    new OtpResponse(HttpStatus.OK.value(), "Login successful", result.getToken(), result.isNewUser()));
+                    new OtpResponse(HttpStatus.OK.value(), "Login successful", result.getToken(), result.isNewUser(), result.getName()));
 
         } catch (OtpExpiredException e) {
             return ResponseEntity.status(HttpStatus.GONE)

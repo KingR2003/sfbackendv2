@@ -55,7 +55,7 @@ public class OtpServiceImpl implements OtpService {
     // ---------------------------------------------------------------
     @Override
     @Transactional
-    public void sendOtp(String mobileNumber) {
+    public void sendOtp(String mobileNumber, String name) {
         // Rate-limiting: reject if a non-expired OTP was sent within the cooldown
         // window
         Optional<MobileOtp> recent = mobileOtpRepository
@@ -76,13 +76,16 @@ public class OtpServiceImpl implements OtpService {
         // Generate secure 6-digit OTP
         String otpCode = String.format("%06d", secureRandom.nextInt(1_000_000));
 
-        // Persist OTP record
+        // Persist OTP record (store name so it's available at verify-otp time)
         MobileOtp otp = new MobileOtp();
         otp.setMobileNumber(mobileNumber);
         otp.setOtpCode(otpCode);
         otp.setExpiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES));
         otp.setAttemptCount(0);
         otp.setVerified(false);
+        if (name != null && !name.isBlank()) {
+            otp.setName(name);
+        }
         mobileOtpRepository.save(otp);
 
         // Send SMS via AWS SNS — OTP is intentionally NOT included in any API response
@@ -96,7 +99,7 @@ public class OtpServiceImpl implements OtpService {
     // ---------------------------------------------------------------
     @Override
     @Transactional
-    public LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode, String clientType) {
+    public LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode, String clientType, String name) {
         // Load the most recent OTP for this number
         MobileOtp otp = mobileOtpRepository
                 .findTopByMobileNumberOrderByCreatedAtDesc(mobileNumber)
@@ -136,6 +139,11 @@ public class OtpServiceImpl implements OtpService {
         otp.setVerified(true);
         mobileOtpRepository.save(otp);
 
+        // Resolve name: prefer verify-otp param > send-otp param > fallback 'Customer'
+        String resolvedName = (name != null && !name.isBlank()) ? name
+                : (otp.getName() != null && !otp.getName().isBlank()) ? otp.getName()
+                : "Customer";
+
         // Find or create CUSTOMER user
         Optional<User> existingUser = userRepository.findByMobile(mobileNumber);
         boolean isNewUser = existingUser.isEmpty();
@@ -143,7 +151,7 @@ public class OtpServiceImpl implements OtpService {
         User user = existingUser.orElseGet(() -> {
             User newUser = new User();
             newUser.setMobile(mobileNumber);
-            newUser.setName("Customer"); // default name; can be updated via profile API
+            newUser.setName(resolvedName);
             newUser.setRole("CUSTOMER");
             newUser.setActive(true);
             return userRepository.save(newUser);
@@ -155,7 +163,7 @@ public class OtpServiceImpl implements OtpService {
         // Persist token records
         persistToken(user, jwtToken, clientType);
 
-        return new LoginResult(jwtToken, isNewUser);
+        return new LoginResult(jwtToken, isNewUser, user.getName());
     }
 
     private void persistToken(User user, String token, String clientType) {

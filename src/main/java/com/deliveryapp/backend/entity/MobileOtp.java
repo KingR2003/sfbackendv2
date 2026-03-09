@@ -40,6 +40,10 @@ public class MobileOtp {
     @Column(name = "verified", nullable = false)
     private Boolean verified = false;
 
+    /** Optional display name provided at registration time */
+    @Column(name = "name", length = 100)
+    private String name;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

@@ -17,6 +17,9 @@ public class OtpResponse extends ApiResponse {
     /** Flag to indicate if the user is logging in for the first time */
     private Boolean isNewUser;
 
+    /** User's display name — returned after successful OTP verification */
+    private String name;
+
     public OtpResponse(Integer status, String message) {
         super(status, message);
     }
@@ -26,4 +29,12 @@ public class OtpResponse extends ApiResponse {
         this.token = token;
         this.isNewUser = isNewUser;
     }
+
+    public OtpResponse(Integer status, String message, String token, Boolean isNewUser, String name) {
+        super(status, message);
+        this.token = token;
+        this.isNewUser = isNewUser;
+        this.name = name;
+    }
 }
+
