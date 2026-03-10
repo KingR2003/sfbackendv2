@@ -79,7 +79,8 @@ public class AdminAuthController {
             newAdmin.setMobile(registerRequest.getMobile());
             newAdmin.setPasswordHash(passwordEncoder.encode(registerRequest.getPassword()));
             newAdmin.setRole("ADMIN");
-            newAdmin.setActive(true);
+            newAdmin.setActive(false);
+            newAdmin.setStatus("PENDING");
 
             userRepository.save(newAdmin);
 
@@ -126,9 +127,19 @@ public class AdminAuthController {
             User user = userOpt.get();
 
             // 3. Block CUSTOMER accounts from using this admin endpoint
-            if (!"ADMIN".equalsIgnoreCase(user.getRole())) {
+            if ("CUSTOMER".equalsIgnoreCase(user.getRole())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse(403, "Access denied: this endpoint is for admins only"));
+            }
+
+            if ("PENDING".equalsIgnoreCase(user.getStatus())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ApiResponse(403, "Your account is pending approval by an administrator."));
+            }
+
+            if ("INACTIVE".equalsIgnoreCase(user.getStatus()) || !user.isActive()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ApiResponse(403, "Your account is currently inactive."));
             }
 
             // 4. Generate JWT with role and clientType embedded

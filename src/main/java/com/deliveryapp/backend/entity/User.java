@@ -30,7 +30,8 @@ public class User {
 
     private String role; // "CUSTOMER" or "ADMIN"
     private boolean active = true;
-
+    private String status = "ACTIVE"; // "ACTIVE", "INACTIVE", "PENDING"
+    
     // Added fields
     private String gender;
     private java.time.LocalDate dateOfBirth;
