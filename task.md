@@ -22,4 +22,10 @@
 - [ ] Verification [ ]
     - [ ] Run Postman scenarios
     - [ ] Verify HTTP status codes
+
+- [x] Update Order status to "PROCESSING", "PACKED", "ON_THE_WAY", "DELIVERED"
+    - [x] Updated default status to "PROCESSING" in `OrderServiceImpl`
+    - [x] Added `OrderController` for user order retrieval
+    - [x] Added `AdminOrderController` for admin status updates
+    - [x] Updated Postman Collection with these APIs
 -->

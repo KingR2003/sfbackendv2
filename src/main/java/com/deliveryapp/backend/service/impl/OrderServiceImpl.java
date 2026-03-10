@@ -132,7 +132,7 @@ public class OrderServiceImpl implements OrderService {
         order.setDiscountAmount(discountAmount);
         order.setFinalAmount(finalAmount);
         order.setCouponApplied(couponApplied);
-        order.setOrderStatus("PENDING");
+        order.setOrderStatus("PROCESSING");
         order.setCreatedAt(LocalDateTime.now());
 
         OrderEntity savedOrder = orderRepository.save(order);
