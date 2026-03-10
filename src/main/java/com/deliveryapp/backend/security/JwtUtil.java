@@ -19,8 +19,8 @@ public class JwtUtil {
     
     // Expiration times in milliseconds
     private static final long MOBILE_EXP = 5L * 24 * 60 * 60 * 1000; // 5 days
-    private static final long WEBSITE_EXP = 30L * 60 * 1000;        // 30 mins
-    private static final long ADMIN_WEB_EXP = 5L * 60 * 1000;       // 5 mins (inactivity limit)
+    private static final long WEBSITE_EXP = 12L * 60 * 60 * 1000;    // 12 hours absolute
+    private static final long ADMIN_WEB_EXP = 12L * 60 * 60 * 1000;  // 12 hours absolute
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);

@@ -160,8 +160,8 @@ public class AdminAuthController {
         tokenEntity.setIssuedAt(LocalDateTime.now());
         
         // Use client-specific expiration for DB persistence
-        long expMs = "WEBSITE".equalsIgnoreCase(clientType) ? 30L * 60 * 1000 : 
-                     "ADMIN_WEB".equalsIgnoreCase(clientType) ? 5L * 60 * 1000 : // Inactivity threshold
+        long expMs = "WEBSITE".equalsIgnoreCase(clientType) ? 12L * 60 * 60 * 1000 : 
+                     "ADMIN_WEB".equalsIgnoreCase(clientType) ? 12L * 60 * 60 * 1000 : // 12 hours absolute
                      5L * 24 * 60 * 60 * 1000; // Mobile
         
         tokenEntity.setExpiresAt(LocalDateTime.now().plusNanos(expMs * 1_000_000));

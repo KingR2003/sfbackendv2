@@ -1,46 +1,76 @@
 package com.deliveryapp.backend.controller;
 
-import com.deliveryapp.backend.entity.Banner;
+import com.deliveryapp.backend.dto.BannerCreateRequest;
+import com.deliveryapp.backend.dto.BannerDto;
+import com.deliveryapp.backend.dto.BannerUpdateRequest;
 import com.deliveryapp.backend.service.BannerService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/banners")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/v1")
+@RequiredArgsConstructor
 public class BannerController {
 
-    @Autowired
-    private BannerService bannerService;
+    private final BannerService bannerService;
 
-    @GetMapping
-    public List<Banner> getAllBanners() {
-        return bannerService.getAllBanners();
+    // ----- Public Endpoints -----
+
+    @GetMapping("/banners/active")
+    public ResponseEntity<List<BannerDto>> getActiveBanners(
+            @RequestParam(required = false) String platform,
+            @RequestParam(required = false) String gender) {
+        return ResponseEntity.ok(bannerService.getActiveBanners(platform, gender));
     }
 
-    @GetMapping("/active")
-    public List<Banner> getActiveBanners() {
-        return bannerService.getActiveBanners();
+    @PostMapping("/banners/{id}/view")
+    public ResponseEntity<Void> incrementViews(@PathVariable Long id) {
+        bannerService.incrementViews(id);
+        return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Banner> getBannerById(@PathVariable Long id) {
+    @PostMapping("/banners/{id}/click")
+    public ResponseEntity<Void> incrementClicks(@PathVariable Long id) {
+        bannerService.incrementClicks(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // ----- Admin Endpoints -----
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @GetMapping("/admin/banners")
+    public ResponseEntity<List<BannerDto>> getAllBanners() {
+        return ResponseEntity.ok(bannerService.getAllBanners());
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @GetMapping("/admin/banners/{id}")
+    public ResponseEntity<BannerDto> getBannerById(@PathVariable Long id) {
         return ResponseEntity.ok(bannerService.getBannerById(id));
     }
 
-    @PostMapping
-    public Banner createBanner(@RequestBody Banner banner) {
-        return bannerService.createBanner(banner);
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PostMapping("/admin/banners")
+    public ResponseEntity<BannerDto> createBanner(@Valid @RequestBody BannerCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(bannerService.createBanner(request));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Banner> updateBanner(@PathVariable Long id, @RequestBody Banner bannerDetails) {
-        return ResponseEntity.ok(bannerService.updateBanner(id, bannerDetails));
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PutMapping("/admin/banners/{id}")
+    public ResponseEntity<BannerDto> updateBanner(
+            @PathVariable Long id,
+            @Valid @RequestBody BannerUpdateRequest request) {
+        return ResponseEntity.ok(bannerService.updateBanner(id, request));
     }
 
-    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @DeleteMapping("/admin/banners/{id}")
     public ResponseEntity<Void> deleteBanner(@PathVariable Long id) {
         bannerService.deleteBanner(id);
         return ResponseEntity.noContent().build();

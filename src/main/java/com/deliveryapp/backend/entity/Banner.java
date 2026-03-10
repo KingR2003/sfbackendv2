@@ -1,10 +1,10 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,25 +12,33 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class Banner {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Integer priority;
+
+    @Column(name = "banner_image")
+    private String bannerImage;
+
     private String title;
+
+    @Column(name = "campaign_type")
+    private String campaignType;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "image_url")
-    private String imageUrl;
+    // e.g., APP, WEBSITE, BOTH
+    private String platform;
 
-    private String platform; // MOBILE_APP, WEBSITE, ALL
-
-    private String gender; // ALL, MALE, FEMALE
+    // e.g., ALL, MEN, WOMEN
+    private String gender;
 
     @Column(name = "age_group")
-    private String ageGroup; // ALL, etc.
+    private String ageGroup;
 
     @Column(name = "button_text")
     private String buttonText;
@@ -38,26 +46,39 @@ public class Banner {
     @Column(name = "redirect_to")
     private String redirectTo;
 
-    @Column(name = "start_date")
-    private LocalDateTime startDate;
+    @Column(name = "custom_page_url")
+    private String customPageUrl;
 
-    @Column(name = "end_date")
-    private LocalDateTime endDate;
+    @Column(name = "start_date_time")
+    private LocalDateTime startDateTime;
 
-    private Integer priority;
+    @Column(name = "end_date_time")
+    private LocalDateTime endDateTime;
 
     @Column(name = "is_active")
-    private Boolean isActive;
+    private Boolean isActive = false;
 
-    private String devices; // Comma separated: MOBILE, TABLET, DESKTOP
+    // Analytics fields
+    private Long views = 0L;
+    private Long clicks = 0L;
 
     @Column(name = "created_at", updatable = false)
-    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        if (isActive == null) isActive = true;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+        if (this.views == null) this.views = 0L;
+        if (this.clicks == null) this.clicks = 0L;
+        if (this.isActive == null) this.isActive = false;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

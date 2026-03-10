@@ -1,13 +1,18 @@
 package com.deliveryapp.backend.service;
 
-import com.deliveryapp.backend.entity.Banner;
+import com.deliveryapp.backend.dto.BannerCreateRequest;
+import com.deliveryapp.backend.dto.BannerDto;
+import com.deliveryapp.backend.dto.BannerUpdateRequest;
+
 import java.util.List;
 
 public interface BannerService {
-    List<Banner> getAllBanners();
-    Banner getBannerById(Long id);
-    Banner createBanner(Banner banner);
-    Banner updateBanner(Long id, Banner bannerDetails);
+    BannerDto createBanner(BannerCreateRequest request);
+    BannerDto updateBanner(Long id, BannerUpdateRequest request);
     void deleteBanner(Long id);
-    List<Banner> getActiveBanners();
+    BannerDto getBannerById(Long id);
+    List<BannerDto> getAllBanners();
+    List<BannerDto> getActiveBanners(String platform, String gender);
+    void incrementViews(Long id);
+    void incrementClicks(Long id);
 }

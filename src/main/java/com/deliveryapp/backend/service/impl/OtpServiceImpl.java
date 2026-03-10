@@ -174,7 +174,7 @@ public class OtpServiceImpl implements OtpService {
         tokenEntity.setIssuedAt(LocalDateTime.now());
         
         // Use client-specific expiration for DB persistence
-        long expMs = "WEBSITE".equalsIgnoreCase(clientType) ? 30L * 60 * 1000 : 5L * 24 * 60 * 60 * 1000;
+        long expMs = "WEBSITE".equalsIgnoreCase(clientType) ? 12L * 60 * 60 * 1000 : 5L * 24 * 60 * 60 * 1000;
         tokenEntity.setExpiresAt(LocalDateTime.now().plusNanos(expMs * 1_000_000));
         
         tokenEntity.setCreatedAt(LocalDateTime.now());
