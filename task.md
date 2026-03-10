@@ -13,11 +13,12 @@
     - [x] Update `ApiResponse` DTO
     - [x] Implement `DataResponse<T>` for consistent payload delivery
 - [ ] Harmonize API Endpoints [/]
-    - [ ] Standardize on `/api/v1` base path
-    - [ ] Separate Admin and Public controllers (Products, Categories, Coupons)
-    - [ ] Ensure Auth endpoints match Tech Flow docs
-- [ ] Update Security Configuration [ ]
-    - [ ] Update Spring Security for new admin paths
+    - [ ] Standardize on# Analytics Dashboard implementation
+[x] Create `AnalyticsDashboardDto` with total revenue, total orders, total users, active products.
+[x] Add `calculateTotalRevenue()` to `OrderRepository`.
+[x] Add `countActiveProducts()` to `ProductRepository`.
+[x] Create `AnalyticsService` and `AnalyticsServiceImpl`.
+[x] Create `AdminAnalyticsController` with `GET /api/v1/admin/analytics/dashboard`.s
 - [ ] Verification [ ]
     - [ ] Run Postman scenarios
     - [ ] Verify HTTP status codes
