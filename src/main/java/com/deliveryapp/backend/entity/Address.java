@@ -19,18 +19,23 @@ public class Address {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("user_id")
     @Column(name = "user_id")
     private Long userId;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("building_no")
     @Column(name = "building_no")
     private String buildingNo;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("building_name")
     @Column(name = "building_name")
     private String buildingName;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("street_no")
     @Column(name = "street_no")
     private String streetNo;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("area_name")
     @Column(name = "area_name")
     private String areaName;
 
@@ -40,9 +45,11 @@ public class Address {
 
     private String pincode;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("is_default")
     @Column(name = "is_default")
-    private Boolean isDefault;
+    private Integer isDefault;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("address_type")
     @Column(name = "address_type")
     private String addressType;
 

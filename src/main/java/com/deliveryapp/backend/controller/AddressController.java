@@ -18,12 +18,21 @@ public class AddressController {
     @Autowired
     private AddressService addressService;
 
+    @Autowired
+    private com.deliveryapp.backend.repository.UserRepository userRepository;
+
     @PostMapping
     public ResponseEntity<Object> addAddress(@RequestBody Address address) {
-        // Assuming your setup allows looking up user by identifier (email/mobile)
-        // For now, if address.userId is not set, we might need a lookup service.
-        // Let's assume the client sends the userId for now OR we inject it if we have
-        // User object.
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
+            String username = auth.getName();
+            com.deliveryapp.backend.entity.User user = userRepository.findByEmail(username)
+                    .orElseGet(() -> userRepository.findByMobile(username).orElse(null));
+            if (user != null) {
+                address.setUserId(user.getId());
+            }
+        }
+        
         Address created = addressService.addAddress(address);
         Map<String, Object> response = new HashMap<>();
         response.put("status", HttpStatus.CREATED.value());
