@@ -29,10 +29,8 @@ public class CouponController {
     private UserRepository userRepository;
 
     @GetMapping
-    public ResponseEntity<Object> getAvailableCoupons() {
-        List<Coupon> coupons = couponService.getAllCoupons().stream()
-                .filter(Coupon::getIsActive)
-                .toList();
+    public ResponseEntity<Object> getAvailableCoupons(@RequestParam(required = false) String platform) {
+        List<Coupon> coupons = couponService.getActiveCouponsByPlatform(platform);
         java.util.Map<String, Object> response = new java.util.HashMap<>();
         response.put("status", 200);
         response.put("message", "Available coupons retrieved");

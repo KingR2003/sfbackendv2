@@ -84,18 +84,8 @@ public class AdminAuthController {
 
             userRepository.save(newAdmin);
 
-            // After successful registration, generate a token and return LoginResponse
-            // This assumes the user should be logged in immediately after registration
-            String token = jwtUtil.generateToken(newAdmin.getEmail(), newAdmin.getRole(), "ADMIN_WEB");
-            // Note: persistToken requires HttpServletRequest, which is not available here.
-            // For simplicity, we'll omit token persistence for now or assume it's handled
-            // elsewhere.
-            // If full login flow is desired, this method would need to be refactored to
-            // include
-            // authentication and token persistence logic similar to the /login endpoint.
-
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body((Object) new LoginResponse(newAdmin.getEmail(), token, "Admin registered successfully", 201));
+                    .body(new ApiResponse(201, "Admin registered successfully. Your account is pending approval by an administrator."));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -137,7 +127,7 @@ public class AdminAuthController {
                         .body(new ApiResponse(403, "Your account is pending approval by an administrator."));
             }
 
-            if ("INACTIVE".equalsIgnoreCase(user.getStatus()) || !user.isActive()) {
+            if ("INACTIVE".equalsIgnoreCase(user.getStatus())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse(403, "Your account is currently inactive."));
             }

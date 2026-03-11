@@ -17,10 +17,10 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public Address addAddress(Address address) {
-        if (address.getIsDefault() != null && address.getIsDefault()) {
+        if (address.getIsDefault() != null && address.getIsDefault() == 1) {
             resetDefaultAddresses(address.getUserId());
         } else if (addressRepository.findByUserId(address.getUserId()).isEmpty()) {
-            address.setIsDefault(true);
+            address.setIsDefault(1);
         }
         return addressRepository.save(address);
     }
@@ -40,7 +40,7 @@ public class AddressServiceImpl implements AddressService {
     public Address updateAddress(Long id, Address addressDetails) {
         Address address = getAddressById(id);
 
-        if (addressDetails.getIsDefault() != null && addressDetails.getIsDefault() && !address.getIsDefault()) {
+        if (addressDetails.getIsDefault() != null && addressDetails.getIsDefault() == 1 && (address.getIsDefault() == null || address.getIsDefault() != 1)) {
             resetDefaultAddresses(address.getUserId());
         }
 
@@ -68,15 +68,15 @@ public class AddressServiceImpl implements AddressService {
     public void setDefaultAddress(Long userId, Long addressId) {
         resetDefaultAddresses(userId);
         Address address = getAddressById(addressId);
-        address.setIsDefault(true);
+        address.setIsDefault(1);
         addressRepository.save(address);
     }
 
     private void resetDefaultAddresses(Long userId) {
         List<Address> addresses = addressRepository.findByUserId(userId);
         for (Address addr : addresses) {
-            if (addr.getIsDefault() != null && addr.getIsDefault()) {
-                addr.setIsDefault(false);
+            if (addr.getIsDefault() != null && addr.getIsDefault() == 1) {
+                addr.setIsDefault(0);
                 addressRepository.save(addr);
             }
         }

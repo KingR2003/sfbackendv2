@@ -22,7 +22,7 @@ public class BannerCreateRequest {
 
     private String description;
 
-    @NotBlank(message = "Platform is required (e.g., APP, WEBSITE, BOTH)")
+    @NotBlank(message = "Platform is required (e.g., MOBILE_APP, WEBSITE, BOTH)")
     private String platform;
 
     private String gender = "ALL";
