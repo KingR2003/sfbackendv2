@@ -154,6 +154,7 @@ public class OtpServiceImpl implements OtpService {
             newUser.setName(resolvedName);
             newUser.setRole("CUSTOMER");
             newUser.setActive(true);
+            newUser.setStatus("ACTIVE");
             return userRepository.save(newUser);
         });
 

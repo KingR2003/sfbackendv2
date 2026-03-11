@@ -57,6 +57,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
             if (jwtUtil.validateToken(jwt, userDetails.getUsername())) {
+                // Check if user is enabled (not pending/inactive)
+                if (!userDetails.isEnabled()) {
+                    chain.doFilter(request, response);
+                    return;
+                }
+
                 // Inactivity check for Admin Web
                 if (isAdminWebToken(jwt)) {
                     if (isTokenInactive(jwt)) {

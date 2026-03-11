@@ -5,6 +5,7 @@ import java.util.List;
 
 public interface CouponService {
     List<Coupon> getActiveCoupons();
+    List<Coupon> getActiveCouponsByPlatform(String platform);
 
     Coupon verifyCoupon(String code, Long userId, java.math.BigDecimal orderAmount);
 

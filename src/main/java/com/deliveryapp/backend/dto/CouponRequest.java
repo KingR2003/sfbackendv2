@@ -37,5 +37,7 @@ public class CouponRequest {
     private java.time.LocalTime startTime;
     private java.time.LocalTime endTime;
 
+    private String platform;
+
     private Boolean isActive = true;
 }

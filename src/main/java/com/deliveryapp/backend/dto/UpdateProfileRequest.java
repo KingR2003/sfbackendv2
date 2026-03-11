@@ -21,5 +21,7 @@ public class UpdateProfileRequest {
 
     private String gender;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("dob")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dateOfBirth;
 }

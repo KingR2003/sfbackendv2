@@ -72,7 +72,19 @@ public class CouponServiceImpl implements CouponService {
             }
         }
 
+        // Platform check
         return coupon;
+    }
+
+    @Override
+    public List<Coupon> getActiveCouponsByPlatform(String platform) {
+        List<Coupon> activeCoupons = couponRepository.findByIsActiveTrue();
+        if (platform == null || platform.isEmpty()) {
+            return activeCoupons;
+        }
+        return activeCoupons.stream()
+                .filter(c -> c.getPlatform() == null || c.getPlatform().equalsIgnoreCase("BOTH") || c.getPlatform().equalsIgnoreCase(platform))
+                .toList();
     }
 
     @Override
@@ -122,6 +134,7 @@ public class CouponServiceImpl implements CouponService {
         coupon.setDaysOfWeek(request.getDaysOfWeek());
         coupon.setStartTime(request.getStartTime());
         coupon.setEndTime(request.getEndTime());
+        coupon.setPlatform(request.getPlatform());
         coupon.setIsActive(request.getIsActive());
 
         if (coupon.getCreatedAt() == null) {

@@ -31,7 +31,7 @@ public class Banner {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // e.g., APP, WEBSITE, BOTH
+    // e.g., MOBILE_APP, WEBSITE, BOTH
     private String platform;
 
     // e.g., ALL, MEN, WOMEN
@@ -44,7 +44,7 @@ public class Banner {
     private String buttonText;
 
     @Column(name = "redirect_to")
-    private String redirectTo;
+    private String redirectTo; // e.g., MOBILE_APP, EXTERNAL_LINK, CUSTOM_PAGE
 
     @Column(name = "custom_page_url")
     private String customPageUrl;

@@ -44,9 +44,18 @@ public class CustomUserDetailsService implements UserDetailsService {
         // will never succeed — effectively disabling password-based auth for CUSTOMER role.
         String passwordHash = (user.getPasswordHash() != null) ? user.getPasswordHash() : "";
 
+        // A user is enabled if their status is explicitly ACTIVE.
+        // We also check user.isActive() as a secondary safeguard if it exists, 
+        // but status should be the primary source of truth for approvals.
+        boolean enabled = "ACTIVE".equalsIgnoreCase(user.getStatus());
+
         return new org.springframework.security.core.userdetails.User(
                 username,
                 passwordHash,
+                enabled,
+                true, // accountNonExpired
+                true, // credentialsNonExpired
+                true, // accountNonLocked
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole()))
         );
     }

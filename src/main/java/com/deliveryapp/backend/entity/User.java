@@ -34,6 +34,8 @@ public class User {
     
     // Added fields
     private String gender;
+    @com.fasterxml.jackson.annotation.JsonProperty("dob")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd")
     private java.time.LocalDate dateOfBirth;
 
     @Column(name = "created_at", updatable = false)

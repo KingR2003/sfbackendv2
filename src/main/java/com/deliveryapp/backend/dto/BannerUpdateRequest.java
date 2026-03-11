@@ -19,7 +19,7 @@ public class BannerUpdateRequest {
 
     private String description;
 
-    private String platform;
+    private String platform; // e.g., MOBILE_APP, WEBSITE, BOTH
 
     private String gender;
 
@@ -27,7 +27,7 @@ public class BannerUpdateRequest {
 
     private String buttonText;
 
-    private String redirectTo;
+    private String redirectTo; // e.g., MOBILE_APP, EXTERNAL_LINK, CUSTOM_PAGE
 
     private String customPageUrl;
 

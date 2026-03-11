@@ -52,6 +52,9 @@ public class Coupon {
     @Column(name = "is_active")
     private Boolean isActive;
 
+    @Column(name = "platform")
+    private String platform; // e.g., "MOBILE_APP", "WEBSITE", "BOTH"
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 }
