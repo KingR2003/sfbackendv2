@@ -95,8 +95,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 ActiveToken activeToken = activeOpt.get();
                 if (!Boolean.TRUE.equals(activeToken.getIsActive())) return true;
                 
-                LocalDateTime fiveMinsAgo = LocalDateTime.now().minusMinutes(5);
-                if (activeToken.getLastUsedAt().isBefore(fiveMinsAgo)) {
+                LocalDateTime threshold = LocalDateTime.now().minusMinutes(isAdminWebToken(jwt) ? 30 : 5);
+                if (activeToken.getLastUsedAt().isBefore(threshold)) {
                     // Invalidate
                     activeToken.setIsActive(false);
                     activeTokenRepository.save(activeToken);

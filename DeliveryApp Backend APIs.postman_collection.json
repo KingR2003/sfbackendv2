@@ -228,6 +228,35 @@
                     "response": []
                 },
                 {
+                    "name": "Get All Users",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/users",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "users"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "Update Profile",
                     "request": {
                         "auth": {
@@ -1219,7 +1248,7 @@
                     "response": []
                 },
                 {
-                    "name": "2. Get Addresses By User ID",
+                    "name": "2. Get Addresses",
                     "request": {
                         "auth": {
                             "type": "bearer",
@@ -1234,16 +1263,14 @@
                         "method": "GET",
                         "header": [],
                         "url": {
-                            "raw": "{{baseUrl}}/api/v1/addresses/user/1",
+                            "raw": "{{baseUrl}}/api/v1/addresses",
                             "host": [
                                 "{{baseUrl}}"
                             ],
                             "path": [
                                 "api",
                                 "v1",
-                                "addresses",
-                                "user",
-                                "1"
+                                "addresses"
                             ]
                         }
                     },
@@ -1339,7 +1366,7 @@
                         "method": "POST",
                         "header": [],
                         "url": {
-                            "raw": "{{baseUrl}}/api/v1/addresses/1/default?userId=1",
+                            "raw": "{{baseUrl}}/api/v1/addresses/:id/default",
                             "host": [
                                 "{{baseUrl}}"
                             ],
@@ -1347,12 +1374,12 @@
                                 "api",
                                 "v1",
                                 "addresses",
-                                "1",
+                                ":id",
                                 "default"
                             ],
-                            "query": [
+                            "variable": [
                                 {
-                                    "key": "userId",
+                                    "key": "id",
                                     "value": "1"
                                 }
                             ]

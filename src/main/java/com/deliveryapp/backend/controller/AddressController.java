@@ -41,14 +41,23 @@ public class AddressController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<Object> getAddressesByUserId(@PathVariable Long userId) {
-        List<Address> addresses = addressService.getAddressesByUserId(userId);
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", HttpStatus.OK.value());
-        response.put("message", "Addresses retrieved successfully");
-        response.put("addresses", addresses);
-        return ResponseEntity.ok(response);
+    @GetMapping
+    public ResponseEntity<Object> getAddressesByUserId() {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
+            String username = auth.getName();
+            com.deliveryapp.backend.entity.User user = userRepository.findByEmail(username)
+                    .orElseGet(() -> userRepository.findByMobile(username).orElse(null));
+            if (user != null) {
+                List<Address> addresses = addressService.getAddressesByUserId(user.getId());
+                Map<String, Object> response = new HashMap<>();
+                response.put("status", HttpStatus.OK.value());
+                response.put("message", "Addresses retrieved successfully");
+                response.put("addresses", addresses);
+                return ResponseEntity.ok(response);
+            }
+        }
+        return new ResponseEntity<>(new ApiResponse(HttpStatus.UNAUTHORIZED.value(), "User not found"), HttpStatus.UNAUTHORIZED);
     }
 
     @GetMapping("/{id}")
@@ -78,8 +87,17 @@ public class AddressController {
     }
 
     @PostMapping("/{id}/default")
-    public ResponseEntity<ApiResponse> setDefaultAddress(@PathVariable Long id, @RequestParam Long userId) {
-        addressService.setDefaultAddress(userId, id);
-        return ResponseEntity.ok(new ApiResponse(HttpStatus.OK.value(), "Default address set successfully"));
+    public ResponseEntity<ApiResponse> setDefaultAddress(@PathVariable Long id) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
+            String username = auth.getName();
+            com.deliveryapp.backend.entity.User user = userRepository.findByEmail(username)
+                    .orElseGet(() -> userRepository.findByMobile(username).orElse(null));
+            if (user != null) {
+                addressService.setDefaultAddress(user.getId(), id);
+                return ResponseEntity.ok(new ApiResponse(HttpStatus.OK.value(), "Default address set successfully"));
+            }
+        }
+        return new ResponseEntity<>(new ApiResponse(HttpStatus.UNAUTHORIZED.value(), "User not found"), HttpStatus.UNAUTHORIZED);
     }
 }

@@ -23,19 +23,18 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Object> getUserById(@PathVariable Long id) {
-        Optional<User> userOpt = userService.getUserById(id);
-        if (userOpt.isPresent()) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", 200);
-            response.put("message", "User found");
-            response.put("user", userOpt.get());
-            return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ApiResponse(404, "User not found"));
+    @GetMapping
+    public ResponseEntity<Object> getAllUsers() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiResponse(403, "Access Denied"));
         }
+        java.util.List<User> users = userService.getAllUsers();
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", 200);
+        response.put("message", "Users retrieved successfully");
+        response.put("users", users);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/profile")

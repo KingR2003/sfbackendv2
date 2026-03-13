@@ -33,8 +33,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.springframework.context.annotation.Import;
+import com.deliveryapp.backend.exception.GlobalExceptionHandler;
+
 @WebMvcTest(controllers = { CategoryController.class, ProductController.class })
 @AutoConfigureMockMvc(addFilters = false)
+@Import(GlobalExceptionHandler.class)
 public class ResponseStructureTest {
 
     @Autowired
@@ -75,14 +79,14 @@ public class ResponseStructureTest {
 
         given(categoryService.createCategory(any(Category.class))).willReturn(category);
 
-        mockMvc.perform(post("/api/categories")
+        mockMvc.perform(post("/api/v1/categories")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(category)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").exists())
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.data").doesNotExist())
-                .andExpect(jsonPath("$.success").doesNotExist());
+                .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test
@@ -92,12 +96,12 @@ public class ResponseStructureTest {
 
         given(categoryService.getCategoryById(1L)).willReturn(Optional.of(category));
 
-        mockMvc.perform(get("/api/categories/1"))
+        mockMvc.perform(get("/api/v1/categories/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").exists())
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.data").exists())
-                .andExpect(jsonPath("$.success").doesNotExist());
+                .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test
@@ -110,11 +114,11 @@ public class ResponseStructureTest {
         org.springframework.mock.web.MockMultipartFile productPart = new org.springframework.mock.web.MockMultipartFile(
                 "product", "", "application/json", "{}".getBytes());
 
-        mockMvc.perform(multipart("/api/products").file(productPart))
+        mockMvc.perform(multipart("/api/v1/products").file(productPart))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").exists())
                 .andExpect(jsonPath("$.message").exists())
-                .andExpect(jsonPath("$.success").doesNotExist())
+                .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 
@@ -125,12 +129,12 @@ public class ResponseStructureTest {
 
         given(productService.getProductById(1L)).willReturn(Optional.of(response));
 
-        mockMvc.perform(get("/api/products/1"))
+        mockMvc.perform(get("/api/v1/products/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").exists())
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.data").exists())
-                .andExpect(jsonPath("$.success").doesNotExist());
+                .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test
@@ -153,7 +157,7 @@ public class ResponseStructureTest {
 
         given(productService.getProductById(1L)).willReturn(Optional.of(response));
 
-        mockMvc.perform(get("/api/products/1"))
+        mockMvc.perform(get("/api/v1/products/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.variants[0].images[0].productVariantId").value(10L));
     }
@@ -166,7 +170,7 @@ public class ResponseStructureTest {
         org.springframework.mock.web.MockMultipartFile productPart = new org.springframework.mock.web.MockMultipartFile(
                 "product", "", "application/json", "{\"categoryId\": 999}".getBytes());
 
-        mockMvc.perform(multipart("/api/products").file(productPart))
+        mockMvc.perform(multipart("/api/v1/products").file(productPart))
                 .andExpect(status().isNotFound());
     }
 }

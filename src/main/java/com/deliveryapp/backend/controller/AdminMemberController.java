@@ -24,6 +24,9 @@ public class AdminMemberController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private com.deliveryapp.backend.service.UserService userService;
+
     private static final List<String> VALID_STATUSES = Arrays.asList("ACTIVE", "INACTIVE", "PENDING");
     private static final List<String> MEMBER_ROLES = Arrays.asList("ADMIN", "MANAGER", "STAFF");
 
@@ -112,6 +115,28 @@ public class AdminMemberController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(500, "Failed to update member status: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/activate")
+    public ResponseEntity<ApiResponse> activateUser(@PathVariable Long id) {
+        try {
+            userService.activateUser(id);
+            return ResponseEntity.ok(new ApiResponse(HttpStatus.OK.value(), "User activated successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "Failed to activate user: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/deactivate")
+    public ResponseEntity<ApiResponse> deactivateUser(@PathVariable Long id) {
+        try {
+            userService.deactivateUser(id);
+            return ResponseEntity.ok(new ApiResponse(HttpStatus.OK.value(), "User deactivated successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "Failed to deactivate user: " + e.getMessage()));
         }
     }
 }

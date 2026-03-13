@@ -17,5 +17,11 @@ public interface UserService {
 
     User updateProfile(String identifier, com.deliveryapp.backend.dto.UpdateProfileRequest request);
 
+    User adminUpdateUser(Long id, com.deliveryapp.backend.dto.AdminUserUpdateRequest request);
+
     Optional<User> getUserByIdentifier(String identifier);
+    
+    User activateUser(Long id);
+    
+    User deactivateUser(Long id);
 }

@@ -10,13 +10,16 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UpdateProfileRequest {
+public class AdminUserUpdateRequest {
 
+    @NotBlank(message = "Name is required")
     private String name;
 
+    @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
     private String email;
 
+    @NotBlank(message = "Mobile is required")
     private String mobile;
 
     private String gender;
@@ -24,4 +27,8 @@ public class UpdateProfileRequest {
     @com.fasterxml.jackson.annotation.JsonProperty("dob")
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dateOfBirth;
+
+    private String role;
+    private String status;
+    private Boolean active;
 }
