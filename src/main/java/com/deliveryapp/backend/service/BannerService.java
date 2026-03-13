@@ -15,4 +15,5 @@ public interface BannerService {
     List<BannerDto> getActiveBanners(String platform, String gender);
     void incrementViews(Long id);
     void incrementClicks(Long id);
+    void uploadBannerImage(Long id, String imageUrl);
 }

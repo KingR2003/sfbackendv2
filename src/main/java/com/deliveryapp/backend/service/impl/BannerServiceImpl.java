@@ -119,6 +119,15 @@ public class BannerServiceImpl implements BannerService {
         }
     }
 
+    @Override
+    @Transactional
+    public void uploadBannerImage(Long id, String imageUrl) {
+        Banner banner = bannerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Banner not found with id: " + id));
+        banner.setBannerImage(imageUrl);
+        bannerRepository.save(banner);
+    }
+
     private BannerDto mapToDto(Banner banner) {
         BannerDto dto = new BannerDto();
         BeanUtils.copyProperties(banner, dto);

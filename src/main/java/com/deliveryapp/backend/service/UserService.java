@@ -16,4 +16,6 @@ public interface UserService {
     void deleteUser(Long id);
 
     User updateProfile(String identifier, com.deliveryapp.backend.dto.UpdateProfileRequest request);
+
+    Optional<User> getUserByIdentifier(String identifier);
 }

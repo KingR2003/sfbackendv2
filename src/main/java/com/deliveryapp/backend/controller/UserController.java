@@ -67,12 +67,22 @@ public class UserController {
 
     private Long getAuthenticatedUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof User) {
-            return ((User) authentication.getPrincipal()).getId();
+        if (authentication != null) {
+            Object principal = authentication.getPrincipal();
+            String username = null;
+            if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
+                username = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+            } else if (principal instanceof String) {
+                username = (String) principal;
+            }
+            if (username != null) {
+                Optional<User> userOpt = userService.getUserByIdentifier(username);
+                if (userOpt.isPresent()) {
+                    return userOpt.get().getId();
+                }
+            }
         }
         // This should ideally not happen if security is configured correctly
-        // Or throw an appropriate exception if user is not authenticated or principal
-        // is not a User object
         throw new IllegalStateException("Authenticated user ID not found.");
     }
 }

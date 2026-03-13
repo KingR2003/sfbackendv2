@@ -20,7 +20,7 @@ public class Banner {
 
     private Integer priority;
 
-    @Column(name = "banner_image")
+    @Column(name = "banner_image", length = 1000)
     private String bannerImage;
 
     private String title;

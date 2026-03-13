@@ -62,4 +62,10 @@ public class UserServiceImpl implements UserService {
 
         return userRepository.save(user);
     }
+
+    @Override
+    public Optional<User> getUserByIdentifier(String identifier) {
+        return userRepository.findByMobile(identifier)
+                .or(() -> userRepository.findByEmail(identifier));
+    }
 }
