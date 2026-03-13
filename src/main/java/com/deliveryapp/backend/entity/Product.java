@@ -45,10 +45,15 @@ public class Product {
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ProductVariant> variants = new ArrayList<>();
 
+    private String status = "active"; // Adding status field for logical deletion
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (status == null) {
+            status = "active";
+        }
     }
 
     @PreUpdate

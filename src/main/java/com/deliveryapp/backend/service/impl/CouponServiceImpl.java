@@ -24,12 +24,12 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     public List<Coupon> getActiveCoupons() {
-        return couponRepository.findByIsActiveTrue();
+        return couponRepository.findByIsActiveTrueAndStatus("active");
     }
 
     @Override
     public Coupon verifyCoupon(String code, Long userId, BigDecimal orderAmount) {
-        Coupon coupon = couponRepository.findByCode(code)
+        Coupon coupon = couponRepository.findByCodeAndStatus(code, "active")
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid coupon code: " + code));
 
         if (!Boolean.TRUE.equals(coupon.getIsActive())) {
@@ -78,7 +78,7 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     public List<Coupon> getActiveCouponsByPlatform(String platform) {
-        List<Coupon> activeCoupons = couponRepository.findByIsActiveTrue();
+        List<Coupon> activeCoupons = couponRepository.findByIsActiveTrueAndStatus("active");
         if (platform == null || platform.isEmpty()) {
             return activeCoupons;
         }
@@ -95,12 +95,12 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     public List<Coupon> getAllCoupons() {
-        return couponRepository.findAll();
+        return couponRepository.findByStatus("active");
     }
 
     @Override
     public Coupon getCouponById(Long id) {
-        return couponRepository.findById(id)
+        return couponRepository.findByIdAndStatus(id, "active")
                 .orElseThrow(() -> new ResourceNotFoundException("Coupon not found with id: " + id));
     }
 
@@ -112,15 +112,15 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     public void deleteCoupon(Long id) {
-        if (!couponRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Coupon not found with id: " + id);
-        }
-        couponRepository.deleteById(id);
+        Coupon coupon = couponRepository.findByIdAndStatus(id, "active")
+                .orElseThrow(() -> new ResourceNotFoundException("Coupon not found with id: " + id));
+        coupon.setStatus("inactive");
+        couponRepository.save(coupon);
     }
 
     @Override
     public java.util.Optional<Coupon> findByCode(String code) {
-        return couponRepository.findByCode(code);
+        return couponRepository.findByCodeAndStatus(code, "active");
     }
 
     private Coupon updateCouponFromRequest(Coupon coupon, com.deliveryapp.backend.dto.CouponRequest request) {

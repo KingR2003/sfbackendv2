@@ -68,6 +68,8 @@ public class Banner {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    private String status = "active"; // Adding status field for logical deletion
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -75,6 +77,7 @@ public class Banner {
         if (this.views == null) this.views = 0L;
         if (this.clicks == null) this.clicks = 0L;
         if (this.isActive == null) this.isActive = false;
+        if (this.status == null) this.status = "active";
     }
 
     @PreUpdate

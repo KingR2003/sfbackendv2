@@ -20,6 +20,22 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/products")
 public class AdminProductController {
 
+    @GetMapping
+    public ResponseEntity<Object> getAllProducts() {
+        List<ProductResponse> products = productService.getAllProducts();
+        return ResponseEntity.ok(new DataResponse<>(HttpStatus.OK.value(), "Products retrieved successfully", products));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Object> getProductById(@PathVariable("id") Long id) {
+        java.util.Optional<ProductResponse> product = productService.getProductById(id);
+        if (product.isPresent()) {
+            return ResponseEntity.ok(new DataResponse<>(HttpStatus.OK.value(), "Product found", product.get()));
+        } else {
+            return new ResponseEntity<>(new ApiResponse(HttpStatus.NOT_FOUND.value(), "Product not found"), HttpStatus.NOT_FOUND);
+        }
+    }
+
     @Autowired
     private ProductService productService;
 

@@ -30,8 +30,13 @@ public class Category {
     @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
 
+    private String status = "active"; // Adding status field for logical deletion
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (status == null) {
+            status = "active";
+        }
     }
 }

@@ -31,18 +31,47 @@ public class AdminMemberController {
     public ResponseEntity<Object> getAllMembers() {
         try {
             List<User> allUsers = userRepository.findAll();
-            List<User> members = allUsers.stream()
+            
+            // Return only active users, mirroring logical deletion
+            List<User> activeUsers = allUsers.stream()
+                    .filter(u -> "ACTIVE".equalsIgnoreCase(u.getStatus()))
+                    .collect(Collectors.toList());
+
+            List<User> admins = activeUsers.stream()
                     .filter(user -> user.getRole() != null && MEMBER_ROLES.contains(user.getRole().toUpperCase()))
+                    .collect(Collectors.toList());
+
+            List<User> customers = activeUsers.stream()
+                    .filter(user -> user.getRole() == null || "CUSTOMER".equalsIgnoreCase(user.getRole()))
                     .collect(Collectors.toList());
 
             Map<String, Object> response = new HashMap<>();
             response.put("status", HttpStatus.OK.value());
-            response.put("message", "Members retrieved successfully");
-            response.put("members", members);
+            response.put("message", "Users retrieved successfully");
+            response.put("admins", admins);
+            response.put("users", customers);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(500, "Failed to retrieve members: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse> deleteUser(@PathVariable Long id) {
+        try {
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+            user.setStatus("INACTIVE");
+            user.setActive(false);
+            userRepository.save(user);
+            return ResponseEntity.ok(new ApiResponse(HttpStatus.OK.value(), "User deleted successfully"));
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse(HttpStatus.NOT_FOUND.value(), e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "Failed to delete user: " + e.getMessage()));
         }
     }
 

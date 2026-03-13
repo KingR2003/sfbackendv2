@@ -1,1122 +1,1570 @@
 {
-  "info": {
-    "_postman_id": "5893773e-02c0-4530-8303-9fb87c1db9f6",
-    "name": "DeliveryApp Backend APIs",
-    "description": "Comprehensive collection for Delivery App APIs including Auth, Products, Categories, Cart, Coupons, and Checkout with all test scenarios.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "Auth (Admin)",
-      "item": [
-        {
-          "name": "Register Admin",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Boss Admin\",\n  \"email\": \"boss@test.com\",\n  \"mobile\": \"8888888888\",\n  \"password\": \"admin123\",\n  \"secretKey\": \"asd456\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/auth/register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "auth",
-                "register"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Login Admin",
-          "request": {
-            "event": [
-              {
-                "listen": "test",
-                "script": {
-                  "exec": [
-                    "var jsonData = pm.response.json();",
-                    "if (jsonData.token) {",
-                    "    pm.environment.set(\"Token\", jsonData.token);",
-                    "}"
-                  ],
-                  "type": "text/javascript"
-                }
-              }
-            ],
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"boss@test.com\",\n  \"password\": \"admin123\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "auth",
-                "login"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
+    "info": {
+        "_postman_id": "5893773e-02c0-4530-8303-9fb87c1db9f6",
+        "name": "DeliveryApp Backend APIs",
+        "description": "Comprehensive collection for Delivery App APIs including Auth, Products, Categories, Cart, Coupons, and Checkout with all test scenarios.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
-    {
-      "name": "Auth (Customer)",
-      "item": [
+    "item": [
         {
-          "name": "Send OTP",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"mobileNumber\": \"+919876543210\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/send-otp",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "send-otp"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Verify OTP (Login/Register)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.token) {",
-                  "    pm.environment.set(\"Token\", jsonData.token);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"mobileNumber\": \"+919876543210\",\n    \"otpCode\": \"123456\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "verify-otp"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Update Profile",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
+            "name": "Auth (Admin)",
+            "item": [
                 {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "PUT",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/users/profile",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "users",
-                "profile"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Products",
-      "item": [
-        {
-          "name": "Post products",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "product",
-                  "value": "{\n  \"name\": \"iPhone 15\",\n  \"description\": \"Latest iPhone model with advanced features\",\n  \"categoryId\": 1,\n  \"isActive\": true,\n  \"images\": [\n    {\n      \"imageUrl\": \"chikki.jpg\"\n    },\n    {\n      \"imageUrl\":\"chikki.jpg\"\n    }\n  ],\n  \"variants\": [\n    {\n      \"variantName\": \"128GB Black\",\n      \"sku\": \"IPH15-128-BLK\",\n      \"mrp\": 1099.99,\n      \"price\": 999.99,\n      \"discount\": 100.00,\n      \"stockQuantity\": 50,\n      \"availabilityStatus\": \"IN_STOCK\",\n      \"isActive\": true,\n      \"images\": [\n        {\n          \"imageUrl\": \"chikki.jpg\"\n        }\n      ]\n    },\n    {\n      \"variantName\": \"256GB Silver\",\n      \"sku\": \"IPH15-256-SLV\",\n      \"mrp\": 1199.99,\n      \"price\": 1099.99,\n      \"discount\": 100.00,\n      \"stockQuantity\": 30,\n      \"availabilityStatus\": \"IN_STOCK\",\n      \"isActive\": true,\n      \"images\": []\n    }\n  ]\n}",
-                  "type": "text"
+                    "name": "Register Admin",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Boss Admin\",\n  \"email\": \"boss@test.com\",\n  \"mobile\": \"8888888888\",\n  \"password\": \"admin123\",\n  \"secretKey\": \"asd456\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "auth",
+                                "register"
+                            ]
+                        }
+                    },
+                    "response": []
                 },
                 {
-                  "key": "image",
-                  "type": "file",
-                  "uuid": "f1194928-6ccc-4cea-b6bf-b5a548464415",
-                  "src": "/C:/Users/Harsha nanda.A/Pictures/Screenshots/chikki.jpg"
+                    "name": "Login Admin",
+                    "request": {
+                        "event": [
+                            {
+                                "listen": "test",
+                                "script": {
+                                    "exec": [
+                                        "var jsonData = pm.response.json();",
+                                        "if (jsonData.token) {",
+                                        "    pm.environment.set(\"Token\", jsonData.token);",
+                                        "}"
+                                    ],
+                                    "type": "text/javascript"
+                                }
+                            }
+                        ],
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"boss@test.com\",\n  \"password\": \"admin123\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    },
+                    "response": []
                 },
                 {
-                  "key": "image",
-                  "type": "file",
-                  "uuid": "217d32d2-d143-40cf-85b3-628830268165",
-                  "src": "/C:/Users/Harsha nanda.A/Pictures/Screenshots/chikki.jpg"
+                    "name": "GET All Members",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/members",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "members"
+                            ]
+                        }
+                    },
+                    "response": []
                 },
                 {
-                  "key": "image",
-                  "type": "file",
-                  "uuid": "ece81d87-2a26-45cd-9104-662b0dc3a8aa",
-                  "src": "/C:/Users/Harsha nanda.A/Pictures/Screenshots/chikki.jpg"
+                    "name": "DELETE Member",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/members/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "members",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Auth (Customer)",
+            "item": [
+                {
+                    "name": "Send OTP",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"mobileNumber\": \"+919876543210\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/send-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "send-otp"
+                            ]
+                        }
+                    },
+                    "response": []
                 },
                 {
-                  "key": "image",
-                  "type": "file",
-                  "uuid": "3a80546a-51b0-4af7-891e-04377d9ab9e9",
-                  "src": "/C:/Users/Harsha nanda.A/Pictures/Screenshots/chikki.jpg",
-                  "disabled": true
+                    "name": "Verify OTP (Login/Register)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.token) {",
+                                    "    pm.environment.set(\"Token\", jsonData.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"mobileNumber\": \"+919876543210\",\n    \"otpCode\": \"123456\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "verify-otp"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Profile",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/users/profile",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "users",
+                                "profile"
+                            ]
+                        }
+                    },
+                    "response": []
                 }
-              ]
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/products",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "products"
-              ]
-            }
-          },
-          "response": []
+            ]
         },
         {
-          "name": "Fetch products",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
+            "name": "Products",
+            "item": [
                 {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
+                    "name": "Post products",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "product",
+                                    "value": "{\n  \"name\": \"iPhone 15\",\n  \"description\": \"Latest iPhone model with advanced features\",\n  \"categoryId\": 1,\n  \"isActive\": true,\n  \"images\": [\n    {\n      \"imageUrl\": \"chikki.jpg\"\n    },\n    {\n      \"imageUrl\":\"chikki.jpg\"\n    }\n  ],\n  \"variants\": [\n    {\n      \"variantName\": \"128GB Black\",\n      \"sku\": \"IPH15-128-BLK\",\n      \"mrp\": 1099.99,\n      \"price\": 999.99,\n      \"discount\": 100.00,\n      \"stockQuantity\": 50,\n      \"availabilityStatus\": \"IN_STOCK\",\n      \"isActive\": true,\n      \"images\": [\n        {\n          \"imageUrl\": \"chikki.jpg\"\n        }\n      ]\n    },\n    {\n      \"variantName\": \"256GB Silver\",\n      \"sku\": \"IPH15-256-SLV\",\n      \"mrp\": 1199.99,\n      \"price\": 1099.99,\n      \"discount\": 100.00,\n      \"stockQuantity\": 30,\n      \"availabilityStatus\": \"IN_STOCK\",\n      \"isActive\": true,\n      \"images\": []\n    }\n  ]\n}",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "image",
+                                    "type": "file",
+                                    "uuid": "f1194928-6ccc-4cea-b6bf-b5a548464415",
+                                    "src": "/C:/Users/Harsha nanda.A/Pictures/Screenshots/chikki.jpg"
+                                },
+                                {
+                                    "key": "image",
+                                    "type": "file",
+                                    "uuid": "217d32d2-d143-40cf-85b3-628830268165",
+                                    "src": "/C:/Users/Harsha nanda.A/Pictures/Screenshots/chikki.jpg"
+                                },
+                                {
+                                    "key": "image",
+                                    "type": "file",
+                                    "uuid": "ece81d87-2a26-45cd-9104-662b0dc3a8aa",
+                                    "src": "/C:/Users/Harsha nanda.A/Pictures/Screenshots/chikki.jpg"
+                                },
+                                {
+                                    "key": "image",
+                                    "type": "file",
+                                    "uuid": "3a80546a-51b0-4af7-891e-04377d9ab9e9",
+                                    "src": "/C:/Users/Harsha nanda.A/Pictures/Screenshots/chikki.jpg",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Fetch products",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "GET Product by ID",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT Product",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE Product",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
                 }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/products",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "products"
-              ]
-            }
-          },
-          "response": []
+            ]
+        },
+        {
+            "name": "Categories",
+            "item": [
+                {
+                    "name": "GET Categories",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/categories",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "categories"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add Categories",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\r\n    \"name\": \"Test Category\",\r\n    \"description\": \"Category for integration testing\",\r\n    \"isActive\": true\r\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/categories",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "categories"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "GET Category by ID",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/categories/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "categories",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT Category",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/categories/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "categories",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Updated Category\",\n    \"description\": \"Updated description\",\n    \"isActive\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE Category",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/categories/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "categories",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Cart",
+            "item": [
+                {
+                    "name": "Get Cart",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/cart",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "cart"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add/Update Item in Cart",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"variantId\": 1,\n    \"quantity\": 2\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/cart/add",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "cart",
+                                "add"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove Item from Cart",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/cart/:variantId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "cart",
+                                ":variantId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "variantId",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Clear Cart",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/cart/clear",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "cart",
+                                "clear"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Increment Item in Cart",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/cart/increment/:variantId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "cart",
+                                "increment",
+                                ":variantId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "variantId",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Decrement Item in Cart",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/cart/decrement/:variantId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "cart",
+                                "decrement",
+                                ":variantId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "variantId",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Coupons (Admin)",
+            "item": [
+                {
+                    "name": "Create Coupon",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"code\": \"SAVE20\",\n  \"discountType\": \"PERCENTAGE\",\n  \"discountValue\": 20,\n  \"minOrderAmount\": 500,\n  \"maxDiscountAmount\": 200,\n  \"expiryDate\": \"2026-12-31T23:59:59\",\n  \"usageLimitPerUser\": 1,\n  \"isActive\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/coupons",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "coupons"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get All Coupons",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/coupons",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "coupons"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Coupon by ID",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/coupons/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "coupons",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Coupon",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"code\": \"SAVE20-UPDATED\",\n  \"discountType\": \"PERCENTAGE\",\n  \"discountValue\": 25,\n  \"minOrderAmount\": 500,\n  \"maxDiscountAmount\": 250,\n  \"expiryDate\": \"2026-12-31T23:59:59\",\n  \"usageLimitPerUser\": 1,\n  \"isActive\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/coupons/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "coupons",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Coupon",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/coupons/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "coupons",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Coupons (Customer)",
+            "item": [
+                {
+                    "name": "List Active Coupons",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/coupons",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "coupons"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Verify Coupon (Success)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"code\": \"WELCOME10\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/coupons/verify",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "coupons",
+                                "verify"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Verify Coupon (Invalid Code)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"code\": \"INVALID_CODE\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/coupons/verify",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "coupons",
+                                "verify"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Addresses",
+            "item": [
+                {
+                    "name": "1. Create Address",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"building_no\": \"A-101\",\n  \"building_name\": \"Sunrise Apartments\",\n  \"street_no\": \"4th Cross, 2nd Main\",\n  \"area_name\": \"HSR Layout\",\n  \"city\": \"Bangalore\",\n  \"state\": \"Karnataka\",\n  \"pincode\": \"560102\",\n  \"address_type\": \"HOME\",\n  \"is_default\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/addresses",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "addresses"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Get Addresses By User ID",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/addresses/user/1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "addresses",
+                                "user",
+                                "1"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Get Address By ID",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/addresses/1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "addresses",
+                                "1"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Update Address",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"building_no\": \"B-202\",\n  \"building_name\": \"Sunset Villas\",\n  \"street_no\": \"5th Cross\",\n  \"area_name\": \"Indiranagar\",\n  \"city\": \"Bangalore\",\n  \"state\": \"Karnataka\",\n  \"pincode\": \"560038\",\n  \"address_type\": \"WORK\",\n  \"is_default\": 0\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/addresses/1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "addresses",
+                                "1"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. Set Default Address",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/addresses/1/default?userId=1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "addresses",
+                                "1",
+                                "default"
+                            ],
+                            "query": [
+                                {
+                                    "key": "userId",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "6. Delete Address",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/addresses/1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "addresses",
+                                "1"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Banners (Admin)",
+            "item": [
+                {
+                    "name": "POST Create Banner",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/banners",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "banners"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"New Banner\",\n    \"campaignType\": \"PROMO\",\n    \"platform\": \"BOTH\",\n    \"gender\": \"ALL\",\n    \"isActive\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT Update Banner",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/banners/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "banners",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"New Banner\",\n    \"campaignType\": \"PROMO\",\n    \"platform\": \"BOTH\",\n    \"gender\": \"ALL\",\n    \"isActive\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE Banner",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/admin/banners/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "admin",
+                                "banners",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Banners (Customer)",
+            "item": [
+                {
+                    "name": "GET Active Banners",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{Token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/banners/active",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "banners",
+                                "active"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
         }
-      ]
-    },
-    {
-      "name": "Categories",
-      "item": [
+    ],
+    "variable": [
         {
-          "name": "GET Categories",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/categories",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "categories"
-              ]
-            }
-          },
-          "response": []
+            "key": "baseUrl",
+            "value": "http://localhost:8080",
+            "type": "string"
         },
         {
-          "name": "Add Categories",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"name\": \"Test Category\",\r\n    \"description\": \"Category for integration testing\",\r\n    \"isActive\": true\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/categories",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "categories"
-              ]
-            }
-          },
-          "response": []
+            "key": "Token",
+            "value": "",
+            "type": "string"
         }
-      ]
-    },
-    {
-      "name": "Cart",
-      "item": [
-        {
-          "name": "Get Cart",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/cart",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "cart"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Add/Update Item in Cart",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"variantId\": 1,\n    \"quantity\": 2\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/cart/add",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "cart",
-                "add"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Remove Item from Cart",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/cart/:variantId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "cart",
-                ":variantId"
-              ],
-              "variable": [
-                {
-                  "key": "variantId",
-                  "value": "1"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Clear Cart",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/cart/clear",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "cart",
-                "clear"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Increment Item in Cart",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/cart/increment/:variantId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "cart",
-                "increment",
-                ":variantId"
-              ],
-              "variable": [
-                {
-                  "key": "variantId",
-                  "value": "1"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Decrement Item in Cart",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/cart/decrement/:variantId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "cart",
-                "decrement",
-                ":variantId"
-              ],
-              "variable": [
-                {
-                  "key": "variantId",
-                  "value": "1"
-                }
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Coupons (Admin)",
-      "item": [
-        {
-          "name": "Create Coupon",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"code\": \"SAVE20\",\n  \"discountType\": \"PERCENTAGE\",\n  \"discountValue\": 20,\n  \"minOrderAmount\": 500,\n  \"maxDiscountAmount\": 200,\n  \"expiryDate\": \"2026-12-31T23:59:59\",\n  \"usageLimitPerUser\": 1,\n  \"isActive\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/coupons",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "coupons"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get All Coupons",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/coupons",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "coupons"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Coupon by ID",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/coupons/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "coupons",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "1"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Update Coupon",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "PUT",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"code\": \"SAVE20-UPDATED\",\n  \"discountType\": \"PERCENTAGE\",\n  \"discountValue\": 25,\n  \"minOrderAmount\": 500,\n  \"maxDiscountAmount\": 250,\n  \"expiryDate\": \"2026-12-31T23:59:59\",\n  \"usageLimitPerUser\": 1,\n  \"isActive\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/coupons/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "coupons",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "1"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Coupon",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/coupons/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "coupons",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "1"
-                }
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Coupons (Customer)",
-      "item": [
-        {
-          "name": "List Active Coupons",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/coupons",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "coupons"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Verify Coupon (Success)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"code\": \"WELCOME10\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/coupons/verify",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "coupons",
-                "verify"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Verify Coupon (Invalid Code)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"code\": \"INVALID_CODE\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/coupons/verify",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "coupons",
-                "verify"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Addresses",
-      "item": [
-        {
-          "name": "1. Create Address",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"building_no\": \"A-101\",\n  \"building_name\": \"Sunrise Apartments\",\n  \"street_no\": \"4th Cross, 2nd Main\",\n  \"area_name\": \"HSR Layout\",\n  \"city\": \"Bangalore\",\n  \"state\": \"Karnataka\",\n  \"pincode\": \"560102\",\n  \"address_type\": \"HOME\",\n  \"is_default\": 1\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/addresses",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "addresses"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "2. Get Addresses By User ID",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/addresses/user/1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "addresses",
-                "user",
-                "1"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "3. Get Address By ID",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/addresses/1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "addresses",
-                "1"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "4. Update Address",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"building_no\": \"B-202\",\n  \"building_name\": \"Sunset Villas\",\n  \"street_no\": \"5th Cross\",\n  \"area_name\": \"Indiranagar\",\n  \"city\": \"Bangalore\",\n  \"state\": \"Karnataka\",\n  \"pincode\": \"560038\",\n  \"address_type\": \"WORK\",\n  \"is_default\": 0\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/addresses/1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "addresses",
-                "1"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "5. Set Default Address",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/addresses/1/default?userId=1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "addresses",
-                "1",
-                "default"
-              ],
-              "query": [
-                {
-                  "key": "userId",
-                  "value": "1"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "6. Delete Address",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{Token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/addresses/1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "addresses",
-                "1"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    }
-  ],
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:8080",
-      "type": "string"
-    },
-    {
-      "key": "Token",
-      "value": "",
-      "type": "string"
-    }
-  ]
+    ]
 }

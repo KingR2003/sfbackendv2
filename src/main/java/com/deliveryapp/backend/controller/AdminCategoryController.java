@@ -13,6 +13,22 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/admin/categories")
 public class AdminCategoryController {
 
+    @GetMapping
+    public ResponseEntity<Object> getAllCategories() {
+        java.util.List<Category> categories = categoryService.getAllCategories();
+        return ResponseEntity.ok(new DataResponse<>(HttpStatus.OK.value(), "Categories retrieved successfully", categories));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Object> getCategoryById(@PathVariable("id") Long id) {
+        java.util.Optional<Category> category = categoryService.getCategoryById(id);
+        if (category.isPresent()) {
+            return ResponseEntity.ok(new DataResponse<>(HttpStatus.OK.value(), "Category found", category.get()));
+        } else {
+            return new ResponseEntity<>(new ApiResponse(HttpStatus.NOT_FOUND.value(), "Category not found"), HttpStatus.NOT_FOUND);
+        }
+    }
+
     @Autowired
     private CategoryService categoryService;
 

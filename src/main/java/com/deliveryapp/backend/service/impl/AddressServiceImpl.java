@@ -19,7 +19,7 @@ public class AddressServiceImpl implements AddressService {
     public Address addAddress(Address address) {
         if (address.getIsDefault() != null && address.getIsDefault() == 1) {
             resetDefaultAddresses(address.getUserId());
-        } else if (addressRepository.findByUserId(address.getUserId()).isEmpty()) {
+        } else if (addressRepository.findByUserIdAndStatus(address.getUserId(), "active").isEmpty()) {
             address.setIsDefault(1);
         }
         return addressRepository.save(address);
@@ -27,13 +27,17 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public List<Address> getAddressesByUserId(Long userId) {
-        return addressRepository.findByUserId(userId);
+        return addressRepository.findByUserIdAndStatus(userId, "active");
     }
 
     @Override
     public Address getAddressById(Long id) {
-        return addressRepository.findById(id)
+        Address address = addressRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Address not found with id: " + id));
+        if ("inactive".equalsIgnoreCase(address.getStatus())) {
+            throw new ResourceNotFoundException("Address not found with id: " + id);
+        }
+        return address;
     }
 
     @Override
@@ -60,7 +64,8 @@ public class AddressServiceImpl implements AddressService {
     @Override
     public void deleteAddress(Long id) {
         Address address = getAddressById(id);
-        addressRepository.delete(address);
+        address.setStatus("inactive");
+        addressRepository.save(address);
     }
 
     @Override
@@ -73,7 +78,7 @@ public class AddressServiceImpl implements AddressService {
     }
 
     private void resetDefaultAddresses(Long userId) {
-        List<Address> addresses = addressRepository.findByUserId(userId);
+        List<Address> addresses = addressRepository.findByUserIdAndStatus(userId, "active");
         for (Address addr : addresses) {
             if (addr.getIsDefault() != null && addr.getIsDefault() == 1) {
                 addr.setIsDefault(0);

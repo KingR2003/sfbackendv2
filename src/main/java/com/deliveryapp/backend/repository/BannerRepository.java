@@ -10,23 +10,25 @@ import java.util.List;
 @Repository
 public interface BannerRepository extends JpaRepository<Banner, Long> {
 
-    List<Banner> findByPlatformIgnoreCase(String platform);
+    java.util.Optional<Banner> findByIdAndStatus(Long id, String status);
 
-    List<Banner> findByCampaignTypeIgnoreCase(String campaignType);
+    List<Banner> findByPlatformIgnoreCaseAndStatus(String platform, String status);
 
-    List<Banner> findByGenderIgnoreCase(String gender);
+    List<Banner> findByCampaignTypeIgnoreCaseAndStatus(String campaignType, String status);
+
+    List<Banner> findByGenderIgnoreCaseAndStatus(String gender, String status);
 
     // Active banners
-    List<Banner> findByIsActiveTrue();
+    List<Banner> findByIsActiveTrueAndStatus(String status);
 
     // Banners that are active and currently within their start/end dates
-    List<Banner> findByIsActiveTrueAndStartDateTimeBeforeAndEndDateTimeAfter(LocalDateTime start, LocalDateTime end);
+    List<Banner> findByIsActiveTrueAndStatusAndStartDateTimeBeforeAndEndDateTimeAfter(String status, LocalDateTime start, LocalDateTime end);
     
     // Scheduled: Active flag is true, but start date is in the future
-    List<Banner> findByIsActiveTrueAndStartDateTimeAfter(LocalDateTime start);
+    List<Banner> findByIsActiveTrueAndStatusAndStartDateTimeAfter(String status, LocalDateTime start);
 
     // Expired: End date is in the past
-    List<Banner> findByEndDateTimeBefore(LocalDateTime end);
+    List<Banner> findByEndDateTimeBeforeAndStatus(LocalDateTime end, String status);
 
-    List<Banner> findAllByOrderByPriorityAsc();
+    List<Banner> findByStatusOrderByPriorityAsc(String status);
 }

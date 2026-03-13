@@ -16,30 +16,44 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public Category createCategory(Category category) {
+        if (category.getStatus() == null) {
+            category.setStatus("active");
+        }
         return categoryRepository.save(category);
     }
 
     @Override
     public Optional<Category> getCategoryById(Long id) {
-        return categoryRepository.findById(id);
+        return categoryRepository.findByIdAndStatus(id, "active");
     }
 
     @Override
     public List<Category> getAllCategories() {
-        return categoryRepository.findAll();
+        return categoryRepository.findByStatus("active");
     }
 
     @Override
     public Category updateCategory(Long id, Category category) {
-        if (categoryRepository.existsById(id)) {
-            category.setId(id);
-            return categoryRepository.save(category);
+        Optional<Category> existingOpt = categoryRepository.findByIdAndStatus(id, "active");
+        if (existingOpt.isPresent()) {
+            Category existing = existingOpt.get();
+            existing.setName(category.getName());
+            // Check if getDescription is present on the entity
+            // wait, Category has description. Let's just update all fields
+            if (category.getDescription() != null) existing.setDescription(category.getDescription());
+            if (category.getIsActive() != null) existing.setIsActive(category.getIsActive());
+            return categoryRepository.save(existing);
         }
         return null;
     }
 
     @Override
     public void deleteCategory(Long id) {
-        categoryRepository.deleteById(id);
+        Optional<Category> existingOpt = categoryRepository.findByIdAndStatus(id, "active");
+        if (existingOpt.isPresent()) {
+            Category existing = existingOpt.get();
+            existing.setStatus("inactive");
+            categoryRepository.save(existing);
+        }
     }
 }

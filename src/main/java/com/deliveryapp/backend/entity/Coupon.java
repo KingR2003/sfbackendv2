@@ -55,6 +55,18 @@ public class Coupon {
     @Column(name = "platform")
     private String platform; // e.g., "MOBILE_APP", "WEBSITE", "BOTH"
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+    
+    private String status = "active"; // Adding status field for logical deletion
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (status == null) {
+            status = "active";
+        }
+    }
 }

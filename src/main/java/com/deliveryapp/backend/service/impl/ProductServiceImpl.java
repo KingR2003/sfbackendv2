@@ -117,13 +117,13 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductById(Long id) {
-        return productRepository.findById(id).map(this::toResponse);
+        return productRepository.findByIdAndStatus(id, "active").map(this::toResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductResponse> getAllProducts() {
-        return productRepository.findAll().stream()
+        return productRepository.findByStatus("active").stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -200,7 +200,12 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public void deleteProduct(Long id) {
-        productRepository.deleteById(id);
+        Optional<Product> opt = productRepository.findByIdAndStatus(id, "active");
+        if (opt.isPresent()) {
+            Product p = opt.get();
+            p.setStatus("inactive");
+            productRepository.save(p);
+        }
     }
 
     private ProductResponse toResponse(Product product) {

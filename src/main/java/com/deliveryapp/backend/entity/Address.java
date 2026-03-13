@@ -59,10 +59,15 @@ public class Address {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    private String status = "active"; // Adding status field for logical deletion
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (status == null) {
+            status = "active";
+        }
     }
 
     @PreUpdate

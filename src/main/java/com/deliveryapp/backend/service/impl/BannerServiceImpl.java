@@ -33,7 +33,7 @@ public class BannerServiceImpl implements BannerService {
     @Override
     @Transactional
     public BannerDto updateBanner(Long id, BannerUpdateRequest request) {
-        Banner banner = bannerRepository.findById(id)
+        Banner banner = bannerRepository.findByIdAndStatus(id, "active")
                 .orElseThrow(() -> new RuntimeException("Banner not found with id: " + id));
 
         if (request.getPriority() != null) banner.setPriority(request.getPriority());
@@ -58,21 +58,22 @@ public class BannerServiceImpl implements BannerService {
     @Override
     @Transactional
     public void deleteBanner(Long id) {
-        Banner banner = bannerRepository.findById(id)
+        Banner banner = bannerRepository.findByIdAndStatus(id, "active")
                 .orElseThrow(() -> new RuntimeException("Banner not found with id: " + id));
-        bannerRepository.delete(banner);
+        banner.setStatus("inactive");
+        bannerRepository.save(banner);
     }
 
     @Override
     public BannerDto getBannerById(Long id) {
-        Banner banner = bannerRepository.findById(id)
+        Banner banner = bannerRepository.findByIdAndStatus(id, "active")
                 .orElseThrow(() -> new RuntimeException("Banner not found with id: " + id));
         return mapToDto(banner);
     }
 
     @Override
     public List<BannerDto> getAllBanners() {
-        return bannerRepository.findAllByOrderByPriorityAsc()
+        return bannerRepository.findByStatusOrderByPriorityAsc("active")
                 .stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
@@ -81,7 +82,7 @@ public class BannerServiceImpl implements BannerService {
     @Override
     public List<BannerDto> getActiveBanners(String platform, String gender) {
         LocalDateTime now = LocalDateTime.now();
-        List<Banner> activeBanners = bannerRepository.findByIsActiveTrueAndStartDateTimeBeforeAndEndDateTimeAfter(now, now);
+        List<Banner> activeBanners = bannerRepository.findByIsActiveTrueAndStatusAndStartDateTimeBeforeAndEndDateTimeAfter("active", now, now);
         
         return activeBanners.stream()
                 .filter(b -> {
@@ -102,7 +103,7 @@ public class BannerServiceImpl implements BannerService {
     @Override
     @Transactional
     public void incrementViews(Long id) {
-        Banner banner = bannerRepository.findById(id).orElse(null);
+        Banner banner = bannerRepository.findByIdAndStatus(id, "active").orElse(null);
         if (banner != null) {
             banner.setViews((banner.getViews() == null ? 0 : banner.getViews()) + 1);
             bannerRepository.save(banner);
@@ -112,7 +113,7 @@ public class BannerServiceImpl implements BannerService {
     @Override
     @Transactional
     public void incrementClicks(Long id) {
-        Banner banner = bannerRepository.findById(id).orElse(null);
+        Banner banner = bannerRepository.findByIdAndStatus(id, "active").orElse(null);
         if (banner != null) {
             banner.setClicks((banner.getClicks() == null ? 0 : banner.getClicks()) + 1);
             bannerRepository.save(banner);
@@ -122,7 +123,7 @@ public class BannerServiceImpl implements BannerService {
     @Override
     @Transactional
     public void uploadBannerImage(Long id, String imageUrl) {
-        Banner banner = bannerRepository.findById(id)
+        Banner banner = bannerRepository.findByIdAndStatus(id, "active")
                 .orElseThrow(() -> new RuntimeException("Banner not found with id: " + id));
         banner.setBannerImage(imageUrl);
         bannerRepository.save(banner);

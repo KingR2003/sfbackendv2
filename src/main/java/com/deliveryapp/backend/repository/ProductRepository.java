@@ -8,6 +8,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
     
-    @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true")
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.status = 'active'")
     long countActiveProducts();
+    
+    java.util.List<Product> findByStatus(String status);
+    java.util.Optional<Product> findByIdAndStatus(Long id, String status);
 }
