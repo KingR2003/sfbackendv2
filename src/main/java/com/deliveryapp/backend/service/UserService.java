@@ -24,4 +24,8 @@ public interface UserService {
     User activateUser(Long id);
     
     User deactivateUser(Long id);
+
+    List<User> getAllCustomers();
+
+    User updateUserStatus(Long id, String status);
 }

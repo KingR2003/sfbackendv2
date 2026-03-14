@@ -27,32 +27,20 @@ public class AdminMemberController {
     @Autowired
     private com.deliveryapp.backend.service.UserService userService;
 
-    private static final List<String> VALID_STATUSES = Arrays.asList("ACTIVE", "INACTIVE", "PENDING");
+    private static final List<String> VALID_STATUSES = Arrays.asList("ACTIVE", "INACTIVE", "PENDING", "BLOCKED");
     private static final List<String> MEMBER_ROLES = Arrays.asList("ADMIN", "MANAGER", "STAFF");
 
     @GetMapping
     public ResponseEntity<Object> getAllMembers() {
         try {
-            List<User> allUsers = userRepository.findAll();
-            
-            // Return only active users, mirroring logical deletion
-            List<User> activeUsers = allUsers.stream()
-                    .filter(u -> "ACTIVE".equalsIgnoreCase(u.getStatus()))
-                    .collect(Collectors.toList());
-
-            List<User> admins = activeUsers.stream()
+            List<User> admins = userRepository.findAll().stream()
                     .filter(user -> user.getRole() != null && MEMBER_ROLES.contains(user.getRole().toUpperCase()))
-                    .collect(Collectors.toList());
-
-            List<User> customers = activeUsers.stream()
-                    .filter(user -> user.getRole() == null || "CUSTOMER".equalsIgnoreCase(user.getRole()))
                     .collect(Collectors.toList());
 
             Map<String, Object> response = new HashMap<>();
             response.put("status", HttpStatus.OK.value());
-            response.put("message", "Users retrieved successfully");
+            response.put("message", "Members retrieved successfully");
             response.put("admins", admins);
-            response.put("users", customers);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

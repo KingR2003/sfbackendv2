@@ -12,7 +12,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -23,18 +25,43 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    private static final List<String> VALID_STATUSES = Arrays.asList("ACTIVE", "INACTIVE", "PENDING", "BLOCKED");
+
     @GetMapping
     public ResponseEntity<Object> getAllUsers() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiResponse(403, "Access Denied"));
         }
-        java.util.List<User> users = userService.getAllUsers();
+        List<User> customers = userService.getAllCustomers();
         Map<String, Object> response = new HashMap<>();
         response.put("status", 200);
         response.put("message", "Users retrieved successfully");
-        response.put("users", users);
+        response.put("users", customers);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Object> updateUserStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiResponse(403, "Access Denied"));
+        }
+        try {
+            String newStatus = body.get("status");
+            if (newStatus == null || !VALID_STATUSES.contains(newStatus.toUpperCase())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Invalid status. Valid statuses: " + VALID_STATUSES));
+            }
+            User updatedUser = userService.updateUserStatus(id, newStatus.toUpperCase());
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", 200);
+            response.put("message", "User status updated successfully");
+            response.put("user", updatedUser);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse(404, e.getMessage()));
+        }
     }
 
     @GetMapping("/profile")

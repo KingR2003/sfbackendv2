@@ -148,4 +148,19 @@ public class UserServiceImpl implements UserService {
         user.setUpdatedAt(java.time.LocalDateTime.now());
         return userRepository.save(user);
     }
+
+    @Override
+    public List<User> getAllCustomers() {
+        return userRepository.findByRole("CUSTOMER");
+    }
+
+    @Override
+    public User updateUserStatus(Long id, String status) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+        user.setStatus(status.toUpperCase());
+        user.setActive("ACTIVE".equalsIgnoreCase(status));
+        user.setUpdatedAt(java.time.LocalDateTime.now());
+        return userRepository.save(user);
+    }
 }
