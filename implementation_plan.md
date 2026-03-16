@@ -29,3 +29,25 @@ Build a Spring Boot Backend with React/React Native frontends for Svasthya Fresh
 -   Unit & Integration Tests.
 -   Dockerization.
 -   Deployment to Cloud.
+
+## Admin Address API Implementation
+
+The goal is to allow the Admin web app to fetch/display addresses for any customer in the user management module.
+
+## Proposed Changes
+
+### [Component] Address Controller
+#### [MODIFY] [AddressController.java](file:///c:/Users/Harsha%20nanda.A/deliveryapp-clean/sfbackendv2/src/main/java/com/deliveryapp/backend/controller/AddressController.java)
+- Add `GET /api/v1/addresses/customer/{userId}` endpoint.
+- Protect it with `ROLE_ADMIN` authorization.
+- Call `addressService.getAddressesByUserId(userId)` to fetch addresses.
+
+## Verification Plan
+
+### Automated Tests
+- Run `mvn clean compile` to ensure no syntax errors.
+
+### Manual Verification
+1. Login as Admin in Postman.
+2. Call `GET http://15.206.163.52/api/v1/addresses/customer/5` (replace 5 with a valid user ID).
+3. Verify that the addresses for that user are returned.

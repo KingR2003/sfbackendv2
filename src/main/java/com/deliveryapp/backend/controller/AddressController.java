@@ -60,6 +60,21 @@ public class AddressController {
         return new ResponseEntity<>(new ApiResponse(HttpStatus.UNAUTHORIZED.value(), "User not found"), HttpStatus.UNAUTHORIZED);
     }
 
+    @GetMapping("/customer/{userId}")
+    public ResponseEntity<Object> getAddressesByCustomerUserId(@PathVariable Long userId) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiResponse(403, "Access Denied"));
+        }
+        List<Address> addresses = addressService.getAddressesByUserId(userId);
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.OK.value());
+        response.put("message", "Addresses retrieved successfully");
+        response.put("addresses", addresses);
+        return ResponseEntity.ok(response);
+    }
+
+
     @GetMapping("/{id}")
     public ResponseEntity<Object> getAddressById(@PathVariable Long id) {
         Address address = addressService.getAddressById(id);
