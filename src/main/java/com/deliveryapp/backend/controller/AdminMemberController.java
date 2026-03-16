@@ -197,4 +197,30 @@ public class AdminMemberController {
                     .body(new ApiResponse(500, "Failed to create member: " + e.getMessage()));
         }
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Object> updateMember(@PathVariable Long id, @Valid @RequestBody AdminUserUpdateRequest request) {
+        try {
+            User updatedUser = userService.adminUpdateUser(id, request);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", HttpStatus.OK.value());
+            response.put("message", "Member updated successfully");
+            response.put("member", updatedUser);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("User not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new ApiResponse(HttpStatus.NOT_FOUND.value(), e.getMessage()));
+            } else if (e.getMessage().contains("already in use")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(new ApiResponse(HttpStatus.CONFLICT.value(), e.getMessage()));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "Failed to update member: " + e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "Failed to update member: " + e.getMessage()));
+        }
+    }
 }

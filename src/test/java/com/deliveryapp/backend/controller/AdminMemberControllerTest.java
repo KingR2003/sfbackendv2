@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -65,5 +66,26 @@ public class AdminMemberControllerTest {
         mockMvc.perform(put("/api/v1/admin/members/1/activate")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    public void testUpdateMember() throws Exception {
+        User user = new User();
+        user.setId(1L);
+        user.setName("Updated Name");
+        user.setEmail("updated@example.com");
+        user.setMobile("9876543210");
+
+        when(userService.adminUpdateUser(anyLong(), any())).thenReturn(user);
+
+        String json = "{\"name\":\"Updated Name\", \"email\":\"updated@example.com\", \"mobile\":\"9876543210\"}";
+
+        mockMvc.perform(put("/api/v1/admin/members/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Member updated successfully"))
+                .andExpect(jsonPath("$.member.name").value("Updated Name"));
     }
 }
