@@ -1,10 +1,18 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "categories")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Category {
 
     @Id
@@ -18,9 +26,17 @@ public class Category {
     @Column(name = "is_active")
     private Boolean isActive;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", updatable = false)
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
 
-    public Category() {
+    private String status = "active"; // Adding status field for logical deletion
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        if (status == null) {
+            status = "active";
+        }
     }
 }

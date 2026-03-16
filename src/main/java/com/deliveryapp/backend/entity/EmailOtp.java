@@ -1,10 +1,18 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "email_otp")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class EmailOtp {
 
     @Id
@@ -30,7 +38,4 @@ public class EmailOtp {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-
-    public EmailOtp() {
-    }
 }

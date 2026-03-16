@@ -1,19 +1,33 @@
 package com.deliveryapp.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "product_variants")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductVariant {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "product_id")
+    @Column(name = "product_id", insertable = false, updatable = false)
     private Long productId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id")
+    @JsonIgnore
+    private Product product;
 
     @Column(name = "variant_name")
     private String variantName;
@@ -41,6 +55,6 @@ public class ProductVariant {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public ProductVariant() {
-    }
+    @OneToMany(mappedBy = "productVariant", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private java.util.List<ProductImage> images = new java.util.ArrayList<>();
 }

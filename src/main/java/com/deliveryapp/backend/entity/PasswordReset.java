@@ -1,10 +1,18 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "password_reset")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class PasswordReset {
 
     @Id
@@ -28,7 +36,4 @@ public class PasswordReset {
 
     @Column(name = "ip_address")
     private String ipAddress;
-
-    public PasswordReset() {
-    }
 }

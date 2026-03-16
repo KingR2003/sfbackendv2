@@ -1,11 +1,19 @@
 package com.deliveryapp.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "coupons")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Coupon {
 
     @Id
@@ -32,12 +40,33 @@ public class Coupon {
     @Column(name = "usage_limit_per_user")
     private Integer usageLimitPerUser;
 
+    @Column(name = "days_of_week")
+    private String daysOfWeek; // e.g., "MONDAY,TUESDAY"
+
+    @Column(name = "start_time")
+    private java.time.LocalTime startTime;
+
+    @Column(name = "end_time")
+    private java.time.LocalTime endTime;
+
     @Column(name = "is_active")
     private Boolean isActive;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Column(name = "platform")
+    private String platform; // e.g., "MOBILE_APP", "WEBSITE", "BOTH"
 
-    public Coupon() {
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+    
+    private String status = "active"; // Adding status field for logical deletion
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (status == null) {
+            status = "active";
+        }
     }
 }
