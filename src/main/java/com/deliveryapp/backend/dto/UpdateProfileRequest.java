@@ -18,8 +18,6 @@ public class UpdateProfileRequest {
     @Email(message = "Invalid email format")
     private String email;
 
-    @NotBlank(message = "Mobile is required")
-    private String mobile;
 
     private String gender;
 

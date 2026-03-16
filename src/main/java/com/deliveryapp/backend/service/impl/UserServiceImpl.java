@@ -58,13 +58,6 @@ public class UserServiceImpl implements UserService {
             user.setEmail(request.getEmail());
         }
 
-        // Check uniqueness if mobile is changing
-        if (request.getMobile() != null && !request.getMobile().isBlank() && !request.getMobile().equals(user.getMobile())) {
-            if (userRepository.findByMobile(request.getMobile()).isPresent()) {
-                throw new RuntimeException("Mobile number already in use by another user");
-            }
-            user.setMobile(request.getMobile());
-        }
 
         if (request.getName() != null && !request.getName().isBlank()) {
             user.setName(request.getName());

@@ -42,12 +42,26 @@ The goal is to allow the Admin web app to fetch/display addresses for any custom
 - Protect it with `ROLE_ADMIN` authorization.
 - Call `addressService.getAddressesByUserId(userId)` to fetch addresses.
 
+## Profile Update & Auth Stability Fix
+
+The goal is to fix the issue where updating the profile (specifically the mobile number) invalidates the JWT and causes issues with adding addresses. We'll make the mobile number immutable in the profile update.
+
+### [Component] DTOs
+#### [MODIFY] [UpdateProfileRequest.java](file:///c:/Users/Harsha%20nanda.A/deliveryapp-clean/sfbackendv2/src/main/java/com/deliveryapp/backend/dto/UpdateProfileRequest.java)
+- Remove `mobile` field. Mobile number will be fixed.
+
+### [Component] Services
+#### [MODIFY] [UserServiceImpl.java](file:///c:/Users/Harsha%20nanda.A/deliveryapp-clean/sfbackendv2/src/main/java/com/deliveryapp/backend/service/impl/UserServiceImpl.java)
+- In `updateProfile`, remove logic that updates the `mobile` number.
+- Ensure only `name`, `email`, `gender`, and `dateOfBirth` are updated.
+
 ## Verification Plan
 
 ### Automated Tests
 - Run `mvn clean compile` to ensure no syntax errors.
 
 ### Manual Verification
-1. Login as Admin in Postman.
-2. Call `GET http://15.206.163.52/api/v1/addresses/customer/5` (replace 5 with a valid user ID).
-3. Verify that the addresses for that user are returned.
+1. Login with a mobile number.
+2. Update profile (without mobile number).
+3. Verify that the JWT remains valid and you can still fetch your profile and add an address.
+4. Verify that no duplicate user is created on re-login with the same number.
