@@ -19,8 +19,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -60,6 +62,28 @@ public class AdminAuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AdminRegisterRequest registerRequest) {
         try {
+            // Manual validation
+            if (registerRequest.getName() == null || registerRequest.getName().isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Name is required"));
+            }
+            if (registerRequest.getEmail() == null || registerRequest.getEmail().isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Email is required"));
+            }
+            if (registerRequest.getMobile() == null || registerRequest.getMobile().isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Mobile is required"));
+            }
+            if (registerRequest.getPassword() == null || registerRequest.getPassword().isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Password is required"));
+            }
+            if (registerRequest.getSecretKey() == null || registerRequest.getSecretKey().isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Secret key is required"));
+            }
+            
             // 1. Validate secret key — blocks unauthorised admin account creation
             if (!ADMIN_SECRET_KEY.equals(registerRequest.getSecretKey())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -79,7 +103,7 @@ public class AdminAuthController {
             newAdmin.setMobile(registerRequest.getMobile());
             newAdmin.setPasswordHash(passwordEncoder.encode(registerRequest.getPassword()));
             newAdmin.setRole("ADMIN");
-            newAdmin.setActive(false);
+            newAdmin.setActive(true);
             newAdmin.setStatus("PENDING");
 
             userRepository.save(newAdmin);
@@ -100,43 +124,60 @@ public class AdminAuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest,
             HttpServletRequest request) {
         try {
-            // 1. Authenticate credentials via Spring Security
+            // Manual validation
+            if (loginRequest.getEmail() == null || loginRequest.getEmail().isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Email is required"));
+            }
+            if (loginRequest.getPassword() == null || loginRequest.getPassword().isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Password is required"));
+            }
+            
+            // 1. Load user from DB FIRST to check status before authentication
+            Optional<User> userOpt = userRepository.findByEmail(loginRequest.getEmail());
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(401, "Invalid email or password"));
+            }
+
+            User user = userOpt.get();
+
+            // 2. Block CUSTOMER accounts from using this admin endpoint
+            if ("CUSTOMER".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ApiResponse(403, "Access denied: this endpoint is for admins only"));
+            }
+
+            // 3. Check account status BEFORE authentication attempt
+            if ("PENDING".equalsIgnoreCase(user.getStatus())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ApiResponse(403, "Your account is pending approval. Please contact administrator to approve your account."));
+            }
+
+            if ("BLOCKED".equalsIgnoreCase(user.getStatus())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ApiResponse(403, "Your account has been blocked. Please contact administrator."));
+            }
+
+            // For INACTIVE status, return generic error for security (don't reveal account exists)
+            if (!user.isActive() || "INACTIVE".equalsIgnoreCase(user.getStatus())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse(401, "User doesn't exist or invalid credentials"));
+            }
+
+            // 4. Now authenticate credentials via Spring Security
             org.springframework.security.core.Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             loginRequest.getEmail(), loginRequest.getPassword()));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // 2. Load user from DB using parameterised repository (SQL-injection safe)
-            Optional<User> userOpt = userRepository.findByEmail(loginRequest.getEmail());
-            if (userOpt.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ApiResponse(401, "User not found"));
-            }
-
-            User user = userOpt.get();
-
-            // 3. Block CUSTOMER accounts from using this admin endpoint
-            if ("CUSTOMER".equalsIgnoreCase(user.getRole())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new ApiResponse(403, "Access denied: this endpoint is for admins only"));
-            }
-
-            if ("PENDING".equalsIgnoreCase(user.getStatus())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new ApiResponse(403, "Your account is pending approval by an administrator."));
-            }
-
-            if ("INACTIVE".equalsIgnoreCase(user.getStatus())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new ApiResponse(403, "Your account is currently inactive."));
-            }
-
-            // 4. Generate JWT with role and clientType embedded
+            // 5. Generate JWT with role and clientType embedded
             String clientType = loginRequest.getClientType();
             String token = jwtUtil.generateToken(loginRequest.getEmail(), user.getRole(), clientType);
 
-            // 5. Persist token records
+            // 6. Persist token records
             persistToken(user, token, clientType, request);
 
             return ResponseEntity.ok((Object) new LoginResponse(user.getEmail(), token, "Admin login successful", 200));

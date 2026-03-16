@@ -7,8 +7,10 @@ import com.deliveryapp.backend.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,6 +51,60 @@ public class ProductController {
             @RequestPart(value = "image", required = false) List<org.springframework.web.multipart.MultipartFile> images) {
         try {
             com.deliveryapp.backend.dto.ProductRequest request = objectMapper.readValue(productStr, com.deliveryapp.backend.dto.ProductRequest.class);
+            
+            // Manual validation of required fields
+            if (request.getName() == null || request.getName().isBlank()) {
+                return new ResponseEntity<>(
+                        new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Product name is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            if (request.getDescription() == null || request.getDescription().isBlank()) {
+                return new ResponseEntity<>(
+                        new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Product description is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            if (request.getCategoryId() == null) {
+                return new ResponseEntity<>(
+                        new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Category ID is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            if (request.getIsActive() == null) {
+                return new ResponseEntity<>(
+                        new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Active status is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            
+            // Additional validation for variants if provided
+            if (request.getVariants() != null && !request.getVariants().isEmpty()) {
+                for (com.deliveryapp.backend.dto.ProductVariantDto variant : request.getVariants()) {
+                    if (variant.getVariantName() == null || variant.getVariantName().isBlank()) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant name is required"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                    if (variant.getPrice() == null || variant.getPrice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant price must be greater than 0"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                    if (variant.getMrp() == null || variant.getMrp().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant MRP must be greater than 0"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                    if (variant.getStockQuantity() == null) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant stock quantity is required"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                    if (variant.getIsActive() == null) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant active status is required"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                }
+            }
+            
             productService.createProduct(request, images);
             return new ResponseEntity<>(
                     new ApiResponse(HttpStatus.CREATED.value(), "Product created successfully"),
@@ -56,6 +112,10 @@ public class ProductController {
         } catch (java.io.IOException e) {
             return new ResponseEntity<>(
                     new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage()),
+                    HttpStatus.BAD_REQUEST);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(
+                    new ApiResponse(HttpStatus.BAD_REQUEST.value(), e.getMessage()),
                     HttpStatus.BAD_REQUEST);
         }
     }
@@ -66,6 +126,60 @@ public class ProductController {
             @RequestPart(value = "image", required = false) List<org.springframework.web.multipart.MultipartFile> images) {
         try {
             com.deliveryapp.backend.dto.ProductRequest request = objectMapper.readValue(productStr, com.deliveryapp.backend.dto.ProductRequest.class);
+            
+            // Manual validation of required fields
+            if (request.getName() == null || request.getName().isBlank()) {
+                return new ResponseEntity<>(
+                        new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Product name is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            if (request.getDescription() == null || request.getDescription().isBlank()) {
+                return new ResponseEntity<>(
+                        new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Product description is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            if (request.getCategoryId() == null) {
+                return new ResponseEntity<>(
+                        new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Category ID is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            if (request.getIsActive() == null) {
+                return new ResponseEntity<>(
+                        new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Active status is required"),
+                        HttpStatus.BAD_REQUEST);
+            }
+            
+            // Additional validation for variants if provided
+            if (request.getVariants() != null && !request.getVariants().isEmpty()) {
+                for (com.deliveryapp.backend.dto.ProductVariantDto variant : request.getVariants()) {
+                    if (variant.getVariantName() == null || variant.getVariantName().isBlank()) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant name is required"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                    if (variant.getPrice() == null || variant.getPrice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant price must be greater than 0"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                    if (variant.getMrp() == null || variant.getMrp().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant MRP must be greater than 0"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                    if (variant.getStockQuantity() == null) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant stock quantity is required"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                    if (variant.getIsActive() == null) {
+                        return new ResponseEntity<>(
+                                new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Variant active status is required"),
+                                HttpStatus.BAD_REQUEST);
+                    }
+                }
+            }
+            
             ProductResponse updatedProduct = productService.updateProduct(id, request, images);
             if (updatedProduct != null) {
                 return ResponseEntity.ok(new DataResponse<>(HttpStatus.OK.value(), "Product updated successfully", updatedProduct));
@@ -76,6 +190,10 @@ public class ProductController {
         } catch (java.io.IOException e) {
             return new ResponseEntity<>(
                     new ApiResponse(HttpStatus.BAD_REQUEST.value(), "Invalid product JSON: " + e.getMessage()),
+                    HttpStatus.BAD_REQUEST);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(
+                    new ApiResponse(HttpStatus.BAD_REQUEST.value(), e.getMessage()),
                     HttpStatus.BAD_REQUEST);
         }
     }
