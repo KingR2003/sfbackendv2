@@ -5,6 +5,8 @@ import com.deliveryapp.backend.entity.OrderEntity;
 import java.util.List;
 import java.util.Optional;
 
+import com.deliveryapp.backend.dto.OrderDetailsResponse;
+
 public interface OrderService {
     OrderEntity createOrder(OrderEntity order);
 
@@ -17,4 +19,6 @@ public interface OrderService {
     void deleteOrder(Long id);
 
     OrderEntity checkout(Long userId, CheckoutRequest request);
+
+    OrderDetailsResponse getOrderDetailsWithItems(Long id);
 }

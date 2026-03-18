@@ -52,10 +52,9 @@ public class OrderController {
     public ResponseEntity<Object> getOrderDetails(@PathVariable Long id) {
         Long userId = getAuthenticatedUserId();
         try {
-            OrderEntity order = orderService.getOrderById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+            com.deliveryapp.backend.dto.OrderDetailsResponse orderDetails = orderService.getOrderDetailsWithItems(id);
             
-            if (!order.getUserId().equals(userId)) {
+            if (!orderDetails.getOrder().getUserId().equals(userId)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse(HttpStatus.FORBIDDEN.value(), "Access denied"));
             }
@@ -63,7 +62,10 @@ public class OrderController {
             Map<String, Object> response = new HashMap<>();
             response.put("status", HttpStatus.OK.value());
             response.put("message", "Order details retrieved successfully");
-            response.put("order", order);
+            response.put("order", orderDetails.getOrder());
+            response.put("customer", orderDetails.getCustomer());
+            response.put("shippingAddress", orderDetails.getShippingAddress());
+            response.put("items", orderDetails.getItems());
             return ResponseEntity.ok(response);
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

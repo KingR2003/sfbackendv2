@@ -153,4 +153,61 @@ public class OrderServiceImpl implements OrderService {
 
         return savedOrder;
     }
+
+    @Autowired
+    private com.deliveryapp.backend.repository.UserRepository userRepository;
+
+    @Autowired
+    private com.deliveryapp.backend.repository.AddressRepository addressRepository;
+
+    @Override
+    public com.deliveryapp.backend.dto.OrderDetailsResponse getOrderDetailsWithItems(Long id) {
+        OrderEntity order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + id));
+
+        com.deliveryapp.backend.entity.User user = userRepository.findById(order.getUserId()).orElse(null);
+        com.deliveryapp.backend.entity.Address address = null;
+        if (order.getAddressId() != null) {
+            address = addressRepository.findById(order.getAddressId()).orElse(null);
+        }
+
+        java.util.Map<String, Object> customerMap = new java.util.HashMap<>();
+        if (user != null) {
+            customerMap.put("id", user.getId());
+            customerMap.put("name", user.getName());
+            customerMap.put("email", user.getEmail());
+            customerMap.put("mobile", user.getMobile());
+            customerMap.put("role", user.getRole());
+            customerMap.put("isActive", user.isActive());
+        }
+
+        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+        List<com.deliveryapp.backend.dto.OrderItemDetailsDto> itemDtos = items.stream().map(item -> {
+            com.deliveryapp.backend.dto.OrderItemDetailsDto dto = new com.deliveryapp.backend.dto.OrderItemDetailsDto();
+            dto.setId(item.getId());
+            dto.setOrderId(item.getOrderId());
+            dto.setVariantId(item.getVariantId());
+            dto.setPriceAtPurchase(item.getPriceAtPurchase());
+            dto.setQuantity(item.getQuantity());
+            dto.setSubtotal(item.getSubtotal());
+
+            ProductVariant variant = productVariantRepository.findById(item.getVariantId()).orElse(null);
+            if (variant != null) {
+                dto.setVariantName(variant.getVariantName());
+                dto.setProductId(variant.getProductId());
+                if (variant.getProduct() != null) {
+                    dto.setProductName(variant.getProduct().getName());
+                }
+            }
+            return dto;
+        }).collect(java.util.stream.Collectors.toList());
+
+        com.deliveryapp.backend.dto.OrderDetailsResponse response = new com.deliveryapp.backend.dto.OrderDetailsResponse();
+        response.setOrder(order);
+        response.setCustomer(customerMap);
+        response.setShippingAddress(address);
+        response.setItems(itemDtos);
+
+        return response;
+    }
 }

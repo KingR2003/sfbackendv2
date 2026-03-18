@@ -70,4 +70,26 @@ public class AdminOrderController {
                     .body(new ApiResponse(500, "Failed to update order status: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Object> getOrderDetails(@PathVariable Long id) {
+        try {
+            com.deliveryapp.backend.dto.OrderDetailsResponse orderDetails = orderService.getOrderDetailsWithItems(id);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", HttpStatus.OK.value());
+            response.put("message", "Order details retrieved successfully");
+            response.put("order", orderDetails.getOrder());
+            response.put("customer", orderDetails.getCustomer());
+            response.put("shippingAddress", orderDetails.getShippingAddress());
+            response.put("items", orderDetails.getItems());
+            return ResponseEntity.ok(response);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse(HttpStatus.NOT_FOUND.value(), e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "Failed to retrieve order details: " + e.getMessage()));
+        }
+    }
 }
