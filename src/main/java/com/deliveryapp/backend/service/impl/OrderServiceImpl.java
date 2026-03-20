@@ -50,7 +50,29 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderEntity> getAllOrders() {
-        return orderRepository.findAll();
+        List<OrderEntity> orders = orderRepository.findAll();
+        for (OrderEntity order : orders) {
+            populateUserAndAddress(order);
+        }
+        return orders;
+    }
+
+    private void populateUserAndAddress(OrderEntity order) {
+        if (order.getUserId() != null && userRepository != null) {
+            userRepository.findById(order.getUserId()).ifPresent(u -> order.setUserName(u.getName()));
+        }
+        if (order.getAddressId() != null && addressRepository != null) {
+            addressRepository.findById(order.getAddressId()).ifPresent(a -> {
+                java.util.List<String> parts = new java.util.ArrayList<>();
+                if (a.getBuildingNo() != null && !a.getBuildingNo().isEmpty()) parts.add(a.getBuildingNo());
+                if (a.getBuildingName() != null && !a.getBuildingName().isEmpty()) parts.add(a.getBuildingName());
+                if (a.getStreetNo() != null && !a.getStreetNo().isEmpty()) parts.add(a.getStreetNo());
+                if (a.getAreaName() != null && !a.getAreaName().isEmpty()) parts.add(a.getAreaName());
+                if (a.getCity() != null && !a.getCity().isEmpty()) parts.add(a.getCity());
+                if (a.getPincode() != null && !a.getPincode().isEmpty()) parts.add(a.getPincode());
+                order.setDeliveryAddress(String.join(", ", parts));
+            });
+        }
     }
 
     @Override
