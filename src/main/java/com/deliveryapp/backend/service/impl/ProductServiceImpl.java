@@ -161,10 +161,25 @@ public class ProductServiceImpl implements ProductService {
         }
 
         // Replace variants
-        product.getVariants().clear();
+        java.util.Map<Long, ProductVariant> existingVariants = product.getVariants().stream()
+                .collect(Collectors.toMap(ProductVariant::getId, v -> v));
+
         if (request.getVariants() != null) {
             for (ProductVariantDto varDto : request.getVariants()) {
-                ProductVariant variant = new ProductVariant();
+                ProductVariant variant;
+                if (varDto.getId() != null && existingVariants.containsKey(varDto.getId())) {
+                    variant = existingVariants.get(varDto.getId());
+                    existingVariants.remove(varDto.getId());
+                    variant.setUpdatedAt(LocalDateTime.now());
+                    variant.getImages().clear(); // Clear existing to replace
+                } else {
+                    variant = new ProductVariant();
+                    variant.setCreatedAt(LocalDateTime.now());
+                    variant.setUpdatedAt(LocalDateTime.now());
+                    variant.setProduct(product);
+                    product.getVariants().add(variant);
+                }
+
                 variant.setVariantName(varDto.getVariantName());
                 variant.setSku(varDto.getSku());
                 variant.setMrp(varDto.getMrp());
@@ -173,9 +188,6 @@ public class ProductServiceImpl implements ProductService {
                 variant.setStockQuantity(varDto.getStockQuantity());
                 variant.setAvailabilityStatus(varDto.getAvailabilityStatus());
                 variant.setIsActive(varDto.getIsActive() != null ? varDto.getIsActive() : true);
-                variant.setCreatedAt(LocalDateTime.now());
-                variant.setUpdatedAt(LocalDateTime.now());
-                variant.setProduct(product);
 
                 // Map variant images
                 if (varDto.getImages() != null) {
@@ -188,9 +200,14 @@ public class ProductServiceImpl implements ProductService {
                         variant.getImages().add(image);
                     }
                 }
-
-                product.getVariants().add(variant);
             }
+        }
+
+        // Soft delete removed variants instead of removing from DB to preserve order data
+        for (ProductVariant removedVariant : existingVariants.values()) {
+            removedVariant.setIsActive(false);
+            removedVariant.setStockQuantity(0);
+            removedVariant.setAvailabilityStatus("OUT_OF_STOCK");
         }
 
         Product saved = productRepository.save(product);
@@ -217,6 +234,12 @@ public class ProductServiceImpl implements ProductService {
         response.setIsActive(product.getIsActive());
         response.setCreatedAt(product.getCreatedAt());
         response.setUpdatedAt(product.getUpdatedAt());
+
+        if (Boolean.FALSE.equals(product.getIsActive())) {
+            response.setAvailabilityStatus("OUT_OF_STOCK");
+        } else {
+            response.setAvailabilityStatus("AVAILABLE");
+        }
 
         List<ProductImageDto> imageDtos = new ArrayList<>();
         if (product.getImages() != null) {

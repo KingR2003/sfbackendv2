@@ -27,4 +27,5 @@ public class ProductResponse {
 
     private List<ProductImageDto> images;
     private List<ProductVariantDto> variants;
+    private String availabilityStatus;
 }

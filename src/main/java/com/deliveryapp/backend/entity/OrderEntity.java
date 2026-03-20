@@ -46,4 +46,10 @@ public class OrderEntity {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Transient
+    private String userName;
+
+    @Transient
+    private String deliveryAddress;
 }
