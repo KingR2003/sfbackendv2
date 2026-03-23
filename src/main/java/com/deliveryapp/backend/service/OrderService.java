@@ -21,4 +21,6 @@ public interface OrderService {
     OrderEntity checkout(Long userId, CheckoutRequest request);
 
     OrderDetailsResponse getOrderDetailsWithItems(Long id);
+
+    List<OrderEntity> getOrdersByUserId(Long userId);
 }

@@ -232,4 +232,13 @@ public class OrderServiceImpl implements OrderService {
 
         return response;
     }
+
+    @Override
+    public List<OrderEntity> getOrdersByUserId(Long userId) {
+        List<OrderEntity> orders = orderRepository.findByUserId(userId);
+        for (OrderEntity order : orders) {
+            populateUserAndAddress(order);
+        }
+        return orders;
+    }
 }
