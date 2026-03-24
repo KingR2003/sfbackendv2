@@ -56,11 +56,11 @@ public class CouponServiceImpl implements CouponService {
 
         // Time window check: coupon is only valid between startTime and endTime each day
         if (coupon.getStartTime() != null || coupon.getEndTime() != null) {
-            LocalTime now = LocalTime.now();
-            if (coupon.getStartTime() != null && now.isBefore(coupon.getStartTime())) {
+            LocalTime currentTime = LocalTime.now();
+            if (coupon.getStartTime() != null && currentTime.isBefore(coupon.getStartTime())) {
                 throw new IllegalArgumentException("Coupon " + code + " is not available yet today (available from " + coupon.getStartTime() + ")");
             }
-            if (coupon.getEndTime() != null && now.isAfter(coupon.getEndTime())) {
+            if (coupon.getEndTime() != null && currentTime.isAfter(coupon.getEndTime())) {
                 throw new IllegalArgumentException("Coupon " + code + " has already expired for today (available until " + coupon.getEndTime() + ")");
             }
         }
