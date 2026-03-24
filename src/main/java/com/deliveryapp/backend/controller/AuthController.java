@@ -1,5 +1,6 @@
 package com.deliveryapp.backend.controller;
 
+import com.deliveryapp.backend.dto.ApiResponse;
 import com.deliveryapp.backend.dto.LoginResult;
 import com.deliveryapp.backend.dto.OtpResponse;
 import com.deliveryapp.backend.dto.SendOtpRequest;
@@ -9,10 +10,12 @@ import com.deliveryapp.backend.exception.OtpExpiredException;
 import com.deliveryapp.backend.exception.OtpRateLimitException;
 import com.deliveryapp.backend.exception.TooManyOtpAttemptsException;
 import com.deliveryapp.backend.service.OtpService;
+import com.deliveryapp.backend.service.TokenService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -24,6 +27,9 @@ public class AuthController {
 
     @Autowired
     private OtpService otpService;
+
+    @Autowired
+    private TokenService tokenService;
 
     /**
      * Entry point for customer registration / first-time login.
@@ -100,5 +106,13 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new OtpResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Verification failed: " + e.getMessage()));
         }
+    }
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse> logout(@RequestHeader(value = "Authorization", required = false) String token) {
+        if (token != null) {
+            tokenService.invalidateToken(token);
+        }
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.ok(new ApiResponse(200, "Logged out successfully"));
     }
 }

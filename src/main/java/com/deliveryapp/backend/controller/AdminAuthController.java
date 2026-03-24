@@ -11,6 +11,7 @@ import com.deliveryapp.backend.repository.UserRepository;
 import com.deliveryapp.backend.repository.TokenRepository;
 import com.deliveryapp.backend.repository.ActiveTokenRepository;
 import com.deliveryapp.backend.security.JwtUtil;
+import com.deliveryapp.backend.service.TokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -51,10 +52,7 @@ public class AdminAuthController {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private TokenRepository tokenRepository;
-
-    @Autowired
-    private ActiveTokenRepository activeTokenRepository;
+    private TokenService tokenService;
 
     // ---------------------------------------------------------------
     // POST /api/v1/admin/auth/register — ADMIN registration only
@@ -173,12 +171,8 @@ public class AdminAuthController {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // 5. Generate JWT with role and clientType embedded
-            String clientType = loginRequest.getClientType();
-            String token = jwtUtil.generateToken(loginRequest.getEmail(), user.getRole(), clientType);
-
             // 6. Persist token records
-            persistToken(user, token, clientType, request);
+            tokenService.persistToken(user, token, clientType, request);
 
             return ResponseEntity.ok((Object) new LoginResponse(user.getEmail(), token, "Admin login successful", 200));
 
@@ -191,39 +185,12 @@ public class AdminAuthController {
         }
     }
 
-    // ---------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------
-    private void persistToken(User user, String token, String clientType, HttpServletRequest request) {
-        Token tokenEntity = new Token();
-        tokenEntity.setUserId(user.getId());
-        tokenEntity.setAccessToken(token);
-        tokenEntity.setIpAddress(getClientIpAddress(request));
-        tokenEntity.setIssuedAt(LocalDateTime.now());
-        
-        // Use client-specific expiration for DB persistence
-        long expMs = "WEBSITE".equalsIgnoreCase(clientType) ? 12L * 60 * 60 * 1000 : 
-                     "ADMIN_WEB".equalsIgnoreCase(clientType) ? 12L * 60 * 60 * 1000 : // 12 hours absolute
-                     5L * 24 * 60 * 60 * 1000; // Mobile
-        
-        tokenEntity.setExpiresAt(LocalDateTime.now().plusNanos(expMs * 1_000_000));
-        tokenEntity.setCreatedAt(LocalDateTime.now());
-        Token savedToken = tokenRepository.save(tokenEntity);
-
-        ActiveToken activeToken = new ActiveToken();
-        activeToken.setUserId(user.getId());
-        activeToken.setTokenId(savedToken.getId());
-        activeToken.setIsActive(true);
-        activeToken.setLastUsedAt(LocalDateTime.now());
-        activeToken.setCreatedAt(LocalDateTime.now());
-        activeTokenRepository.save(activeToken);
-    }
-
-    private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse> logout(@RequestHeader(value = "Authorization", required = false) String token) {
+        if (token != null) {
+            tokenService.invalidateToken(token);
         }
-        return request.getRemoteAddr();
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.ok(new ApiResponse(200, "Logged out successfully"));
     }
 }

@@ -10,4 +10,7 @@ import java.util.List;
 public interface TokenRepository extends JpaRepository<Token, Long> {
     Optional<Token> findByAccessToken(String accessToken);
     List<Token> findByUserId(Long userId);
+    
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByAccessToken(String accessToken);
 }

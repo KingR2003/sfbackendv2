@@ -11,4 +11,7 @@ public interface ActiveTokenRepository extends JpaRepository<ActiveToken, Long> 
     Optional<ActiveToken> findByTokenId(Long tokenId);
     Optional<ActiveToken> findByTokenIdAndIsActive(Long tokenId, Boolean isActive);
     List<ActiveToken> findByUserIdAndIsActive(Long userId, Boolean isActive);
+
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByTokenId(Long tokenId);
 }

@@ -16,6 +16,7 @@ import com.deliveryapp.backend.repository.UserRepository;
 import com.deliveryapp.backend.security.JwtUtil;
 import com.deliveryapp.backend.service.OtpService;
 import com.deliveryapp.backend.service.SnsService;
+import com.deliveryapp.backend.service.TokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,11 +41,9 @@ public class OtpServiceImpl implements OtpService {
     @Autowired
     private MobileOtpRepository mobileOtpRepository;
     @Autowired
+    private TokenService tokenService;
+    @Autowired
     private UserRepository userRepository;
-    @Autowired
-    private TokenRepository tokenRepository;
-    @Autowired
-    private ActiveTokenRepository activeTokenRepository;
     @Autowired
     private SnsService snsService;
     @Autowired
@@ -161,32 +160,10 @@ public class OtpServiceImpl implements OtpService {
         // Generate JWT — subject is the mobile number for customer OTP logins
         String jwtToken = jwtUtil.generateToken(mobileNumber, "CUSTOMER", clientType);
 
-        // Persist token records
-        persistToken(user, jwtToken, clientType);
+        // Persist token records (IP is not easily available here, passing null/Unknown)
+        tokenService.persistToken(user, jwtToken, clientType, null);
 
         return new LoginResult(jwtToken, isNewUser, user.getName());
     }
 
-    private void persistToken(User user, String token, String clientType) {
-        Token tokenEntity = new Token();
-        tokenEntity.setUserId(user.getId());
-        tokenEntity.setAccessToken(token);
-        tokenEntity.setIpAddress("OTP-Login");
-        tokenEntity.setIssuedAt(LocalDateTime.now());
-        
-        // Use client-specific expiration for DB persistence
-        long expMs = "WEBSITE".equalsIgnoreCase(clientType) ? 12L * 60 * 60 * 1000 : 5L * 24 * 60 * 60 * 1000;
-        tokenEntity.setExpiresAt(LocalDateTime.now().plusNanos(expMs * 1_000_000));
-        
-        tokenEntity.setCreatedAt(LocalDateTime.now());
-        Token savedToken = tokenRepository.save(tokenEntity);
-
-        ActiveToken activeToken = new ActiveToken();
-        activeToken.setUserId(user.getId());
-        activeToken.setTokenId(savedToken.getId());
-        activeToken.setIsActive(true);
-        activeToken.setLastUsedAt(LocalDateTime.now());
-        activeToken.setCreatedAt(LocalDateTime.now());
-        activeTokenRepository.save(activeToken);
-    }
 }
