@@ -17,6 +17,7 @@ import com.deliveryapp.backend.security.JwtUtil;
 import com.deliveryapp.backend.service.OtpService;
 import com.deliveryapp.backend.service.SnsService;
 import com.deliveryapp.backend.service.TokenService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -98,7 +99,7 @@ public class OtpServiceImpl implements OtpService {
     // ---------------------------------------------------------------
     @Override
     @Transactional
-    public LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode, String clientType, String name) {
+    public LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode, String clientType, String name, HttpServletRequest httpRequest) {
         // Load the most recent OTP for this number
         MobileOtp otp = mobileOtpRepository
                 .findTopByMobileNumberOrderByCreatedAtDesc(mobileNumber)
@@ -160,8 +161,8 @@ public class OtpServiceImpl implements OtpService {
         // Generate JWT — subject is the mobile number for customer OTP logins
         String jwtToken = jwtUtil.generateToken(mobileNumber, "CUSTOMER", clientType);
 
-        // Persist token records (IP is not easily available here, passing null/Unknown)
-        tokenService.persistToken(user, jwtToken, clientType, null);
+        // Persist token records with the real client IP
+        tokenService.persistToken(user, jwtToken, clientType, httpRequest);
 
         return new LoginResult(jwtToken, isNewUser, user.getName());
     }

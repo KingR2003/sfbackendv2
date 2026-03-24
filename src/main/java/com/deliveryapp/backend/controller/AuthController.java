@@ -11,6 +11,7 @@ import com.deliveryapp.backend.exception.OtpRateLimitException;
 import com.deliveryapp.backend.exception.TooManyOtpAttemptsException;
 import com.deliveryapp.backend.service.OtpService;
 import com.deliveryapp.backend.service.TokenService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -68,25 +69,26 @@ public class AuthController {
      * Final step of login / registration. Verifies OTP and returns JWT.
      */
     @PostMapping("/login")
-    public ResponseEntity<OtpResponse> login(@Valid @RequestBody VerifyOtpRequest request) {
-        return verifyOtpInternal(request);
+    public ResponseEntity<OtpResponse> login(@Valid @RequestBody VerifyOtpRequest request, HttpServletRequest httpRequest) {
+        return verifyOtpInternal(request, httpRequest);
     }
 
     /**
      * Backward compatibility alias for login.
      */
     @PostMapping("/verify-otp")
-    public ResponseEntity<OtpResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-        return verifyOtpInternal(request);
+    public ResponseEntity<OtpResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request, HttpServletRequest httpRequest) {
+        return verifyOtpInternal(request, httpRequest);
     }
 
-    private ResponseEntity<OtpResponse> verifyOtpInternal(VerifyOtpRequest request) {
+    private ResponseEntity<OtpResponse> verifyOtpInternal(VerifyOtpRequest request, HttpServletRequest httpRequest) {
         try {
             LoginResult result = otpService.verifyOtpAndLogin(
                 request.getMobileNumber(),
                 request.getOtpCode(),
                 request.getClientType(),
-                request.getName());
+                request.getName(),
+                httpRequest);
             return ResponseEntity.ok(
                     new OtpResponse(HttpStatus.OK.value(), "Login successful", result.getToken(), result.isNewUser(), result.getName()));
 
