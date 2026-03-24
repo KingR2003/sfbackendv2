@@ -171,6 +171,10 @@ public class AdminAuthController {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
+            // 5. Generate JWT with role and clientType embedded
+            String clientType = loginRequest.getClientType();
+            String token = jwtUtil.generateToken(loginRequest.getEmail(), user.getRole(), clientType);
+
             // 6. Persist token records
             tokenService.persistToken(user, token, clientType, request);
 
