@@ -63,6 +63,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
+                // Reject tokens that were explicitly logged out (soft-logout)
+                if (isTokenLoggedOut(jwt)) {
+                    chain.doFilter(request, response);
+                    return;
+                }
+
                 // Inactivity check for Admin Web
                 if (isAdminWebToken(jwt)) {
                     if (isTokenInactive(jwt)) {
@@ -85,6 +91,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private boolean isAdminWebToken(String token) {
         String clientType = jwtUtil.extractClientType(token);
         return "ADMIN_WEB".equalsIgnoreCase(clientType);
+    }
+
+    private boolean isTokenLoggedOut(String jwt) {
+        return tokenRepository.findByAccessToken(jwt)
+                .map(t -> t.getLoggedOutAt() != null)
+                .orElse(false);
     }
 
     private boolean isTokenInactive(String jwt) {

@@ -53,14 +53,18 @@ public class TokenServiceImpl implements TokenService {
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
         }
-        
+
         Optional<Token> tokenOpt = tokenRepository.findByAccessToken(token);
         if (tokenOpt.isPresent()) {
             Token t = tokenOpt.get();
-            // Delete from active_tokens first due to dependency (though no FK constraint shown)
-            activeTokenRepository.deleteByTokenId(t.getId());
-            // Delete from tokens
-            tokenRepository.deleteByAccessToken(token);
+            // Soft-logout: stamp loggedOutAt so the row (and IP) are preserved
+            t.setLoggedOutAt(LocalDateTime.now());
+            tokenRepository.save(t);
+            // Mark the active_token as inactive (do NOT delete)
+            activeTokenRepository.findByTokenId(t.getId()).ifPresent(at -> {
+                at.setIsActive(false);
+                activeTokenRepository.save(at);
+            });
         }
     }
 

@@ -36,4 +36,8 @@ public class Token {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    /** Set when the user explicitly logs out. Row is retained to preserve IP history. */
+    @Column(name = "logged_out_at")
+    private LocalDateTime loggedOutAt;
 }
