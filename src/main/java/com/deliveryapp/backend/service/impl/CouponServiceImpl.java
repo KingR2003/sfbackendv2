@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -38,18 +37,18 @@ public class CouponServiceImpl implements CouponService {
             throw new IllegalArgumentException("Coupon " + code + " is not active");
         }
 
-        // Date range check: coupon is only valid between startDate and expireDate (both inclusive)
-        LocalDate today = LocalDate.now();
-        if (coupon.getStartDate() != null && today.isBefore(coupon.getStartDate())) {
+        // Date-time range check
+        LocalDateTime now = LocalDateTime.now();
+        if (coupon.getStartDate() != null && now.isBefore(coupon.getStartDate())) {
             throw new IllegalArgumentException("Coupon " + code + " is not yet valid");
         }
-        if (coupon.getExpireDate() != null && today.isAfter(coupon.getExpireDate())) {
+        if (coupon.getExpireDate() != null && now.isAfter(coupon.getExpireDate())) {
             throw new IllegalArgumentException("Coupon " + code + " has expired");
         }
 
         // Day of week check
         if (coupon.getDaysOfWeek() != null && !coupon.getDaysOfWeek().isEmpty()) {
-            String currentDay = today.getDayOfWeek().name();
+            String currentDay = now.toLocalDate().getDayOfWeek().name();
             if (!coupon.getDaysOfWeek().toUpperCase().contains(currentDay)) {
                 throw new IllegalArgumentException("Coupon " + code + " is not available on " + currentDay);
             }

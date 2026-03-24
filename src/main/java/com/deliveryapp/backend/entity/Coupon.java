@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -35,13 +34,13 @@ public class Coupon {
     @Column(name = "max_discount_amount")
     private BigDecimal maxDiscountAmount;
 
-    /** The date from which the coupon becomes valid (inclusive). */
+    /** The date-time from which the coupon becomes valid. */
     @Column(name = "start_date")
-    private LocalDate startDate;
+    private LocalDateTime startDate;
 
-    /** The date on which the coupon expires (inclusive). */
+    /** The date-time at which the coupon expires. */
     @Column(name = "expire_date")
-    private LocalDate expireDate;
+    private LocalDateTime expireDate;
 
     @Column(name = "usage_limit_per_user")
     private Integer usageLimitPerUser;

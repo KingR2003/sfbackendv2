@@ -266,8 +266,13 @@ public class ProductServiceImpl implements ProductService {
                 dto.setPrice(var.getPrice());
                 dto.setDiscount(var.getDiscount());
                 dto.setStockQuantity(var.getStockQuantity());
-                dto.setAvailabilityStatus(var.getAvailabilityStatus());
                 dto.setIsActive(var.getIsActive());
+
+                // Derive availability from stock and active flag (overrides stored value)
+                boolean outOfStock = !Boolean.TRUE.equals(var.getIsActive())
+                        || var.getStockQuantity() == null
+                        || var.getStockQuantity() <= 0;
+                dto.setAvailabilityStatus(outOfStock ? "OUT_OF_STOCK" : "AVAILABLE");
 
                 // Map variant images
                 List<ProductImageDto> variantImageDtos = new ArrayList<>();
