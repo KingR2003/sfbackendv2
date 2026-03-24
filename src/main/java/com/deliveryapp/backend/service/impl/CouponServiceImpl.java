@@ -10,7 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -36,26 +38,31 @@ public class CouponServiceImpl implements CouponService {
             throw new IllegalArgumentException("Coupon " + code + " is not active");
         }
 
-        if (coupon.getExpiryDate() != null && coupon.getExpiryDate().isBefore(LocalDateTime.now())) {
+        // Date range check: coupon is only valid between startDate and expireDate (both inclusive)
+        LocalDate today = LocalDate.now();
+        if (coupon.getStartDate() != null && today.isBefore(coupon.getStartDate())) {
+            throw new IllegalArgumentException("Coupon " + code + " is not yet valid");
+        }
+        if (coupon.getExpireDate() != null && today.isAfter(coupon.getExpireDate())) {
             throw new IllegalArgumentException("Coupon " + code + " has expired");
         }
 
         // Day of week check
         if (coupon.getDaysOfWeek() != null && !coupon.getDaysOfWeek().isEmpty()) {
-            String currentDay = java.time.LocalDate.now().getDayOfWeek().name();
+            String currentDay = today.getDayOfWeek().name();
             if (!coupon.getDaysOfWeek().toUpperCase().contains(currentDay)) {
                 throw new IllegalArgumentException("Coupon " + code + " is not available on " + currentDay);
             }
         }
 
-        // Time check
+        // Time window check: coupon is only valid between startTime and endTime each day
         if (coupon.getStartTime() != null || coupon.getEndTime() != null) {
-            java.time.LocalTime now = java.time.LocalTime.now();
+            LocalTime now = LocalTime.now();
             if (coupon.getStartTime() != null && now.isBefore(coupon.getStartTime())) {
-                throw new IllegalArgumentException("Coupon " + code + " is not yet available for today");
+                throw new IllegalArgumentException("Coupon " + code + " is not available yet today (available from " + coupon.getStartTime() + ")");
             }
             if (coupon.getEndTime() != null && now.isAfter(coupon.getEndTime())) {
-                throw new IllegalArgumentException("Coupon " + code + " has already expired for today");
+                throw new IllegalArgumentException("Coupon " + code + " has already expired for today (available until " + coupon.getEndTime() + ")");
             }
         }
 
@@ -72,7 +79,6 @@ public class CouponServiceImpl implements CouponService {
             }
         }
 
-        // Platform check
         return coupon;
     }
 
@@ -129,7 +135,8 @@ public class CouponServiceImpl implements CouponService {
         coupon.setDiscountValue(request.getDiscountValue());
         coupon.setMinOrderAmount(request.getMinOrderAmount());
         coupon.setMaxDiscountAmount(request.getMaxDiscountAmount());
-        coupon.setExpiryDate(request.getExpiryDate());
+        coupon.setStartDate(request.getStartDate());
+        coupon.setExpireDate(request.getExpireDate());
         coupon.setUsageLimitPerUser(request.getUsageLimitPerUser());
         coupon.setDaysOfWeek(request.getDaysOfWeek());
         coupon.setStartTime(request.getStartTime());
@@ -144,3 +151,4 @@ public class CouponServiceImpl implements CouponService {
         return couponRepository.save(coupon);
     }
 }
+

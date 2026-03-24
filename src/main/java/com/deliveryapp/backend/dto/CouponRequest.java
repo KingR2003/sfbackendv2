@@ -8,7 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Data
 @NoArgsConstructor
@@ -29,15 +30,24 @@ public class CouponRequest {
 
     private BigDecimal maxDiscountAmount;
 
-    private LocalDateTime expiryDate;
+    /** Start of the coupon validity date range (inclusive). */
+    private LocalDate startDate;
+
+    /** End of the coupon validity date range (inclusive). */
+    private LocalDate expireDate;
 
     private Integer usageLimitPerUser;
 
     private String daysOfWeek;
-    private java.time.LocalTime startTime;
-    private java.time.LocalTime endTime;
+
+    /** Daily time window start – e.g. 15:00 for 3 PM. */
+    private LocalTime startTime;
+
+    /** Daily time window end – e.g. 19:00 for 7 PM. */
+    private LocalTime endTime;
 
     private String platform;
 
     private Boolean isActive = true;
 }
+
