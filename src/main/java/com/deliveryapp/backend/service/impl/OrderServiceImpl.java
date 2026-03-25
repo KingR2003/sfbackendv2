@@ -73,6 +73,9 @@ public class OrderServiceImpl implements OrderService {
                 order.setDeliveryAddress(String.join(", ", parts));
             });
         }
+        if (order.getId() != null && orderItemRepository != null) {
+            order.setItems(orderItemRepository.findByOrderId(order.getId()));
+        }
     }
 
     @Override

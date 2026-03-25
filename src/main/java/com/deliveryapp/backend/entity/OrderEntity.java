@@ -52,4 +52,7 @@ public class OrderEntity {
 
     @Transient
     private String deliveryAddress;
+
+    @Transient
+    private java.util.List<OrderItem> items = new java.util.ArrayList<>();
 }
