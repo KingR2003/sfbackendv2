@@ -48,6 +48,9 @@ public class SecurityConfig {
                                 "/api/v1/admin/auth/**", // admin login + register
                                 "/api/v1/products/**", // public product view
                                 "/api/v1/categories/**", // public category view
+                                "/api/v1/banners/active", // public banners
+                                "/api/v1/banners/*/view",
+                                "/api/v1/banners/*/click",
                                 "/api/v1/health",
                                 "/h2-console/**",
                                 "/v3/api-docs/**",
@@ -58,7 +61,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/**").hasAnyRole("ADMIN", "CUSTOMER")
 
                         // ── Admin-only area ────────────────────────────────────────────────
-                        .requestMatchers("/api/v1/admin/**", "/api/v1/banners/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 
                         // ── Everything else requires authentication ────────────────────────
                         .anyRequest().authenticated())
