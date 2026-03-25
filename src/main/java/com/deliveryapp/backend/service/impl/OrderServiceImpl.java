@@ -49,6 +49,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<OrderEntity> getAllOrders() {
         List<OrderEntity> orders = orderRepository.findAll();
         for (OrderEntity order : orders) {
@@ -74,7 +75,21 @@ public class OrderServiceImpl implements OrderService {
             });
         }
         if (order.getId() != null && orderItemRepository != null) {
-            order.setItems(orderItemRepository.findByOrderId(order.getId()));
+            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+            for (OrderItem item : items) {
+                if (item.getVariantId() != null && productVariantRepository != null) {
+                    productVariantRepository.findById(item.getVariantId()).ifPresent(v -> {
+                        item.setVariantName(v.getVariantName());
+                        if (v.getProduct() != null) {
+                            item.setProductName(v.getProduct().getName());
+                            if (v.getProduct().getImages() != null && !v.getProduct().getImages().isEmpty()) {
+                                item.setImageUrl(v.getProduct().getImages().get(0).getImageUrl());
+                            }
+                        }
+                    });
+                }
+            }
+            order.setItems(items);
         }
     }
 
@@ -237,6 +252,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<OrderEntity> getOrdersByUserId(Long userId) {
         List<OrderEntity> orders = orderRepository.findByUserId(userId);
         for (OrderEntity order : orders) {

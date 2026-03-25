@@ -31,4 +31,13 @@ public class OrderItem {
     private Integer quantity;
 
     private BigDecimal subtotal;
+
+    @Transient
+    private String productName;
+
+    @Transient
+    private String variantName;
+
+    @Transient
+    private String imageUrl;
 }
