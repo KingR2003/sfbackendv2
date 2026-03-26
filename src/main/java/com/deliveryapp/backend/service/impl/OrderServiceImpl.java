@@ -30,6 +30,9 @@ public class OrderServiceImpl implements OrderService {
     private OrderItemRepository orderItemRepository;
 
     @Autowired
+    private com.deliveryapp.backend.repository.ProductRepository productRepository;
+
+    @Autowired
     private CartService cartService;
 
     @Autowired
@@ -94,11 +97,40 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public OrderEntity updateOrder(Long id, OrderEntity order) {
-        if (orderRepository.existsById(id)) {
-            return orderRepository.save(order);
+        Optional<OrderEntity> existingOrderOpt = orderRepository.findById(id);
+        if (existingOrderOpt.isPresent()) {
+            OrderEntity existingOrder = existingOrderOpt.get();
+            String oldStatus = existingOrder.getOrderStatus();
+            String newStatus = order.getOrderStatus();
+
+            OrderEntity updatedOrder = orderRepository.save(order);
+
+            if (!"DELIVERED".equals(oldStatus) && "DELIVERED".equals(newStatus)) {
+                incrementProductSoldCounts(id);
+            }
+
+            return updatedOrder;
         }
         return null;
+    }
+
+    private void incrementProductSoldCounts(Long orderId) {
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        for (OrderItem item : items) {
+            if (item.getVariantId() != null) {
+                productVariantRepository.findById(item.getVariantId()).ifPresent(v -> {
+                    Product product = v.getProduct();
+                    if (product != null) {
+                        int currentSold = product.getTotalSold() != null ? product.getTotalSold() : 0;
+                        int quantity = item.getQuantity() != null ? item.getQuantity() : 0;
+                        product.setTotalSold(currentSold + quantity);
+                        productRepository.save(product);
+                    }
+                });
+            }
+        }
     }
 
     @Override

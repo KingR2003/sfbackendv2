@@ -117,13 +117,13 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductById(Long id) {
-        return productRepository.findByIdAndStatus(id, "active").map(this::toResponse);
+        return productRepository.findByIdAndStatusAndIsActiveTrue(id, "active").map(this::toResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductResponse> getAllProducts() {
-        return productRepository.findByStatus("active").stream()
+        return productRepository.findByStatusAndIsActiveTrue("active").stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -217,7 +217,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public void deleteProduct(Long id) {
-        Optional<Product> opt = productRepository.findByIdAndStatus(id, "active");
+        Optional<Product> opt = productRepository.findByIdAndStatusAndIsActiveTrue(id, "active");
         if (opt.isPresent()) {
             Product p = opt.get();
             p.setStatus("inactive");
@@ -234,6 +234,7 @@ public class ProductServiceImpl implements ProductService {
         response.setIsActive(product.getIsActive());
         response.setCreatedAt(product.getCreatedAt());
         response.setUpdatedAt(product.getUpdatedAt());
+        response.setTotalSold(product.getTotalSold() != null ? product.getTotalSold() : 0);
 
         if (Boolean.FALSE.equals(product.getIsActive())) {
             response.setAvailabilityStatus("OUT_OF_STOCK");

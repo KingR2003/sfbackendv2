@@ -92,18 +92,4 @@ public class AdminOrderController {
                     .body(new ApiResponse(500, "Failed to retrieve order details: " + e.getMessage()));
         }
     }
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<Object> getOrdersByUserId(@PathVariable Long userId) {
-        try {
-            List<OrderEntity> orders = orderService.getOrdersByUserId(userId);
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", HttpStatus.OK.value());
-            response.put("message", "Orders retrieved successfully");
-            response.put("orders", orders);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(500, "Failed to retrieve orders: " + e.getMessage()));
-        }
-    }
 }

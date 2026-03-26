@@ -13,4 +13,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     
     java.util.List<Product> findByStatus(String status);
     java.util.Optional<Product> findByIdAndStatus(Long id, String status);
+    
+    java.util.List<Product> findByStatusAndIsActiveTrue(String status);
+    java.util.Optional<Product> findByIdAndStatusAndIsActiveTrue(Long id, String status);
 }
