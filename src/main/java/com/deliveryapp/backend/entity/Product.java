@@ -46,6 +46,9 @@ public class Product {
     private List<ProductVariant> variants = new ArrayList<>();
 
     private String status = "active"; // Adding status field for logical deletion
+    
+    @Column(name = "total_sold")
+    private Integer totalSold = 0;
 
     @PrePersist
     protected void onCreate() {
