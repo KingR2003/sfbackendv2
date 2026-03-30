@@ -16,4 +16,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     
     java.util.List<Product> findByStatusAndIsActiveTrue(String status);
     java.util.Optional<Product> findByIdAndStatusAndIsActiveTrue(Long id, String status);
+
+    // Cascade category active/inactive toggle to all products in that category
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Product p SET p.isActive = :isActive WHERE p.categoryId = :categoryId AND p.status = 'active'")
+    void updateIsActiveByCategoryId(@org.springframework.data.repository.query.Param("categoryId") Long categoryId,
+                                    @org.springframework.data.repository.query.Param("isActive") Boolean isActive);
 }

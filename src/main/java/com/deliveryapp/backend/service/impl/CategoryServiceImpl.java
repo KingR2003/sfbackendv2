@@ -2,9 +2,11 @@ package com.deliveryapp.backend.service.impl;
 
 import com.deliveryapp.backend.entity.Category;
 import com.deliveryapp.backend.repository.CategoryRepository;
+import com.deliveryapp.backend.repository.ProductRepository;
 import com.deliveryapp.backend.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +15,9 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
 
     @Override
     public Category createCategory(Category category) {
@@ -33,15 +38,22 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional
     public Category updateCategory(Long id, Category category) {
         Optional<Category> existingOpt = categoryRepository.findByIdAndStatus(id, "active");
         if (existingOpt.isPresent()) {
             Category existing = existingOpt.get();
             existing.setName(category.getName());
-            // Check if getDescription is present on the entity
-            // wait, Category has description. Let's just update all fields
             if (category.getDescription() != null) existing.setDescription(category.getDescription());
-            if (category.getIsActive() != null) existing.setIsActive(category.getIsActive());
+            if (category.getIsActive() != null) {
+                boolean wasActive = Boolean.TRUE.equals(existing.getIsActive());
+                boolean nowActive = category.getIsActive();
+                existing.setIsActive(nowActive);
+                // Cascade: if category toggled, flip all products in this category too
+                if (wasActive != nowActive) {
+                    productRepository.updateIsActiveByCategoryId(id, nowActive);
+                }
+            }
             return categoryRepository.save(existing);
         }
         return null;
