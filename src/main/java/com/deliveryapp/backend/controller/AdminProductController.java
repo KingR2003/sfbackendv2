@@ -201,6 +201,16 @@ public class AdminProductController {
         }
     }
 
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<Object> toggleActive(@PathVariable("id") Long id) {
+        ProductResponse updated = productService.toggleActive(id);
+        if (updated != null) {
+            String state = Boolean.TRUE.equals(updated.getIsActive()) ? "activated" : "deactivated";
+            return ResponseEntity.ok(new DataResponse<>(HttpStatus.OK.value(), "Product " + state + " successfully", updated));
+        }
+        return new ResponseEntity<>(new ApiResponse(HttpStatus.NOT_FOUND.value(), "Product not found"), HttpStatus.NOT_FOUND);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse> deleteProduct(@PathVariable("id") Long id) {
         productService.deleteProduct(id);

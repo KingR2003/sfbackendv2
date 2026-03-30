@@ -19,4 +19,6 @@ public interface ProductService {
     void deleteProduct(Long id);
 
     void addProductImage(Long productId, String imageUrl);
+
+    ProductResponse toggleActive(Long id);
 }

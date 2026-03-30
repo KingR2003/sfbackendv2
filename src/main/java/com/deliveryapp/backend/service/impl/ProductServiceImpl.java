@@ -225,6 +225,18 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
+    @Override
+    @Transactional
+    public ProductResponse toggleActive(Long id) {
+        Optional<Product> opt = productRepository.findByIdAndStatus(id, "active");
+        if (opt.isPresent()) {
+            Product p = opt.get();
+            p.setIsActive(!Boolean.TRUE.equals(p.getIsActive()));
+            return toResponse(productRepository.save(p));
+        }
+        return null;
+    }
+
     private ProductResponse toResponse(Product product) {
         ProductResponse response = new ProductResponse();
         response.setId(product.getId());
