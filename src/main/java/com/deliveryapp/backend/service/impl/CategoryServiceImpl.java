@@ -38,6 +38,11 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    public List<Category> getAllCategoriesForAdmin() {
+        return categoryRepository.findByStatus("active");
+    }
+
+    @Override
     @Transactional
     public Category updateCategory(Long id, Category category) {
         Optional<Category> existingOpt = categoryRepository.findByIdAndStatus(id, "active");

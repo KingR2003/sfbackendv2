@@ -7,7 +7,8 @@ import java.util.Optional;
 public interface CategoryService {
     Category createCategory(Category category);
     Optional<Category> getCategoryById(Long id);
-    List<Category> getAllCategories();
+    List<Category> getAllCategories();           // User-side: isActive=true only
+    List<Category> getAllCategoriesForAdmin();   // Admin-side: all non-deleted
     Category updateCategory(Long id, Category category);
     void deleteCategory(Long id);
 }

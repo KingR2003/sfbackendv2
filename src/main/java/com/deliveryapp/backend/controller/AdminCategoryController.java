@@ -15,7 +15,7 @@ public class AdminCategoryController {
 
     @GetMapping
     public ResponseEntity<Object> getAllCategories() {
-        java.util.List<Category> categories = categoryService.getAllCategories();
+        java.util.List<Category> categories = categoryService.getAllCategoriesForAdmin();
         return ResponseEntity.ok(new DataResponse<>(HttpStatus.OK.value(), "Categories retrieved successfully", categories));
     }
 
