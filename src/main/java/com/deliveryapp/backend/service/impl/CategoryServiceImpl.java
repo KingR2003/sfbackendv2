@@ -29,12 +29,12 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public Optional<Category> getCategoryById(Long id) {
-        return categoryRepository.findByIdAndStatus(id, "active");
+        return categoryRepository.findByIdAndStatusAndIsActive(id, "active", true);
     }
 
     @Override
     public List<Category> getAllCategories() {
-        return categoryRepository.findByStatus("active");
+        return categoryRepository.findByStatusAndIsActive("active", true);
     }
 
     @Override
