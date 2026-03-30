@@ -12,7 +12,8 @@ public interface ProductService {
 
     Optional<ProductResponse> getProductById(Long id);
 
-    List<ProductResponse> getAllProducts();
+    List<ProductResponse> getAllProducts();            // User-side: isActive=true only
+    List<ProductResponse> getAllProductsForAdmin();    // Admin-side: all non-deleted
 
     ProductResponse updateProduct(Long id, ProductRequest request, List<MultipartFile> images);
 

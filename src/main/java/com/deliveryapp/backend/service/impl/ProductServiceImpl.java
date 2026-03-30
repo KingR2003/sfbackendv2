@@ -129,6 +129,14 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getAllProductsForAdmin() {
+        return productRepository.findByStatus("active").stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public ProductResponse updateProduct(Long id, ProductRequest request, List<MultipartFile> images) {
         Optional<Product> optionalProduct = productRepository.findById(id);

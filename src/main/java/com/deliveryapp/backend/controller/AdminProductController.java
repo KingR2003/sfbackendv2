@@ -25,7 +25,7 @@ public class AdminProductController {
 
     @GetMapping
     public ResponseEntity<Object> getAllProducts() {
-        List<ProductResponse> products = productService.getAllProducts();
+        List<ProductResponse> products = productService.getAllProductsForAdmin();
         return ResponseEntity.ok(new DataResponse<>(HttpStatus.OK.value(), "Products retrieved successfully", products));
     }
 
