@@ -19,19 +19,28 @@ public class S3Service {
     private final S3Client s3Client;
     private final String bucketName;
 
-    public S3Service(@Value("${aws.s3.access-key-id}") String accessKeyId,
-                     @Value("${aws.s3.secret-access-key}") String secretAccessKey,
+    public S3Service(@Value("${aws.s3.access-key-id:}") String accessKeyId,
+                     @Value("${aws.s3.secret-access-key:}") String secretAccessKey,
                      @Value("${aws.s3.region}") String region,
                      @Value("${aws.s3.bucket-name}") String bucketName) {
         this.bucketName = bucketName;
-        AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
-        this.s3Client = S3Client.builder()
-                .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-                .build();
+        
+        if (accessKeyId == null || accessKeyId.isBlank() || secretAccessKey == null || secretAccessKey.isBlank()) {
+            System.err.println("WARNING: AWS S3 credentials not provided. S3 service will be disabled.");
+            this.s3Client = null;
+        } else {
+            AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
+            this.s3Client = S3Client.builder()
+                    .region(Region.of(region))
+                    .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
+                    .build();
+        }
     }
 
     public String uploadFile(byte[] fileBytes, String fileName, String contentType) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("AWS S3 service is disabled because credentials are not provided.");
+        }
         String key = UUID.randomUUID().toString() + "_" + fileName;
 
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()

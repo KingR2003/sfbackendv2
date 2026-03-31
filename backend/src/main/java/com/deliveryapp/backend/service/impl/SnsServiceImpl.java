@@ -33,11 +33,16 @@ public class SnsServiceImpl implements SnsService {
 
     @PostConstruct
     public void init() {
-        snsClient = SnsClient.builder()
-                .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKeyId, secretAccessKey)))
-                .build();
+        if (accessKeyId == null || accessKeyId.isBlank() || secretAccessKey == null || secretAccessKey.isBlank()) {
+            System.err.println("WARNING: AWS SNS credentials not provided. SNS service will be disabled.");
+            this.snsClient = null;
+        } else {
+            this.snsClient = SnsClient.builder()
+                    .region(Region.of(region))
+                    .credentialsProvider(StaticCredentialsProvider.create(
+                            AwsBasicCredentials.create(accessKeyId, secretAccessKey)))
+                    .build();
+        }
     }
 
     /**
@@ -48,6 +53,10 @@ public class SnsServiceImpl implements SnsService {
      */
     @Override
     public void sendSms(String phoneNumber, String message) {
+        if (snsClient == null) {
+            System.err.println("ERROR: Attempted to send SMS, but SNS service is disabled due to missing credentials.");
+            return;
+        }
         Map<String, MessageAttributeValue> attributes = Map.of(
                 "AWS.SNS.SMS.SMSType",
                 MessageAttributeValue.builder()
