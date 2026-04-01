@@ -1,0 +1,51 @@
+// API endpoint configuration for easy maintenance
+
+export const BASE_URL = ""
+export const API_ENDPOINTS = {
+  ADMIN_LOGIN: `${BASE_URL}/api/v1/admin/auth/login`,
+  ADMIN_REGISTER: `${BASE_URL}/api/v1/admin/auth/register`,
+  ADMIN_LOGOUT: `${BASE_URL}/api/v1/admin/auth/logout`,
+  GET_USERS: `${BASE_URL}/api/v1/users`,
+  GET_ADDRESSES: `${BASE_URL}/api/v1/addresses`,
+  GET_ADMIN_ADDRESSES: `${BASE_URL}/api/v1/admin/addresses`,
+  GET_USER_ADDRESSES: (userId: number | string) => `${BASE_URL}/api/v1/addresses/customer/${userId}`,
+  GET_ADMIN_USER_ADDRESSES: (userId: number | string) => `${BASE_URL}/api/v1/admin/users/${userId}/addresses`,
+  GET_USER_CART: (userId: number | string) => `${BASE_URL}/api/v1/admin/users/${userId}/cart`,
+  GET_USER_ORDERS: (userId: number | string) => `${BASE_URL}/api/v1/admin/users/${userId}/orders`,
+  CREATE_ADDRESS: `${BASE_URL}/api/v1/addresses`,
+  UPDATE_ADDRESS: (id: number | string) => `${BASE_URL}/api/v1/addresses/${id}`,
+  DELETE_ADDRESS: (id: number | string) => `${BASE_URL}/api/v1/addresses/${id}`,
+  UPDATE_USER: (id: number | string) => `${BASE_URL}/api/v1/users/${id}`,
+  UPDATE_USER_STATUS: (id: number | string) => `${BASE_URL}/api/v1/users/${id}/status`,
+  GET_PRODUCTS: `${BASE_URL}/api/v1/products`,
+  GET_PRODUCTS_ADMIN: `${BASE_URL}/api/v1/admin/products`,
+  CREATE_PRODUCT: `${BASE_URL}/api/v1/admin/products`,
+  UPDATE_PRODUCT: (id: number | string) => `${BASE_URL}/api/v1/admin/products/${id}`,
+  TOGGLE_PRODUCT_STATUS: (id: number | string) => `${BASE_URL}/api/v1/admin/products/${id}/toggle`,
+  GET_CATEGORIES: `${BASE_URL}/api/v1/categories`,
+  GET_CATEGORIES_ADMIN: `${BASE_URL}/api/v1/admin/categories`,
+  CREATE_CATEGORY: `${BASE_URL}/api/v1/admin/categories`,
+  UPDATE_CATEGORY: (id: number | string) => `${BASE_URL}/api/v1/categories/${id}`,
+  UPDATE_CATEGORY_WITH_PRODUCTS_STATUS: (id: number | string) => `${BASE_URL}/api/v1/admin/categories/${id}/status-sync`,
+  BATCH_UPDATE_PRODUCTS_STATUS: `${BASE_URL}/api/v1/admin/products/status/batch`,
+  GET_COUPONS: `${BASE_URL}/api/v1/admin/coupons`,
+  CREATE_COUPON: `${BASE_URL}/api/v1/admin/coupons`,
+  UPDATE_COUPON: (id: number | string) => `${BASE_URL}/api/v1/admin/coupons/${id}`,
+  DELETE_COUPON: (id: number | string) => `${BASE_URL}/api/v1/admin/coupons/${id}`,
+  GET_MEMBERS: `${BASE_URL}/api/v1/admin/members`,
+  UPDATE_MEMBER: (id: number | string) => `${BASE_URL}/api/v1/admin/members/${id}`,
+  GET_ADMIN_ORDERS: `${BASE_URL}/api/v1/admin/orders`,
+  UPDATE_ADMIN_ORDER_STATUS: (id: number | string) => `${BASE_URL}/api/v1/admin/orders/${id}/status`,
+  GET_ADMIN_ORDER_ITEMS: `${BASE_URL}/api/v1/admin/order-items`,
+  GET_ADMIN_QUERIES: `${BASE_URL}/api/v1/admin/queries`,
+  GET_ORDER_ITEMS: `${BASE_URL}/api/v1/order-items`,
+  GET_BANNERS: `${BASE_URL}/api/v1/admin/banners`,
+  CREATE_BANNER: `${BASE_URL}/api/v1/admin/banners`,
+  UPDATE_BANNER: (id: number | string) => `${BASE_URL}/api/v1/admin/banners/${id}`,
+  DELETE_BANNER: (id: number | string) => `${BASE_URL}/api/v1/admin/banners/${id}`,
+  UPLOAD_BANNER_IMAGE: (id: number | string) => `${BASE_URL}/api/v1/admin/banners/${id}/upload-image`,
+};
+
+// Usage example:
+// import { API_ENDPOINTS } from './apiConfig';
+// fetch(API_ENDPOINTS.ADMIN_LOGIN, ...)
