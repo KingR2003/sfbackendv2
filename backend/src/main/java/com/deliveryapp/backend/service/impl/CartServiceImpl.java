@@ -26,6 +26,9 @@ public class CartServiceImpl implements CartService {
     @Autowired
     private ProductVariantRepository productVariantRepository;
 
+    @Autowired
+    private com.deliveryapp.backend.repository.CategoryRepository categoryRepository;
+
     @Override
     public CartResponse getCart(Long userId) {
         List<CartItem> cartItems = cartRepository.findByUserId(userId);
@@ -50,6 +53,21 @@ public class CartServiceImpl implements CartService {
         ProductVariant variant = productVariantRepository.findById(request.getVariantId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Product Variant not found with id: " + request.getVariantId()));
+
+        if (!Boolean.TRUE.equals(variant.getIsActive())) {
+            throw new IllegalArgumentException("Product variant is inactive");
+        }
+        
+        com.deliveryapp.backend.entity.Product product = variant.getProduct();
+        if (product == null || !Boolean.TRUE.equals(product.getIsActive()) || !"active".equals(product.getStatus())) {
+            throw new IllegalArgumentException("Product is inactive");
+        }
+        
+        // Check category status
+        com.deliveryapp.backend.entity.Category category = categoryRepository.findById(product.getCategoryId()).orElse(null);
+        if (category == null || !Boolean.TRUE.equals(category.getIsActive()) || !"active".equals(category.getStatus())) {
+            throw new IllegalArgumentException("Category is inactive");
+        }
 
         if (variant.getStockQuantity() < request.getQuantity()) {
             throw new IllegalArgumentException("Insufficient stock for variant: " + variant.getVariantName());
@@ -87,11 +105,25 @@ public class CartServiceImpl implements CartService {
             imageUrl = variant.getProduct().getImages().get(0).getImageUrl();
         }
 
-        boolean isAvailable = variant.getStockQuantity() > 0 && variant.getStockQuantity() >= item.getQuantity();
+        // Derive availability from product, category, variant activity and stock
+        com.deliveryapp.backend.entity.Product product = variant.getProduct();
+        boolean isProductActive = product != null && Boolean.TRUE.equals(product.getIsActive()) && "active".equals(product.getStatus());
+        
+        boolean isCategoryActive = false;
+        if (product != null) {
+            com.deliveryapp.backend.entity.Category category = categoryRepository.findById(product.getCategoryId()).orElse(null);
+            isCategoryActive = category != null && Boolean.TRUE.equals(category.getIsActive()) && "active".equals(category.getStatus());
+        }
+        
+        boolean isAvailable = Boolean.TRUE.equals(variant.getIsActive())
+                && isProductActive 
+                && isCategoryActive
+                && variant.getStockQuantity() > 0 
+                && variant.getStockQuantity() >= item.getQuantity();
 
         return new CartItemDto(
                 item.getVariantId(),
-                variant.getProduct().getName(),
+                product != null ? product.getName() : "Unknown Product",
                 variant.getVariantName(),
                 item.getQuantity(),
                 variant.getPrice(),

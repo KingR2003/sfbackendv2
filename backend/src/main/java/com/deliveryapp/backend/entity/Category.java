@@ -32,6 +32,9 @@ public class Category {
 
     private String status = "active"; // Adding status field for logical deletion
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

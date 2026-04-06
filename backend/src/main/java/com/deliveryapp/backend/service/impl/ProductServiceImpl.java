@@ -37,15 +37,19 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductResponse createProduct(ProductRequest request, List<MultipartFile> images) {
-        if (request.getCategoryId() == null || !categoryRepository.existsById(request.getCategoryId())) {
-            throw new ResourceNotFoundException("Category is required and must be valid");
-        }
+        com.deliveryapp.backend.entity.Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        boolean isCategoryActive = category != null && Boolean.TRUE.equals(category.getIsActive()) && "active".equals(category.getStatus());
 
         Product product = new Product();
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setCategoryId(request.getCategoryId());
-        product.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
+        
+        // Product activity: if category is inactive, product MUST be inactive. 
+        // Otherwise, use request flag (default true).
+        boolean desiredActive = request.getIsActive() != null ? request.getIsActive() : true;
+        product.setIsActive(isCategoryActive && desiredActive);
 
         // Map product-level images
         if (request.getImages() != null) {
@@ -117,13 +121,13 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductById(Long id) {
-        return productRepository.findByIdAndStatusAndIsActiveTrue(id, "active").map(this::toResponse);
+        return productRepository.findActiveProductById(id).map(this::toResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductResponse> getAllProducts() {
-        return productRepository.findByStatusAndIsActiveTrue("active").stream()
+        return productRepository.findActiveProducts().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -144,16 +148,23 @@ public class ProductServiceImpl implements ProductService {
             return null;
         }
 
-        if (request.getCategoryId() == null || !categoryRepository.existsById(request.getCategoryId())) {
-            throw new ResourceNotFoundException("Category is required and must be valid");
-        }
+        com.deliveryapp.backend.entity.Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        boolean isCategoryActive = category != null && Boolean.TRUE.equals(category.getIsActive()) && "active".equals(category.getStatus());
 
         Product product = optionalProduct.get();
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setCategoryId(request.getCategoryId());
+        
         if (request.getIsActive() != null) {
-            product.setIsActive(request.getIsActive());
+            // Cannot be active if category is inactive
+            product.setIsActive(isCategoryActive && request.getIsActive());
+        } else {
+            // If isActive not provided in request, but category is inactive, deactivate product
+            if (!isCategoryActive) {
+                product.setIsActive(false);
+            }
         }
 
         // Replace images
@@ -239,7 +250,17 @@ public class ProductServiceImpl implements ProductService {
         Optional<Product> opt = productRepository.findByIdAndStatus(id, "active");
         if (opt.isPresent()) {
             Product p = opt.get();
-            p.setIsActive(!Boolean.TRUE.equals(p.getIsActive()));
+            boolean currentActive = Boolean.TRUE.equals(p.getIsActive());
+            
+            if (!currentActive) {
+                // Toggling to active: check if category allows it
+                com.deliveryapp.backend.entity.Category cat = categoryRepository.findById(p.getCategoryId()).orElse(null);
+                if (cat == null || !Boolean.TRUE.equals(cat.getIsActive()) || !"active".equals(cat.getStatus())) {
+                    throw new IllegalArgumentException("Cannot activate product in an inactive category");
+                }
+            }
+            
+            p.setIsActive(!currentActive);
             return toResponse(productRepository.save(p));
         }
         return null;
@@ -256,7 +277,10 @@ public class ProductServiceImpl implements ProductService {
         response.setUpdatedAt(product.getUpdatedAt());
         response.setTotalSold(product.getTotalSold() != null ? product.getTotalSold() : 0);
 
-        if (Boolean.FALSE.equals(product.getIsActive())) {
+        com.deliveryapp.backend.entity.Category cat = categoryRepository.findById(product.getCategoryId()).orElse(null);
+        boolean isCategoryActive = cat != null && Boolean.TRUE.equals(cat.getIsActive()) && "active".equals(cat.getStatus());
+        
+        if (Boolean.FALSE.equals(product.getIsActive()) || !isCategoryActive) {
             response.setAvailabilityStatus("OUT_OF_STOCK");
         } else {
             response.setAvailabilityStatus("AVAILABLE");
@@ -289,8 +313,10 @@ public class ProductServiceImpl implements ProductService {
                 dto.setStockQuantity(var.getStockQuantity());
                 dto.setIsActive(var.getIsActive());
 
-                // Derive availability from stock and active flag (overrides stored value)
+                // Derive availability from product, category, stock and active flag
                 boolean outOfStock = !Boolean.TRUE.equals(var.getIsActive())
+                        || !Boolean.TRUE.equals(product.getIsActive())
+                        || !isCategoryActive
                         || var.getStockQuantity() == null
                         || var.getStockQuantity() <= 0;
                 dto.setAvailabilityStatus(outOfStock ? "OUT_OF_STOCK" : "AVAILABLE");

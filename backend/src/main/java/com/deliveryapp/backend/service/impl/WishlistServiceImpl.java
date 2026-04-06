@@ -23,16 +23,27 @@ public class WishlistServiceImpl implements WishlistService {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private com.deliveryapp.backend.repository.CategoryRepository categoryRepository;
+
     @Override
     public List<WishlistResponse> getWishlist(Long userId) {
         List<WishlistItem> items = wishlistRepository.findByUserId(userId);
         return items.stream().map(item -> {
             Product product = productRepository.findById(item.getProductId()).orElse(null);
+            com.deliveryapp.backend.entity.Category cat = null;
+            if (product != null) {
+                cat = categoryRepository.findById(product.getCategoryId()).orElse(null);
+            }
+            boolean isCategoryActive = cat != null && Boolean.TRUE.equals(cat.getIsActive()) && "active".equals(cat.getStatus());
+            boolean isAvailable = product != null && Boolean.TRUE.equals(product.getIsActive()) && "active".equals(product.getStatus()) && isCategoryActive;
+
             WishlistResponse response = new WishlistResponse();
             response.setWishlistItemId(item.getId());
             response.setProductId(item.getProductId());
             response.setProductName(product != null ? product.getName() : "Unknown Product");
             response.setProductDescription(product != null ? product.getDescription() : null);
+            response.setAvailable(isAvailable);
             response.setAddedAt(item.getAddedAt());
             return response;
         }).collect(Collectors.toList());
@@ -40,9 +51,19 @@ public class WishlistServiceImpl implements WishlistService {
 
     @Override
     public void addToWishlist(Long userId, Long productId) {
-        // Verify product exists
-        productRepository.findById(productId)
+        // Verify product exists and is active
+        Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
+
+        if (!Boolean.TRUE.equals(product.getIsActive()) || !"active".equals(product.getStatus())) {
+            throw new IllegalArgumentException("Product is inactive and cannot be added to wishlist");
+        }
+
+        // Check category status
+        com.deliveryapp.backend.entity.Category category = categoryRepository.findById(product.getCategoryId()).orElse(null);
+        if (category == null || !Boolean.TRUE.equals(category.getIsActive()) || !"active".equals(category.getStatus())) {
+            throw new IllegalArgumentException("Category is inactive and product cannot be added to wishlist");
+        }
 
         // Prevent duplicate
         if (wishlistRepository.existsByUserIdAndProductId(userId, productId)) {
