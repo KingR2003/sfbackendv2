@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
+import java.io.IOException;
+import org.springframework.web.multipart.MultipartFile;
+import com.deliveryapp.backend.service.S3Service;
 
 @Service
 public class CategoryServiceImpl implements CategoryService {
@@ -19,11 +22,24 @@ public class CategoryServiceImpl implements CategoryService {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private S3Service s3Service;
+
     @Override
-    public Category createCategory(Category category) {
+    public Category createCategory(Category category, MultipartFile image) {
         if (category.getStatus() == null) {
             category.setStatus("active");
         }
+        
+        if (image != null && !image.isEmpty()) {
+            try {
+                String imageUrl = s3Service.uploadFile(image.getBytes(), image.getOriginalFilename(), image.getContentType());
+                category.setImageUrl(imageUrl);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to upload category image", e);
+            }
+        }
+        
         return categoryRepository.save(category);
     }
 
@@ -44,12 +60,25 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    public Category updateCategory(Long id, Category category) {
+    public Category updateCategory(Long id, Category category, MultipartFile image) {
         Optional<Category> existingOpt = categoryRepository.findByIdAndStatus(id, "active");
         if (existingOpt.isPresent()) {
             Category existing = existingOpt.get();
             existing.setName(category.getName());
             if (category.getDescription() != null) existing.setDescription(category.getDescription());
+            
+            if (image != null && !image.isEmpty()) {
+                try {
+                    String imageUrl = s3Service.uploadFile(image.getBytes(), image.getOriginalFilename(), image.getContentType());
+                    existing.setImageUrl(imageUrl);
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to upload category image", e);
+                }
+            } else if (category.getImageUrl() != null) {
+                // If a URL is provided manually in the object, use it
+                existing.setImageUrl(category.getImageUrl());
+            }
+
             if (category.getIsActive() != null) {
                 boolean wasActive = Boolean.TRUE.equals(existing.getIsActive());
                 boolean nowActive = category.getIsActive();
