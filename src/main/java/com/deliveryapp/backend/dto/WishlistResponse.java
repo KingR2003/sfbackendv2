@@ -18,6 +18,7 @@ public class WishlistResponse {
     private Long productId;
     private String productName;
     private String productDescription;
+    private boolean isAvailable;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime addedAt;
