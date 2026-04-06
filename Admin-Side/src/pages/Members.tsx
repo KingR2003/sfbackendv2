@@ -3,7 +3,8 @@ import { SearchFilter } from "@/components/shared/SearchFilter";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Edit2, Users as UsersIcon, UserCheck, Shield, MapPin, Lock, X, UserX, Mail, User, Phone, ShieldCheck, Eye, EyeOff, Check, CheckCircle, ChevronDown } from "lucide-react";
+import { Plus, Edit2, Users as UsersIcon, UserCheck, Shield, MapPin, Lock, X, UserX, Mail, User, Phone, ShieldCheck, Eye, EyeOff, Check, CheckCircle, ChevronDown, KeyRound, ArrowUpDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useEffect, useRef, useState } from "react";
 import { adminRegister, getMembers, updateMember } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -95,6 +96,7 @@ const Members = () => {
     const [selectedMember, setSelectedMember] = useState<Member | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterType, setFilterType] = useState<"All" | "Active" | "Inactive" | "Pending">("All");
+    const [sortBy, setSortBy] = useState<"Newest" | "Oldest" | "AZ" | "ZA">("Newest");
     const [openStatusDropdown, setOpenStatusDropdown] = useState<number | null>(null);
     const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
     const statusDropdownRef = useRef<HTMLDivElement>(null);
@@ -106,6 +108,12 @@ const Members = () => {
     const [showAddConfirmPassword, setShowAddConfirmPassword] = useState(false);
     const [showEditPassword, setShowEditPassword] = useState(false);
     const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
+    // Change password modal state
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+    const [changePasswordForm, setChangePasswordForm] = useState({ current: "", newPass: "", confirm: "" });
+    const [changePasswordError, setChangePasswordError] = useState("");
 
     const fetchMembers = async () => {
         setIsLoading(true);
@@ -221,6 +229,11 @@ const Members = () => {
         if (filterType === "Inactive") return matchesSearch && u.status === "Inactive";
         if (filterType === "Pending") return matchesSearch && u.status === "Pending";
         return matchesSearch;
+    }).sort((a, b) => {
+        if (sortBy === "AZ") return a.name.localeCompare(b.name);
+        if (sortBy === "ZA") return b.name.localeCompare(a.name);
+        if (sortBy === "Oldest") return Number(a.id) - Number(b.id);
+        return Number(b.id) - Number(a.id); // Newest
     });
 
     const handleStatClick = (type: "All" | "Active" | "Inactive" | "Pending") => {
@@ -236,6 +249,9 @@ const Members = () => {
     const itemsPerPage = 10;
     const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
     const visibleMembers = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    // Reset page when sort/filter changes
+    useEffect(() => { setCurrentPage(1); }, [searchTerm, filterType, sortBy]);
 
     const handleMemberClick = (member: Member) => {
         setSelectedMember(member);
@@ -365,18 +381,56 @@ const Members = () => {
         }
     };
 
+    const PasswordStrengthMeter = ({ password }: { password: string }) => {
+        if (!password) return null;
+        const checks = [
+            { label: "8+ characters", pass: password.length >= 8 },
+            { label: "Uppercase", pass: /[A-Z]/.test(password) },
+            { label: "Lowercase", pass: /[a-z]/.test(password) },
+            { label: "Number", pass: /[0-9]/.test(password) },
+            { label: "Special char", pass: /[^A-Za-z0-9]/.test(password) },
+        ];
+        const score = checks.filter(c => c.pass).length;
+        const strengthConfig = [
+            { label: "Very Weak", color: "bg-red-500", textColor: "text-red-500" },
+            { label: "Weak", color: "bg-orange-500", textColor: "text-orange-500" },
+            { label: "Fair", color: "bg-yellow-500", textColor: "text-yellow-500" },
+            { label: "Good", color: "bg-blue-500", textColor: "text-blue-500" },
+            { label: "Strong", color: "bg-green-500", textColor: "text-green-600" },
+        ];
+        const strength = strengthConfig[Math.max(0, score - 1)];
+        return (
+            <div className="mt-2 space-y-2">
+                <div className="flex items-center justify-between">
+                    <div className="flex gap-1 flex-1">
+                        {[1,2,3,4,5].map(i => (
+                            <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                                i <= score ? strength.color : "bg-gray-200"
+                            }`} />
+                        ))}
+                    </div>
+                    <span className={`text-[11px] font-bold ml-2 ${strength.textColor}`}>{strength.label}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    {checks.map(c => (
+                        <span key={c.label} className={`text-[11px] flex items-center gap-1 ${c.pass ? "text-green-600" : "text-gray-400"}`}>
+                            <Check className={`w-3 h-3 ${c.pass ? "opacity-100" : "opacity-30"}`} />
+                            {c.label}
+                        </span>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     const ConfirmPasswordHint = ({ password, confirmPassword }: { password: string; confirmPassword: string }) => {
         if (!password || !confirmPassword) return null;
         return (
             <div className={`text-[11px] font-bold mt-1 px-1 flex items-center gap-1 ${password === confirmPassword ? "text-green-600" : "text-red-500"}`}>
                 {password === confirmPassword ? (
-                    <>
-                        <Check className="w-3 h-3" /> Match
-                    </>
+                    <><Check className="w-3 h-3" /> Passwords match</>
                 ) : (
-                    <>
-                        <ShieldCheck className="w-3 h-3" /> No match
-                    </>
+                    <><ShieldCheck className="w-3 h-3" /> Passwords don't match</>
                 )}
             </div>
         );
@@ -496,6 +550,14 @@ const Members = () => {
                             { label: "Inactive Only", value: "Inactive" },
                             { label: "Pending Only", value: "Pending" },
                         ]}
+                        sortValue={sortBy}
+                        setSortValue={(val) => { setSortBy(val as any); setCurrentPage(1); }}
+                        sortOptions={[
+                            { label: "Newest First", value: "Newest" },
+                            { label: "Oldest First", value: "Oldest" },
+                            { label: "Name A–Z", value: "AZ" },
+                            { label: "Name Z–A", value: "ZA" },
+                        ]}
                         placeholder="Search members by name, email, or mobile..."
                     />
                 </div>
@@ -527,8 +589,7 @@ const Members = () => {
                                     <motion.tr
                                         key={user.id}
                                         whileHover={{ backgroundColor: "hsla(130, 85%, 45%, 0.04)" }}
-                                        className="border-b border-border/50 cursor-pointer"
-                                        onClick={() => handleMemberClick(user)}
+                                        className="border-b border-border/50"
                                     >
                                         <td className="py-3.5 px-5">
                                             <div className="flex items-center gap-3">
@@ -577,16 +638,28 @@ const Members = () => {
                                             </div>
                                         </td>
                                         <td className="py-3.5 px-5">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openEditModal(user);
-                                                }}
-                                                className="p-1.5 rounded-lg hover:bg-primary/10 text-primary transition-colors"
-                                                title="Edit Member"
-                                            >
-                                                <Edit2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleMemberClick(user);
+                                                    }}
+                                                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                                    title="View Details"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openEditModal(user);
+                                                    }}
+                                                    className="p-1.5 rounded-lg hover:bg-primary/10 text-primary transition-colors"
+                                                    title="Edit Member"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </motion.tr>
                                 )})
@@ -708,6 +781,7 @@ const Members = () => {
                                                 {showAddPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                             </button>
                                         </div>
+                                        <PasswordStrengthMeter password={addForm.password} />
                                     </div>
 
                                     <div className="space-y-2">
@@ -776,59 +850,77 @@ const Members = () => {
                                 </button>
                             </div>
 
-                            <div className="space-y-5">
-                                <div className="flex items-center gap-4 border-b border-border/50 pb-4">
-                                    <div className="w-16 h-16 rounded-full gradient-green flex items-center justify-center text-2xl font-bold text-primary-foreground">
-                                        {selectedMember.name
-                                            .split(" ")
-                                            .map((n) => n[0])
-                                            .join("")}
+                            <div className="space-y-4">
+                                {/* Avatar + name header */}
+                                <div className="flex items-center gap-4 border-b border-border/50 pb-5">
+                                    <div className="w-16 h-16 rounded-full gradient-green flex items-center justify-center text-2xl font-bold text-primary-foreground flex-shrink-0">
+                                        {selectedMember.name.split(" ").map((n) => n[0]).join("")}
                                     </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-foreground">{selectedMember.name}</h3>
-                                        <p className="text-sm text-muted-foreground">{selectedMember.email}</p>
-                                        <div className="flex gap-2 mt-2">
+                                    <div className="min-w-0">
+                                        <h3 className="text-xl font-bold text-foreground truncate">{selectedMember.name}</h3>
+                                        <p className="text-sm text-muted-foreground truncate">{selectedMember.email}</p>
+                                        <div className="flex flex-wrap gap-2 mt-2">
                                             <StatusBadge status={selectedMember.is_active ? "Active" : "Inactive"} variant={selectedMember.is_active ? "green" : "gray"} />
+                                            {selectedMember.role && (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20">
+                                                    <Shield className="w-3 h-3" />{selectedMember.role}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-4">
-                                    <div className="flex items-start gap-3">
-                                        <MapPin className="w-5 h-5 text-muted-foreground mt-0.5" />
+                                {/* Info grid */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-muted/30 rounded-xl p-3.5">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Member ID</p>
+                                        <p className="text-sm font-bold text-foreground font-mono mt-0.5">#{selectedMember.id}</p>
+                                    </div>
+                                    <div className="bg-muted/30 rounded-xl p-3.5">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Mobile</p>
+                                        <p className="text-sm font-medium text-foreground mt-0.5">{selectedMember.mobile || "—"}</p>
+                                    </div>
+                                    <div className="bg-muted/30 rounded-xl p-3.5">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Joined</p>
+                                        <p className="text-sm font-medium text-foreground mt-0.5">{formatDateTime(selectedMember.created_at).date}</p>
+                                        {formatDateTime(selectedMember.created_at).time && (
+                                            <p className="text-[11px] text-muted-foreground">{formatDateTime(selectedMember.created_at).time}</p>
+                                        )}
+                                    </div>
+                                    <div className="bg-muted/30 rounded-xl p-3.5">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Account Status</p>
+                                        <p className={`text-sm font-semibold mt-0.5 ${selectedMember.is_active ? "text-green-600" : "text-red-500"}`}>
+                                            {selectedMember.is_active ? "Active" : "Inactive"}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Address */}
+                                {selectedMember.address && (
+                                    <div className="flex items-start gap-3 bg-muted/30 rounded-xl p-3.5">
+                                        <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                                         <div>
-                                            <p className="text-xs font-medium text-muted-foreground">Address</p>
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Address</p>
                                             <p className="text-sm text-foreground">{selectedMember.address}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-start gap-3">
-                                        <Lock className="w-5 h-5 text-muted-foreground mt-0.5" />
-                                        <div className="w-full">
-                                            <p className="text-xs font-medium text-muted-foreground mb-2">Security</p>
-                                            <button
-                                                onClick={() => {
-                                                    setShowDetailsModal(false);
-                                                    setShowChangePasswordModal(true);
-                                                }}
-                                                className="text-sm text-primary hover:underline font-medium"
-                                            >
-                                                Change Password
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                )}
 
-                                <div className="bg-muted/30 rounded-xl p-4">
-                                    <p className="text-xs text-muted-foreground mb-3">Activity</p>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground">Joined</span>
-                                        <span className="font-medium text-foreground">
-                                            {formatDateTime(selectedMember.created_at).date}
-                                            {formatDateTime(selectedMember.created_at).time && (
-                                                <span className="block text-xs text-muted-foreground">{formatDateTime(selectedMember.created_at).time}</span>
-                                            )}
-                                        </span>
+                                {/* Security */}
+                                <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3.5 py-3">
+                                    <div className="flex items-center gap-2.5">
+                                        <Lock className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-sm text-foreground font-medium">Password</span>
                                     </div>
+                                    <button
+                                        onClick={() => {
+                                            setShowDetailsModal(false);
+                                            setShowChangePasswordModal(true);
+                                        }}
+                                        className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                                    >
+                                        Change →
+                                    </button>
                                 </div>
                             </div>
 
@@ -1003,36 +1095,147 @@ const Members = () => {
             <AnimatePresence>
                 {showChangePasswordModal && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center">
-                        <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowChangePasswordModal(false)} />
+                        <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => { setShowChangePasswordModal(false); setChangePasswordError(""); }} />
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="glass-strong shadow-elevated rounded-2xl p-6 w-full max-w-sm relative z-10 mx-4"
+                            className="glass-strong shadow-elevated rounded-2xl p-6 w-full max-w-md relative z-10 mx-4"
                         >
-                            <h2 className="text-lg font-bold text-foreground mb-5">Change Password</h2>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Current Password</label>
-                                    <input type="password" className="w-full px-4 py-2.5 rounded-xl bg-muted/50 border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" placeholder="••••••••" />
+                            <div className="flex items-center justify-between mb-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                                        <KeyRound className="w-5 h-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-lg font-bold text-foreground">Change Password</h2>
+                                        <p className="text-xs text-muted-foreground">{selectedMember?.name}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">New Password</label>
-                                    <input type="password" className="w-full px-4 py-2.5 rounded-xl bg-muted/50 border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" placeholder="••••••••" />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Confirm Password</label>
-                                    <input type="password" className="w-full px-4 py-2.5 rounded-xl bg-muted/50 border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" placeholder="••••••••" />
-                                </div>
-                            </div>
-                            <div className="flex gap-3 mt-6">
-                                <button onClick={() => setShowChangePasswordModal(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">
-                                    Cancel
+                                <button onClick={() => { setShowChangePasswordModal(false); setChangePasswordError(""); }} className="p-2 hover:bg-muted rounded-full transition-colors">
+                                    <X className="w-5 h-5" />
                                 </button>
-                                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={() => setShowChangePasswordModal(false)} className="flex-1 px-4 py-2.5 rounded-xl gradient-green text-primary-foreground text-sm font-semibold green-glow-sm">
-                                    Update Password
-                                </motion.button>
                             </div>
+
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                const checks = [
+                                    changePasswordForm.newPass.length >= 8,
+                                    /[A-Z]/.test(changePasswordForm.newPass),
+                                    /[a-z]/.test(changePasswordForm.newPass),
+                                    /[0-9]/.test(changePasswordForm.newPass),
+                                    /[^A-Za-z0-9]/.test(changePasswordForm.newPass),
+                                ];
+                                if (!changePasswordForm.current) {
+                                    setChangePasswordError("Please enter your current password.");
+                                    return;
+                                }
+                                if (checks.filter(Boolean).length < 4) {
+                                    setChangePasswordError("Password must be at least 8 chars with uppercase, lowercase, number and special character.");
+                                    return;
+                                }
+                                if (changePasswordForm.newPass !== changePasswordForm.confirm) {
+                                    setChangePasswordError("New passwords do not match. Please try again.");
+                                    return;
+                                }
+                                setChangePasswordError("");
+                                // TODO: call API to change password
+                                toast({ title: "Success", description: "Password updated successfully." });
+                                setShowChangePasswordModal(false);
+                                setChangePasswordForm({ current: "", newPass: "", confirm: "" });
+                            }} className="space-y-4">
+                                {/* Inline error banner */}
+                                <AnimatePresence>
+                                    {changePasswordError && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3"
+                                        >
+                                            <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                <X className="w-3 h-3 text-white" />
+                                            </div>
+                                            <p className="text-sm text-red-700 font-medium leading-snug">{changePasswordError}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setChangePasswordError("")}
+                                                className="ml-auto text-red-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                {/* Current Password */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[13px] font-bold text-[#374151] uppercase tracking-wider">Current Password</label>
+                                    <div className="relative group">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                        <input
+                                            type={showCurrentPassword ? "text" : "password"}
+                                            value={changePasswordForm.current}
+                                            onChange={e => { setChangePasswordError(""); setChangePasswordForm(p => ({ ...p, current: e.target.value })); }}
+                                            required
+                                            className="w-full pl-12 pr-12 py-3.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all"
+                                            placeholder="Enter current password"
+                                        />
+                                        <button type="button" onClick={() => setShowCurrentPassword(p => !p)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                            {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* New Password */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[13px] font-bold text-[#374151] uppercase tracking-wider">New Password</label>
+                                    <div className="relative group">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                        <input
+                                            type={showNewPassword ? "text" : "password"}
+                                            value={changePasswordForm.newPass}
+                                            onChange={e => { setChangePasswordError(""); setChangePasswordForm(p => ({ ...p, newPass: e.target.value })); }}
+                                            required
+                                            className="w-full pl-12 pr-12 py-3.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all"
+                                            placeholder="Enter new password"
+                                        />
+                                        <button type="button" onClick={() => setShowNewPassword(p => !p)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                            {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                    <PasswordStrengthMeter password={changePasswordForm.newPass} />
+                                </div>
+
+                                {/* Confirm New Password */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[13px] font-bold text-[#374151] uppercase tracking-wider">Confirm New Password</label>
+                                    <div className="relative group">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                        <input
+                                            type={showConfirmNewPassword ? "text" : "password"}
+                                            value={changePasswordForm.confirm}
+                                            onChange={e => { setChangePasswordError(""); setChangePasswordForm(p => ({ ...p, confirm: e.target.value })); }}
+                                            required
+                                            className="w-full pl-12 pr-12 py-3.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all"
+                                            placeholder="Re-enter new password"
+                                        />
+                                        <button type="button" onClick={() => setShowConfirmNewPassword(p => !p)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                            {showConfirmNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                    <ConfirmPasswordHint password={changePasswordForm.newPass} confirmPassword={changePasswordForm.confirm} />
+                                </div>
+
+                                <div className="flex gap-3 pt-2">
+                                    <button type="button" onClick={() => { setShowChangePasswordModal(false); setChangePasswordForm({ current: "", newPass: "", confirm: "" }); setChangePasswordError(""); }} className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                                        Cancel
+                                    </button>
+                                    <motion.button type="submit" whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} className="flex-1 px-4 py-2.5 rounded-xl gradient-green text-primary-foreground text-sm font-semibold green-glow-sm">
+                                        Update Password
+                                    </motion.button>
+                                </div>
+                            </form>
                         </motion.div>
                     </motion.div>
                 )}

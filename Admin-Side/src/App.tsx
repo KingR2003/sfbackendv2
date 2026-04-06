@@ -24,6 +24,7 @@ import TicketDetails from "./pages/TicketDetails";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
+import { DashboardLayout } from "./components/layout/DashboardLayout";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = localStorage.getItem("adminAuthenticated") === "true";
@@ -35,6 +36,38 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const queryClient = new QueryClient();
 
+const MainRoutes = () => {
+  return (
+    <ProtectedRoute>
+      <DashboardLayout>
+        <Routes>
+          <Route path="/dashboard" element={<Index />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/coupons" element={<Coupons />} />
+          <Route path="/orders" element={<Orders />} />
+          <Route path="/orders/:orderId" element={<OrderDetails />} />
+          <Route path="/category/:category" element={<CategoryDetails />} />
+          <Route path="/payments" element={<Payments />} />
+          <Route path="/banners" element={<Banners />} />
+          <Route path="/members" element={<Members />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/analytics/:reportType" element={<Analytics />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/manage" element={<Navigate to="/manage/permissions" replace />} />
+          <Route path="/manage/permissions" element={<ManagePermissions />} />
+          <Route path="/support" element={<Navigate to="/support/overview" replace />} />
+          <Route path="/support/:section" element={<SupportCenter />} />
+          <Route path="/support/ticket/:ticketId" element={<TicketDetails />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </DashboardLayout>
+    </ProtectedRoute>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -45,30 +78,8 @@ const App = () => (
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-
           <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-          <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-          <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
-          <Route path="/coupons" element={<ProtectedRoute><Coupons /></ProtectedRoute>} />
-          <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-          <Route path="/orders/:orderId" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
-          <Route path="/category/:category" element={<ProtectedRoute><CategoryDetails /></ProtectedRoute>} />
-          <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
-          <Route path="/banners" element={<ProtectedRoute><Banners /></ProtectedRoute>} />
-          <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
-          <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-          <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-          <Route path="/analytics/:reportType" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/manage" element={<ProtectedRoute><Navigate to="/manage/permissions" replace /></ProtectedRoute>} />
-          <Route path="/manage/permissions" element={<ProtectedRoute><ManagePermissions /></ProtectedRoute>} />
-          <Route path="/support" element={<ProtectedRoute><Navigate to="/support/overview" replace /></ProtectedRoute>} />
-          <Route path="/support/:section" element={<ProtectedRoute><SupportCenter /></ProtectedRoute>} />
-          <Route path="/support/ticket/:ticketId" element={<ProtectedRoute><TicketDetails /></ProtectedRoute>} />
-
-          <Route path="*" element={<NotFound />} />
+          <Route path="*" element={<MainRoutes />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

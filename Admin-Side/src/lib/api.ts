@@ -239,6 +239,7 @@ function mapSupportTicket(query: any): AdminSupportTicket {
     const ticketId = String(query?.ticketId ?? query?.ticket_id ?? query?.queryCode ?? query?.query_code ?? `QRY-${id}`);
     const customer = query?.customer ?? query?.user ?? query?.customerDetails ?? query?.customer_details ?? {};
     const composedCustomerName = [customer?.firstName, customer?.lastName].filter(Boolean).join(" ");
+    const fallbackCustomerName = [query?.firstName, query?.lastName].filter(Boolean).join(" ");
     const customerName =
         query?.customerName ??
         query?.customer_name ??
@@ -246,6 +247,7 @@ function mapSupportTicket(query: any): AdminSupportTicket {
         customer?.fullName ??
         customer?.full_name ??
         (composedCustomerName || undefined) ??
+        (fallbackCustomerName || undefined) ??
         "Unknown Customer";
 
     const rawReplies =
@@ -255,6 +257,17 @@ function mapSupportTicket(query: any): AdminSupportTicket {
                     Array.isArray(query?.comments) ? query.comments : [];
 
     const replies = rawReplies.map((item: any) => mapSupportReply(item, ticketId));
+
+    if (replies.length === 0 && query?.message) {
+        replies.push({
+            id: `reply-init-${id}`,
+            ticket_id: ticketId,
+            sender: "Customer",
+            sender_name: String(customerName),
+            message: String(query.message),
+            created_at: String(query?.createdAt ?? query?.created_at ?? new Date().toISOString())
+        });
+    }
 
     const subject = String(
         query?.subject ??
@@ -294,6 +307,34 @@ export async function getAdminQueries(): Promise<AdminSupportTicket[]> {
                             Array.isArray(res?.data?.content) ? res.data.content : [];
 
     return list.map(mapSupportTicket);
+}
+
+export interface CustomerQuery {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    subject: string;
+    message: string;
+    createdAt: string;
+}
+
+export async function getCustomerQueries(): Promise<CustomerQuery[]> {
+    const res: any = await safeFetch(API_ENDPOINTS.GET_ADMIN_QUERIES, { method: "GET" });
+    
+    // Based on provided postman response, the array is inside res.data
+    const list: any[] = Array.isArray(res?.data) ? res.data : 
+                        Array.isArray(res) ? res : [];
+                        
+    return list.map(q => ({
+        id: q.id,
+        firstName: q.firstName || "",
+        lastName: q.lastName || "",
+        email: q.email || "",
+        subject: q.subject || "",
+        message: q.message || "",
+        createdAt: q.createdAt || new Date().toISOString()
+    }));
 }
 
 function mapOrderItem(item: any): AdminOrderItem {
@@ -474,7 +515,8 @@ async function safeFetch<T = any>(url: string, options: RequestInit = {}): Promi
 
     if (!res.ok) {
         // On 401 Unauthorized, log the user out and redirect to login
-        if (res.status === 401) {
+        // — but NOT when the 401 comes from the login/register endpoint itself
+        if (res.status === 401 && !AUTH_ENDPOINTS.includes(url)) {
             localStorage.removeItem("adminToken");
             window.location.href = "/";
             // Return a never-resolving promise so no error toast is shown
@@ -850,18 +892,22 @@ export async function getCategories() {
 }
 
 export async function createCategory(data: any) {
+    const formData = new FormData();
+    formData.append("category", JSON.stringify(data));
+
     return safeFetch(API_ENDPOINTS.CREATE_CATEGORY, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: formData,
     });
 }
 
 export async function updateCategory(id: number | string, data: any) {
+    const formData = new FormData();
+    formData.append("category", JSON.stringify(data));
+
     return safeFetch(API_ENDPOINTS.UPDATE_CATEGORY(id), {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: formData,
     });
 }
 

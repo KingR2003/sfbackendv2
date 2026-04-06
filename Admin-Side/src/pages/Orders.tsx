@@ -68,6 +68,7 @@ const Orders = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [filterType, setFilterType] = useState<string>("All");
+  const [sortBy, setSortBy] = useState<string>("Newest");
   const [searchTerm, setSearchTerm] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -146,6 +147,17 @@ const Orders = () => {
     if (fromDate && order.date && new Date(order.date) < new Date(fromDate)) return false;
     if (toDate && order.date && new Date(order.date) > new Date(toDate)) return false;
     return true;
+  }).sort((a, b) => {
+    if (sortBy === "AZ") return (a.customer || "").localeCompare(b.customer || "");
+    if (sortBy === "ZA") return (b.customer || "").localeCompare(a.customer || "");
+    if (sortBy === "Oldest") {
+      const tA = new Date(a.date || 0).getTime();
+      const tB = new Date(b.date || 0).getTime();
+      return (isNaN(tA) ? 0 : tA) - (isNaN(tB) ? 0 : tB) || Number(a.id) - Number(b.id);
+    }
+    const tA = new Date(a.date || 0).getTime();
+    const tB = new Date(b.date || 0).getTime();
+    return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA) || Number(b.id) - Number(a.id);
   });
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -249,7 +261,7 @@ const Orders = () => {
                         </DropdownMenuCheckboxItem>
                       ))}
                     </div>
-                    
+
                     <DropdownMenuSeparator className="my-1 opacity-50" />
                     <div className="px-2 py-1.5">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date Range</p>
@@ -271,19 +283,42 @@ const Orders = () => {
                         </DropdownMenuCheckboxItem>
                       ))}
                     </div>
+
+                    <DropdownMenuSeparator className="my-1 opacity-50" />
+                    <div className="px-2 py-1.5">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sort By</p>
+                    </div>
+                    <div className="space-y-0.5">
+                      {[
+                        { label: "Newest First", value: "Newest" },
+                        { label: "Oldest First", value: "Oldest" },
+                        { label: "A-Z", value: "AZ" },
+                        { label: "Z-A", value: "ZA" }
+                      ].map((s) => (
+                        <DropdownMenuCheckboxItem
+                          key={s.value}
+                          checked={sortBy === s.value}
+                          onCheckedChange={() => { setSortBy(s.value); setCurrentPage(1); }}
+                          className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
+                        >
+                          {s.label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {(filterType !== "All" || fromDate || toDate) && (
+                {(filterType !== "All" || fromDate || toDate || sortBy !== "Newest") && (
                   <button
                     onClick={() => {
                       setFilterType("All");
                       setFromDate("");
                       setToDate("");
                       setDateRangePreset("");
+                      setSortBy("Newest");
                       setCurrentPage(1);
                     }}
-                    className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    className="text-xs text-muted-foreground hover:text-destructive transition-colors whitespace-nowrap"
                   >
                     Clear All
                   </button>

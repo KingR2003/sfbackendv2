@@ -56,16 +56,6 @@ const StatusBadge = ({ status }: { status: TicketStatus }) => {
   );
 };
 
-// ─── Quick reply templates ────────────────────────────────────────────────────
-const QUICK_REPLIES = [
-  "Thank you for reaching out. We're looking into your issue and will update you shortly.",
-  "Your order has been processed and is on its way. You'll receive a tracking link soon.",
-  "We've initiated a refund for your order. It should reflect within 5–7 business days.",
-  "Could you please share more details so we can assist you better?",
-  "We sincerely apologize for the inconvenience. Our team is actively working on a resolution.",
-  "Your issue has been resolved. Please don't hesitate to reach out if you need further assistance.",
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const allStatuses: TicketStatus[] = ["Open", "In Progress", "Waiting for Customer", "Resolved", "Closed"];
 
@@ -120,8 +110,6 @@ const TicketDetails = () => {
   const [loadError, setLoadError]         = useState<string | null>(null);
   const [currentStatus, setCurrentStatus] = useState<TicketStatus>("Open");
   const [conversation, setConversation]   = useState<TicketReply[]>([]);
-  const [replyText, setReplyText]         = useState("");
-  const [repliedBy, setRepliedBy]         = useState("Admin");
   const [statusSaved, setStatusSaved]     = useState(false);
 
   useEffect(() => {
@@ -196,21 +184,6 @@ const TicketDetails = () => {
     );
   }
 
-  const handleSendReply = () => {
-    if (!replyText.trim()) return;
-    const newReply: TicketReply = {
-      id: `r-new-${Date.now()}`,
-      ticket_id: ticket.ticket_id,
-      sender: "Admin",
-      sender_name: repliedBy || "Admin",
-      message: replyText.trim(),
-      created_at: new Date().toISOString(),
-    };
-    setConversation(prev => [...prev, newReply]);
-    setReplyText("");
-    if (currentStatus === "Open") updateStatus("In Progress");
-  };
-
   return (
     <DashboardLayout>
       {/* Back nav */}
@@ -250,7 +223,7 @@ const TicketDetails = () => {
           <GlassCard className="p-0 overflow-hidden">
             <div className="px-5 py-3.5 border-b border-border/50 bg-muted/30 flex items-center gap-2">
               <LifeBuoy className="w-4 h-4 text-primary" />
-              <span className="font-semibold text-sm">Conversation ({conversation.length})</span>
+              <span className="font-semibold text-sm">Customer Message</span>
             </div>
             <div className="p-5 space-y-5 max-h-[520px] overflow-y-auto">
               {conversation.map(reply => (
@@ -266,72 +239,6 @@ const TicketDetails = () => {
             </div>
           </GlassCard>
 
-          {/* Reply box */}
-          <GlassCard className="p-0 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-border/50 bg-muted/30 flex items-center gap-2">
-              <Send className="w-4 h-4 text-primary" />
-              <span className="font-semibold text-sm">Reply to Customer</span>
-            </div>
-            <div className="p-5 space-y-4">
-              {/* Quick replies */}
-              <div>
-                <div className="flex items-center gap-1.5 mb-2.5">
-                  <Zap className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Replies</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {QUICK_REPLIES.map((msg, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        const newReply: TicketReply = {
-                          id: `r-new-${Date.now()}-${i}`,
-                          ticket_id: ticket.ticket_id,
-                          sender: "Admin",
-                          sender_name: repliedBy || "Admin",
-                          message: msg,
-                          created_at: new Date().toISOString(),
-                        };
-                        setConversation(prev => [...prev, newReply]);
-                        if (currentStatus === "Open") updateStatus("In Progress");
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-muted/40 text-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all text-left max-w-xs truncate"
-                      title={msg}
-                    >
-                      {msg.length > 48 ? msg.slice(0, 48) + "…" : msg}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-border/50" />
-
-              {/* Custom reply */}
-              <div className="space-y-3">
-                <textarea
-                  rows={4}
-                  value={replyText}
-                  onChange={e => setReplyText(e.target.value)}
-                  placeholder="Type a custom reply…"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                />
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                    <label className="text-xs text-muted-foreground whitespace-nowrap">Replied by:</label>
-                    <input
-                      value={repliedBy}
-                      onChange={e => setRepliedBy(e.target.value)}
-                      className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <Button size="sm" onClick={handleSendReply} disabled={!replyText.trim()} className="gap-2">
-                    <Send className="w-3.5 h-3.5" />
-                    Send Reply
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </GlassCard>
         </div>
 
         {/* Right – Info & Status ───────────────────────────────────────── */}

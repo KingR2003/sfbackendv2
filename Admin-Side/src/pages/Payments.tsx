@@ -2,8 +2,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { motion, AnimatePresence } from "framer-motion";
-import { Wallet, Hourglass, RotateCcw, X, Search, Filter, ChevronLeft, ChevronRight, Check, Calendar, ChevronDown } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Wallet, Hourglass, RotateCcw, X, Search, Filter, ChevronLeft, ChevronRight, Check, Calendar, ChevronDown, ArrowUpDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { mockOrders } from "@/data/mockData";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -282,6 +282,7 @@ function DateRangePicker({ from, to, onApply, onClose, onBack }: DateRangePicker
 const Payments = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [paymentFilter, setPaymentFilter] = useState<"All" | "Paid" | "Pending" | "Refunded">("All");
+  const [sortBy, setSortBy] = useState<"Newest" | "Oldest">("Newest");
   const [currentPage, setCurrentPage] = useState(1);
   const [showPanel, setShowPanel] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<typeof mockOrders[0] | null>(null);
@@ -323,6 +324,10 @@ const Payments = () => {
     const orderDate = new Date(order.date);
     const matchesDate = orderDate >= activeDateRange.from && orderDate <= activeDateRange.to;
     return matchesSearch && matchesStatus && matchesDate;
+  }).sort((a, b) => {
+    const tA = new Date(a.date).getTime();
+    const tB = new Date(b.date).getTime();
+    return sortBy === "Oldest" ? tA - tB : tB - tA;
   });
 
   const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
@@ -457,6 +462,32 @@ const Payments = () => {
                       {opt.label}
                       {paymentFilter === opt.value && <Check className="w-3.5 h-3.5" />}
                     </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Sort */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-muted/40 border border-border hover:bg-muted transition-all">
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    {sortBy === "Newest" ? "Newest First" : "Oldest First"}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44 rounded-xl bg-card border-border shadow-xl p-1">
+                  <div className="px-2 py-1.5">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sort By</p>
+                  </div>
+                  {[{ label: "Newest First", value: "Newest" }, { label: "Oldest First", value: "Oldest" }].map((s) => (
+                    <DropdownMenuCheckboxItem
+                      key={s.value}
+                      checked={sortBy === s.value}
+                      onCheckedChange={() => { setSortBy(s.value as any); setCurrentPage(1); }}
+                      className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
+                    >
+                      {s.label}
+                    </DropdownMenuCheckboxItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>

@@ -2,7 +2,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { motion } from "framer-motion";
 import { Plus, Ticket, Check, Flame, Search, Pencil, Filter, ChevronDown, Loader2 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -26,6 +27,7 @@ const Coupons = () => {
   const [selectedCoupon, setSelectedCoupon] = useState<CouponResponse | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterType, setFilterType] = useState<"All" | "Active" | "Inactive" | "Expired" | "Percentage" | "Flat" | "Available">("All");
+  const [sortBy, setSortBy] = useState<string>("Newest");
   const [searchTerm, setSearchTerm] = useState("");
   const [coupons, setCoupons] = useState<CouponResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,7 +63,7 @@ const Coupons = () => {
   const [formMinOrder, setFormMinOrder] = useState("");
   const [formUsageLimit, setFormUsageLimit] = useState("");
   const [formActive, setFormActive] = useState(true);
-  const [formPlatform, setFormPlatform] = useState("App & Web");
+  const [formPlatform, setFormPlatform] = useState("");
   // New fields
   const [formMaxDiscount, setFormMaxDiscount] = useState("");
   const [formStartTime, setFormStartTime] = useState("");
@@ -101,11 +103,16 @@ const Coupons = () => {
       return matchesSearch && !isOver;
     }
     return matchesSearch;
+  }).sort((a, b) => {
+    if (sortBy === "AZ") return (a.code || "").localeCompare(b.code || "");
+    if (sortBy === "ZA") return (b.code || "").localeCompare(a.code || "");
+    if (sortBy === "Oldest") return Number(a.id) - Number(b.id);
+    return Number(b.id) - Number(a.id);
   });
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterType]);
+  }, [searchTerm, filterType, sortBy]);
 
   const totalPages = Math.ceil(filteredCoupons.length / itemsPerPage);
   const paginatedCoupons = filteredCoupons.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -129,10 +136,10 @@ const Coupons = () => {
     setFormMaxDiscount(coupon.maxDiscountAmount ? coupon.maxDiscountAmount.toString() : "");
     const formatIsoForPicker = (datePart: string | null | undefined, timePart: string | null | undefined) => {
       if (!timePart || timePart === "000000" || timePart === "00:00:00" || timePart === "00:00:00.000000" || timePart.startsWith("0000-")) return "";
-      
+
       const timeMatch = timePart.match(/^(\d{2}):(\d{2})/);
       if (!timeMatch) return "";
-      
+
       let d = new Date();
       if (datePart && !datePart.startsWith("0000-")) {
         const pd = new Date(datePart);
@@ -140,11 +147,11 @@ const Coupons = () => {
           d = pd;
         }
       }
-      
+
       const pad = (n: number) => n.toString().padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${timeMatch[1]}:${timeMatch[2]}`;
     };
-    
+
     setFormStartTime(formatIsoForPicker(coupon.startDate, coupon.startTime));
     setFormEndTime(formatIsoForPicker(coupon.expireDate, coupon.endTime));
     setShowPanel(true);
@@ -158,7 +165,11 @@ const Coupons = () => {
     setFormMinOrder("");
     setFormUsageLimit("");
     setFormActive(true);
-    setFormPlatform("App & Web");
+    setFormPlatform("");
+    setFormMaxDiscount("");
+    setFormStartTime("");
+    setFormEndTime("");
+    setFormDaysOfWeek([]);
     setShowPanel(true);
   };
 
@@ -331,11 +342,14 @@ const Coupons = () => {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-muted/40 text-foreground hover:bg-muted transition-all border border-border">
                     <Filter className="w-3.5 h-3.5" />
-                    {filterType !== "All" ? filterType : "All"}
+                    {filterType !== "All" || sortBy !== "Newest" ? "Filtered" : "All"}
                     <ChevronDown className="w-3 h-3" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 rounded-xl border border-border bg-card shadow-elevated p-1">
+                  <div className="px-2 py-1.5">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status</p>
+                  </div>
                   {([
                     { label: "All Coupons", value: "All" },
                     { label: "Active Only", value: "Active" },
@@ -354,14 +368,36 @@ const Coupons = () => {
                       {f.label}
                     </DropdownMenuCheckboxItem>
                   ))}
+
+                  <DropdownMenuSeparator className="my-1 opacity-50" />
+                  <div className="px-2 py-1.5">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sort By</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    {[
+                      { label: "Newest First", value: "Newest" },
+                      { label: "Oldest First", value: "Oldest" },
+                      { label: "A-Z", value: "AZ" },
+                      { label: "Z-A", value: "ZA" }
+                    ].map((s) => (
+                      <DropdownMenuCheckboxItem
+                        key={s.value}
+                        checked={sortBy === s.value}
+                        onCheckedChange={() => { setSortBy(s.value); setCurrentPage(1); }}
+                        className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
+                      >
+                        {s.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {filterType !== "All" && (
+              {(filterType !== "All" || sortBy !== "Newest") && (
                 <button
-                  onClick={() => { setFilterType("All"); setCurrentPage(1); }}
-                  className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                  onClick={() => { setFilterType("All"); setSortBy("Newest"); setCurrentPage(1); }}
+                  className="text-xs text-muted-foreground hover:text-destructive transition-colors whitespace-nowrap"
                 >
-                  Clear
+                  Clear All
                 </button>
               )}
             </div>
@@ -509,35 +545,35 @@ const Coupons = () => {
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Days of Week</label>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-muted/50 border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30">
-                                        <span className="truncate flex-1 text-left">
-                                          {formDaysOfWeek.length > 0 ? formDaysOfWeek.join(", ") : "Select Days"}
-                                        </span>
-                                        <ChevronDown className="w-4 h-4 text-muted-foreground ml-2 flex-shrink-0" />
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent className="z-[200] w-56 rounded-xl border border-border bg-card shadow-elevated p-1">
-                                      {daysOfWeekOptions.map(day => (
-                                        <DropdownMenuCheckboxItem
-                                          key={day}
-                                          checked={formDaysOfWeek.includes(day)}
-                                          onCheckedChange={(checked) => {
-                                            if (checked) {
-                                              setFormDaysOfWeek([...formDaysOfWeek, day]);
-                                            } else {
-                                              setFormDaysOfWeek(formDaysOfWeek.filter(d => d !== day));
-                                            }
-                                          }}
-                                          className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
-                                        >
-                                          {day}
-                                        </DropdownMenuCheckboxItem>
-                                      ))}
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Days of Week</label>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger type="button" className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-muted/50 border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30">
+                        <span className="truncate flex-1 text-left">
+                          {formDaysOfWeek.length > 0 ? formDaysOfWeek.join(", ") : "Select Days"}
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground ml-2 flex-shrink-0" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="z-[200] w-56 rounded-xl border border-border bg-card shadow-elevated p-1">
+                        {daysOfWeekOptions.map(day => (
+                          <DropdownMenuCheckboxItem
+                            key={day}
+                            checked={formDaysOfWeek.includes(day)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setFormDaysOfWeek([...formDaysOfWeek, day]);
+                              } else {
+                                setFormDaysOfWeek(formDaysOfWeek.filter(d => d !== day));
+                              }
+                            }}
+                            className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
+                          >
+                            {day}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                   <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">Discount Value</label><input value={formValue} onChange={(e) => setFormValue(e.target.value)} type="text" className="w-full px-4 py-2.5 rounded-xl bg-muted/50 border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" placeholder="0" /></div>
                   <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">Minimum Order (₹)</label><input value={formMinOrder} onChange={(e) => setFormMinOrder(e.target.value)} type="number" className="w-full px-4 py-2.5 rounded-xl bg-muted/50 border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" placeholder="0" /></div>
                 </div>
@@ -574,7 +610,7 @@ const Coupons = () => {
                 <button onClick={() => setShowPanel(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">Cancel</button>
                 <motion.button
                   onClick={handleSaveCoupon}
-                  disabled={isSaving || (selectedCoupon && ([
+                  disabled={isSaving || [
                     formCode,
                     formType,
                     formValue,
@@ -584,7 +620,7 @@ const Coupons = () => {
                     formPlatform,
                     formStartTime,
                     formEndTime
-                  ].some(f => !f || f.toString().trim() === "") || formDaysOfWeek.length === 0))}
+                  ].some(f => !f || f.toString().trim() === "") || formDaysOfWeek.length === 0}
                   whileTap={{ scale: 0.99 }}
                   className="flex-1 px-4 py-2.5 rounded-xl gradient-green text-primary-foreground text-sm font-semibold green-glow-sm disabled:opacity-75 flex items-center justify-center"
                 >

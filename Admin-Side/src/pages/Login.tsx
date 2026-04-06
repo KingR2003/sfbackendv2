@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { adminLogin, getMembers } from "@/lib/api";
@@ -13,6 +13,7 @@ const Login = () => {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [loginError, setLoginError] = useState("");
     const navigate = useNavigate();
     const { toast } = useToast();
 
@@ -65,17 +66,16 @@ const Login = () => {
         }
     };
 
-    const showDeniedToast = async (fallbackMessage?: string) => {
-        const memberStatus = await getMemberStatusForEmail(email);
-        const shouldContactAdministrator = memberStatus === "inactive" || memberStatus === "pending";
-
-        toast({
-            title: "Access Denied",
-            description: shouldContactAdministrator
-                ? "Contact administrator to activate your account."
-                : (fallbackMessage || "Invalid administrative credentials."),
-            variant: "destructive",
-        });
+    // Synchronous: only reads from localStorage cache — no network call
+    // (A network call here would hit a protected endpoint → 401 → page redirect)
+    const showDeniedError = (fallbackMessage?: string) => {
+        const cachedStatus = getCachedMemberStatusForEmail(email);
+        const shouldContactAdministrator = cachedStatus === "inactive" || cachedStatus === "pending";
+        setLoginError(
+            shouldContactAdministrator
+                ? "Your account is inactive. Please contact the administrator to activate your account."
+                : (fallbackMessage || "Invalid email or password. Please try again.")
+        );
     };
 
     const isAuthenticationError = (message: string) => {
@@ -95,12 +95,12 @@ const Login = () => {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        setLoginError("");
 
         try {
             const res = await adminLogin(email, password);
 
             if (res.success) {
-                // Store token + auth flag. The new backend returns token in the root `res` object.
                 const token = (res as any).token || res.data?.token;
                 if (token) {
                     localStorage.setItem("adminToken", token);
@@ -115,13 +115,13 @@ const Login = () => {
                 });
                 navigate("/dashboard");
             } else {
-                await showDeniedToast(res.message || "Invalid administrative credentials.");
+                showDeniedError(res.message || "Invalid email or password. Please try again.");
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Unable to reach the server. Please try again.";
 
             if (isAuthenticationError(errorMessage)) {
-                await showDeniedToast(errorMessage);
+                showDeniedError(errorMessage);
             } else {
                 toast({
                     title: "Sign In Failed",
@@ -181,7 +181,7 @@ const Login = () => {
                             <p className="text-[#6B7280] font-medium">Welcome back! Please enter your details.</p>
                         </div>
 
-                        <form onSubmit={handleLogin} className="space-y-6">
+                        <form onSubmit={handleLogin} className="space-y-6" autoComplete="off">
                             <div className="space-y-2">
                                 <label className="text-[13px] font-bold text-[#374151] uppercase tracking-wider">Email</label>
                                 <div className="relative group">
@@ -189,9 +189,10 @@ const Login = () => {
                                     <input
                                         type="email"
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        onChange={(e) => { setLoginError(""); setEmail(e.target.value); }}
+                                        autoComplete="off"
                                         className="w-full pl-12 pr-4 py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all font-medium"
-                                        placeholder="Email"
+                                        placeholder="Enter your email"
                                         required
                                     />
                                 </div>
@@ -216,9 +217,10 @@ const Login = () => {
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        onChange={(e) => { setLoginError(""); setPassword(e.target.value); }}
+                                        autoComplete="new-password"
                                         className="w-full pl-12 pr-12 py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all font-medium"
-                                        placeholder="••••••••"
+                                        placeholder="Enter your password"
                                         required
                                     />
                                     <button
@@ -230,6 +232,27 @@ const Login = () => {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Inline error banner */}
+                            <AnimatePresence>
+                                {loginError && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3.5"
+                                    >
+                                        <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                            <AlertCircle className="w-3.5 h-3.5 text-white" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-red-700">Sign In Failed</p>
+                                            <p className="text-xs text-red-600 mt-0.5 leading-relaxed">{loginError}</p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             <div className="pt-2">
                                 <motion.button

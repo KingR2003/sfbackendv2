@@ -37,6 +37,7 @@ const Categories = () => {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"All" | "Active" | "Inactive">("All");
+  const [sortBy, setSortBy] = useState<"Newest" | "Oldest" | "AZ" | "ZA">("Newest");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [categoriesList, setCategoriesList] = useState<Category[]>([]);
   const [productsList, setProductsList] = useState<Product[]>([]);
@@ -300,6 +301,11 @@ const Categories = () => {
     if (filterStatus === "Active") return matchesSearch && c.is_active;
     if (filterStatus === "Inactive") return matchesSearch && !c.is_active;
     return matchesSearch;
+  }).sort((a, b) => {
+    if (sortBy === "AZ") return a.name.localeCompare(b.name);
+    if (sortBy === "ZA") return b.name.localeCompare(a.name);
+    if (sortBy === "Oldest") return Number(a.id) - Number(b.id);
+    return Number(b.id) - Number(a.id); // Newest
   });
 
   // Pagination State
@@ -396,6 +402,14 @@ const Categories = () => {
             { label: "All Categories", value: "All" },
             { label: "Active", value: "Active" },
             { label: "Inactive", value: "Inactive" }
+          ]}
+          sortValue={sortBy}
+          setSortValue={(val) => { setSortBy(val as any); setCurrentPage(1); }}
+          sortOptions={[
+            { label: "Newest First", value: "Newest" },
+            { label: "Oldest First", value: "Oldest" },
+            { label: "Name A–Z", value: "AZ" },
+            { label: "Name Z–A", value: "ZA" },
           ]}
           placeholder="Search categories or products..."
         />

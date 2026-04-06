@@ -37,7 +37,7 @@ const menuItems = [
     subItems: [
       { title: "Overview",             path: "/support/overview" },
       { title: "All Tickets",          path: "/support/all" },
-      { title: "Open",                 path: "/support/open" },
+      { title: "Queries",              path: "/support/queries" },
       { title: "In Progress",          path: "/support/inprogress" },
       { title: "Waiting for Customer", path: "/support/waiting" },
       { title: "Resolved",             path: "/support/resolved" },
@@ -54,7 +54,7 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
   const location = useLocation();
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>(() => ({
     "/analytics": location.pathname.startsWith("/analytics"),
-    "/support":   location.pathname.startsWith("/support"),
+    "/support": location.pathname.startsWith("/support"),
   }));
 
   // Auto-collapse/expand sub-menus based on current route
@@ -62,7 +62,7 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
     setExpandedMenus(prev => ({
       ...prev,
       "/analytics": location.pathname.startsWith("/analytics"),
-      "/support":   location.pathname.startsWith("/support"),
+      "/support": location.pathname.startsWith("/support"),
     }));
   }, [location.pathname]);
 

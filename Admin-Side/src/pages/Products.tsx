@@ -13,14 +13,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+// DropdownMenu imports removed
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Edit2, Search, ChevronDown, ChevronUp, Save, X, ChevronLeft, ChevronRight, Package, CheckCircle, AlertTriangle, Trash2, Image as ImageIcon, XCircle, ArrowUp, ArrowDown, Upload, ImagePlus, Check, Filter } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -349,7 +353,7 @@ const Products = () => {
     setFormName("");
     setFormDescription("");
     setFormIsActive(true);
-    setModalVariants([{ variant_name: "", sku: "", mrp: 0, price: 0, discount: 0, stock_quantity: 0, sold: 0, availability_status: "In Stock", is_active: true, image: "", images: [] }]);
+    setModalVariants([{ variant_name: "", sku: "", mrp: "" as any, price: "" as any, discount: "" as any, stock_quantity: "" as any, sold: 0, availability_status: "In Stock", is_active: true, image: "", images: [] }]);
     setModalProductImages([]);
     setModalImageIdx(0);
     setSelectedCategory(null);
@@ -376,7 +380,7 @@ const Products = () => {
     }
     for (let i = 0; i < modalVariants.length; i++) {
       const v = modalVariants[i];
-      if (!v.variant_name?.trim() || !v.sku?.trim() || v.mrp === undefined || v.mrp === "" || v.price === undefined || v.price === "" || v.stock_quantity === undefined || v.stock_quantity === "") {
+      if (!v.variant_name?.trim() || !v.sku?.trim() || v.mrp === undefined || String(v.mrp) === "" || v.price === undefined || String(v.price) === "" || v.stock_quantity === undefined || String(v.stock_quantity) === "") {
         toast({ title: "Validation Error", description: `Please fill all required fields (Name, SKU, MRP, Price, Stock) for Variant ${i + 1}.`, variant: "destructive" });
         return;
       }
@@ -452,7 +456,7 @@ const Products = () => {
         stockQuantity: v.stock_quantity,
         availabilityStatus:
           (v.stock_quantity ?? 0) <= 0 ? "OUT_OF_STOCK" :
-          (v.stock_quantity ?? 0) <= 30 ? "LOW_STOCK" : "IN_STOCK",
+            (v.stock_quantity ?? 0) <= 30 ? "LOW_STOCK" : "IN_STOCK",
         isActive: v.is_active,
         images: variantImageRefsMap[idx] || [],
       })),
@@ -492,8 +496,8 @@ const Products = () => {
         const res: any = await createProduct(formData);
         if (res.success || res.id) {
           toast({
-              title: "Success",
-              description: `Product "${formName}" was successfully added!`,
+            title: "Success",
+            description: `Product "${formName}" was successfully added!`,
           });
           setShowModal(false);
           setSelectedProduct(null);
@@ -514,7 +518,7 @@ const Products = () => {
   }
 
   const addVariantRow = () => {
-    setModalVariants([...modalVariants, { variant_name: "", sku: "", mrp: 0, price: 0, discount: 0, stock_quantity: 0, sold: 0, availability_status: "In Stock", is_active: true, image: "", images: [] }]);
+    setModalVariants([...modalVariants, { variant_name: "", sku: "", mrp: "" as any, price: "" as any, discount: "" as any, stock_quantity: "" as any, sold: 0, availability_status: "In Stock", is_active: true, image: "", images: [] }]);
   };
 
   const removeVariantRow = (idx: number) => {
@@ -535,7 +539,7 @@ const Products = () => {
   const [editImages, setEditImages] = useState<string[]>([]);
   const [editIsActive, setEditIsActive] = useState<boolean>(true);
   const [editDragOver, setEditDragOver] = useState<boolean>(false);
-  const [deactivateDialog, setDeactivateDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; actionLabel: string; onConfirm: () => void; isDestructive?: boolean } | null>(null);
 
   // Image Lightbox State
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
@@ -586,14 +590,13 @@ const Products = () => {
       }
     };
 
-    if (!newActive) {
-      setDeactivateDialog({
-        message: "Are you sure you want to deactivate this product?",
-        onConfirm: applyToggle,
-      });
-    } else {
-      applyToggle();
-    }
+    setConfirmDialog({
+      title: newActive ? "Activate Product" : "Deactivate Product",
+      message: newActive ? "Are you sure you want to activate this product?" : "Are you sure you want to deactivate this product?",
+      actionLabel: newActive ? "Activate" : "Deactivate",
+      isDestructive: !newActive,
+      onConfirm: applyToggle,
+    });
   };
 
   const handleToggleVariant = (e: React.MouseEvent, productId: number, variantId: number) => {
@@ -608,7 +611,7 @@ const Products = () => {
       const updatedVariants = (parentProduct?.variants ?? []).map(v =>
         v.id === variantId ? { ...v, is_active: newActive } : v
       );
-      
+
       const updatedProductIsActive = updatedVariants.some(v => v.is_active);
 
       setProducts(prev => prev.map(p =>
@@ -651,14 +654,13 @@ const Products = () => {
       }
     };
 
-    if (!newActive) {
-      setDeactivateDialog({
-        message: "Are you sure you want to deactivate this variant?",
-        onConfirm: applyToggle,
-      });
-    } else {
-      applyToggle();
-    }
+    setConfirmDialog({
+      title: newActive ? "Activate Variant" : "Deactivate Variant",
+      message: newActive ? "Are you sure you want to activate this variant?" : "Are you sure you want to deactivate this variant?",
+      actionLabel: newActive ? "Activate" : "Deactivate",
+      isDestructive: !newActive,
+      onConfirm: applyToggle,
+    });
   };
 
   // Helper to update specific variant field in modal (if we were fully controlled)
@@ -673,7 +675,7 @@ const Products = () => {
         {/* ... existing stat cards ... */}
 
         {/* Total Products */}
-        <GlassCard className={`p-4 flex items-center justify-between gap-4 cursor-pointer transition-all ${filterStatus === 'All' ? 'ring-2 ring-primary/50' : ''}`} onClick={() => handleStatClick("All")}> 
+        <GlassCard className={`p-4 flex items-center justify-between gap-4 cursor-pointer transition-all ${filterStatus === 'All' ? 'ring-2 ring-primary/50' : ''}`} onClick={() => handleStatClick("All")}>
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
               <Package className="w-6 h-6 text-blue-500" />
@@ -690,7 +692,7 @@ const Products = () => {
         </GlassCard>
 
         {/* Active Products */}
-        <GlassCard className={`p-4 flex items-center gap-4 cursor-pointer transition-all ${filterStatus === 'Active' ? 'ring-2 ring-green-500/50' : ''}`} onClick={() => handleStatClick("Active")}> 
+        <GlassCard className={`p-4 flex items-center gap-4 cursor-pointer transition-all ${filterStatus === 'Active' ? 'ring-2 ring-green-500/50' : ''}`} onClick={() => handleStatClick("Active")}>
           <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center">
             <CheckCircle className="w-6 h-6 text-green-500" />
           </div>
@@ -701,7 +703,7 @@ const Products = () => {
         </GlassCard>
 
         {/* Inactive Products */}
-        <GlassCard className={`p-4 flex items-center gap-4 cursor-pointer transition-all ${filterStatus === 'Inactive' ? 'ring-2 ring-orange-500/50' : ''}`} onClick={() => handleStatClick("Inactive")}> 
+        <GlassCard className={`p-4 flex items-center gap-4 cursor-pointer transition-all ${filterStatus === 'Inactive' ? 'ring-2 ring-orange-500/50' : ''}`} onClick={() => handleStatClick("Inactive")}>
           <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center">
             <XCircle className="w-6 h-6 text-orange-500" />
           </div>
@@ -714,7 +716,7 @@ const Products = () => {
       </div>
 
       {/* Table */}
-      <GlassCard className="p-0 overflow-hidden flex flex-col"> 
+      <GlassCard className="p-0 overflow-hidden flex flex-col">
         <div className="p-4 border-b border-border/50">
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             <SearchFilter
@@ -725,146 +727,195 @@ const Products = () => {
             />
 
             <div className="flex items-center gap-3 md:justify-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-muted/40 text-foreground hover:bg-muted transition-all border border-border">
-                  <Filter className="w-3.5 h-3.5" />
-                  {activeFilterCount > 0 ? `Filtered (${activeFilterCount})` : "All"}
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 rounded-xl border border-border bg-card shadow-elevated p-1 max-h-[70vh] overflow-y-auto">
-                <div className="px-2 py-1.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status</p>
-                </div>
-                {[
-                  { label: "All", value: "All" },
-                  { label: "Active", value: "Active" },
-                  { label: "Inactive", value: "Inactive" },
-                  { label: "Low Stock", value: "LowStock" },
-                ].map((opt) => (
-                  <DropdownMenuCheckboxItem
-                    key={`status-${opt.value}`}
-                    checked={filterStatus === opt.value}
-                    onCheckedChange={() => setFilterStatus(opt.value as "All" | "Active" | "Inactive" | "LowStock")}
-                    className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
-                  >
-                    {opt.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-muted/40 text-foreground hover:bg-muted transition-all border border-border">
+                    <Filter className="w-3.5 h-3.5" />
+                    {activeFilterCount > 0 ? `Filtered (${activeFilterCount})` : "All Filters"}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 rounded-xl border border-border bg-card shadow-elevated p-0 overflow-hidden">
+                  <div className="bg-muted/30 px-4 py-3 border-b border-border/50 flex items-center justify-between">
+                    <span className="font-semibold text-sm">Filters & Sort</span>
+                    {activeFilterCount > 0 && (
+                      <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                        {activeFilterCount} Active
+                      </span>
+                    )}
+                  </div>
+                  <div className="max-h-[60vh] overflow-y-auto p-2 custom-scrollbar">
+                    <Accordion type="single" collapsible className="w-full">
+                      {/* Status */}
+                      <AccordionItem value="status" className="border-b-0">
+                        <AccordionTrigger className="px-2 py-3 hover:no-underline hover:bg-muted/50 rounded-lg text-sm font-medium transition-colors">
+                          Status
+                        </AccordionTrigger>
+                        <AccordionContent className="px-2 pb-3">
+                          <div className="flex flex-col gap-1 mt-1">
+                            {[
+                              { label: "All", value: "All" },
+                              { label: "Active", value: "Active" },
+                              { label: "Inactive", value: "Inactive" },
+                              { label: "Low Stock", value: "LowStock" },
+                            ].map((opt) => (
+                              <button
+                                key={`status-${opt.value}`}
+                                onClick={() => setFilterStatus(opt.value as any)}
+                                className={`flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors ${filterStatus === opt.value ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/50 text-left'}`}
+                              >
+                                {opt.label}
+                                {filterStatus === opt.value && <Check className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
 
-                <DropdownMenuSeparator className="my-1 opacity-50" />
-                <div className="px-2 py-1.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Category</p>
-                </div>
-                {[{ label: "All", value: "All" }, ...categoryFilterOptions.map((label) => ({ label, value: label }))].map((opt) => (
-                  <DropdownMenuCheckboxItem
-                    key={`category-${opt.value}`}
-                    checked={categoryFilter === opt.value}
-                    onCheckedChange={() => setCategoryFilter(opt.value)}
-                    className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
-                  >
-                    {opt.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
+                      {/* Category */}
+                      <AccordionItem value="category" className="border-b-0">
+                        <AccordionTrigger className="px-2 py-3 hover:no-underline hover:bg-muted/50 rounded-lg text-sm font-medium transition-colors">
+                          Category
+                        </AccordionTrigger>
+                        <AccordionContent className="px-2 pb-3">
+                          <div className="flex flex-col gap-1 mt-1 max-h-40 overflow-y-auto custom-scrollbar">
+                            {[{ label: "All", value: "All" }, ...categoryFilterOptions.map((label) => ({ label, value: label }))].map((opt) => (
+                              <button
+                                key={`category-${opt.value}`}
+                                onClick={() => setCategoryFilter(opt.value)}
+                                className={`flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors ${categoryFilter === opt.value ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/50 text-left'}`}
+                              >
+                                {opt.label}
+                                {categoryFilter === opt.value && <Check className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
 
-                <DropdownMenuSeparator className="my-1 opacity-50" />
-                <div className="px-2 py-1.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Stock Level</p>
-                </div>
-                {[
-                  { label: "All", value: "All" },
-                  { label: "Out of Stock", value: "OutOfStock" },
-                  { label: "Low (1-10)", value: "LowStock" },
-                  { label: "Medium (11-50)", value: "MediumStock" },
-                  { label: "High (50+)", value: "HighStock" },
-                ].map((opt) => (
-                  <DropdownMenuCheckboxItem
-                    key={`stock-${opt.value}`}
-                    checked={stockFilter === opt.value}
-                    onCheckedChange={() => setStockFilter(opt.value as "All" | "OutOfStock" | "LowStock" | "MediumStock" | "HighStock")}
-                    className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
-                  >
-                    {opt.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
+                      {/* Stock Level */}
+                      <AccordionItem value="stock" className="border-b-0">
+                        <AccordionTrigger className="px-2 py-3 hover:no-underline hover:bg-muted/50 rounded-lg text-sm font-medium transition-colors">
+                          Stock Level
+                        </AccordionTrigger>
+                        <AccordionContent className="px-2 pb-3">
+                          <div className="flex flex-col gap-1 mt-1">
+                            {[
+                              { label: "All", value: "All" },
+                              { label: "Out of Stock", value: "OutOfStock" },
+                              { label: "Low (1-10)", value: "LowStock" },
+                              { label: "Medium (11-50)", value: "MediumStock" },
+                              { label: "High (50+)", value: "HighStock" },
+                            ].map((opt) => (
+                              <button
+                                key={`stock-${opt.value}`}
+                                onClick={() => setStockFilter(opt.value as any)}
+                                className={`flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors ${stockFilter === opt.value ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/50 text-left'}`}
+                              >
+                                {opt.label}
+                                {stockFilter === opt.value && <Check className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
 
-                <DropdownMenuSeparator className="my-1 opacity-50" />
-                <div className="px-2 py-1.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Availability</p>
-                </div>
-                {[
-                  { label: "All", value: "All" },
-                  { label: "In Stock", value: "InStock" },
-                  { label: "Low Stock", value: "LowStock" },
-                  { label: "Out of Stock", value: "OutOfStock" },
-                ].map((opt) => (
-                  <DropdownMenuCheckboxItem
-                    key={`availability-${opt.value}`}
-                    checked={availabilityFilter === opt.value}
-                    onCheckedChange={() => setAvailabilityFilter(opt.value as "All" | "InStock" | "LowStock" | "OutOfStock")}
-                    className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
-                  >
-                    {opt.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
+                      {/* Availability */}
+                      <AccordionItem value="availability" className="border-b-0">
+                        <AccordionTrigger className="px-2 py-3 hover:no-underline hover:bg-muted/50 rounded-lg text-sm font-medium transition-colors">
+                          Availability
+                        </AccordionTrigger>
+                        <AccordionContent className="px-2 pb-3">
+                          <div className="flex flex-col gap-1 mt-1">
+                            {[
+                              { label: "All", value: "All" },
+                              { label: "In Stock", value: "InStock" },
+                              { label: "Low Stock", value: "LowStock" },
+                              { label: "Out of Stock", value: "OutOfStock" },
+                            ].map((opt) => (
+                              <button
+                                key={`availability-${opt.value}`}
+                                onClick={() => setAvailabilityFilter(opt.value as any)}
+                                className={`flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors ${availabilityFilter === opt.value ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/50 text-left'}`}
+                              >
+                                {opt.label}
+                                {availabilityFilter === opt.value && <Check className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
 
-                <DropdownMenuSeparator className="my-1 opacity-50" />
-                <div className="px-2 py-1.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Price Range</p>
-                </div>
-                {[
-                  { label: "All", value: "All" },
-                  { label: "Below Rs.100", value: "Below100" },
-                  { label: "Rs.100 - Rs.500", value: "100To500" },
-                  { label: "Rs.500 - Rs.1000", value: "500To1000" },
-                  { label: "Above Rs.1000", value: "Above1000" },
-                ].map((opt) => (
-                  <DropdownMenuCheckboxItem
-                    key={`price-${opt.value}`}
-                    checked={priceFilter === opt.value}
-                    onCheckedChange={() => setPriceFilter(opt.value as "All" | "Below100" | "100To500" | "500To1000" | "Above1000")}
-                    className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
-                  >
-                    {opt.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
+                      {/* Price Range */}
+                      <AccordionItem value="price" className="border-b-0">
+                        <AccordionTrigger className="px-2 py-3 hover:no-underline hover:bg-muted/50 rounded-lg text-sm font-medium transition-colors">
+                          Price Range
+                        </AccordionTrigger>
+                        <AccordionContent className="px-2 pb-3">
+                          <div className="flex flex-col gap-1 mt-1">
+                            {[
+                              { label: "All", value: "All" },
+                              { label: "Below Rs.100", value: "Below100" },
+                              { label: "Rs.100 - Rs.500", value: "100To500" },
+                              { label: "Rs.500 - Rs.1000", value: "500To1000" },
+                              { label: "Above Rs.1000", value: "Above1000" },
+                            ].map((opt) => (
+                              <button
+                                key={`price-${opt.value}`}
+                                onClick={() => setPriceFilter(opt.value as any)}
+                                className={`flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors ${priceFilter === opt.value ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/50 text-left'}`}
+                              >
+                                {opt.label}
+                                {priceFilter === opt.value && <Check className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
 
-                <DropdownMenuSeparator className="my-1 opacity-50" />
-                <div className="px-2 py-1.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sort</p>
-                </div>
-                {[
-                  { label: "Newest First", value: "Newest" },
-                  { label: "Oldest First", value: "Oldest" },
-                  { label: "Name A-Z", value: "NameAZ" },
-                  { label: "Name Z-A", value: "NameZA" },
-                  { label: "Price Low-High", value: "PriceLowHigh" },
-                  { label: "Price High-Low", value: "PriceHighLow" },
-                  { label: "Stock Low-High", value: "StockLowHigh" },
-                  { label: "Stock High-Low", value: "StockHighLow" },
-                ].map((opt) => (
-                  <DropdownMenuCheckboxItem
-                    key={`sort-${opt.value}`}
-                    checked={sortBy === opt.value}
-                    onCheckedChange={() => setSortBy(opt.value as "Newest" | "Oldest" | "NameAZ" | "NameZA" | "PriceLowHigh" | "PriceHighLow" | "StockLowHigh" | "StockHighLow")}
-                    className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
-                  >
-                    {opt.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {activeFilterCount > 0 && (
-              <button
-                type="button"
-                onClick={resetAllFilters}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-              >
-                Clear All
-              </button>
-            )}
+                      {/* Sort */}
+                      <AccordionItem value="sort" className="border-b-0">
+                        <AccordionTrigger className="px-2 py-3 hover:no-underline hover:bg-muted/50 rounded-lg text-sm font-medium transition-colors">
+                          Sort By
+                        </AccordionTrigger>
+                        <AccordionContent className="px-2 pb-3">
+                          <div className="flex flex-col gap-1 mt-1">
+                            {[
+                              { label: "Newest First", value: "Newest" },
+                              { label: "Oldest First", value: "Oldest" },
+                              { label: "Name A-Z", value: "NameAZ" },
+                              { label: "Name Z-A", value: "NameZA" },
+                              { label: "Price Low-High", value: "PriceLowHigh" },
+                              { label: "Price High-Low", value: "PriceHighLow" },
+                              { label: "Stock Low-High", value: "StockLowHigh" },
+                              { label: "Stock High-Low", value: "StockHighLow" },
+                            ].map((opt) => (
+                              <button
+                                key={`sort-${opt.value}`}
+                                onClick={() => setSortBy(opt.value as any)}
+                                className={`flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors ${sortBy === opt.value ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/50 text-left'}`}
+                              >
+                                {opt.label}
+                                {sortBy === opt.value && <Check className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </div>
+                  {activeFilterCount > 0 && (
+                    <div className="p-3 border-t border-border/50 bg-muted/10">
+                      <button
+                        onClick={resetAllFilters}
+                        className="w-full py-2 text-sm font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 rounded-lg transition-colors"
+                      >
+                        Clear All Filters
+                      </button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -1440,22 +1491,22 @@ const Products = () => {
             </div>
             <div className="flex gap-4 mt-8 pt-6 border-t border-border/50">
               <button disabled={isSaving} onClick={() => setShowModal(false)} className="flex-1 px-6 py-3 rounded-xl border-2 border-border text-sm font-semibold text-foreground hover:bg-muted transition-all disabled:opacity-50">Cancel</button>
-              <motion.button 
+              <motion.button
                 disabled={
                   isSaving ||
                   !formName.trim() ||
                   !formDescription.trim() ||
                   !selectedCategory ||
                   modalProductImages.filter(Boolean).length === 0 ||
-                  modalVariants.some((v) => 
-                    !v.variant_name?.trim() || 
-                    !v.sku?.trim() || 
-                    v.mrp === undefined || v.mrp === "" || 
-                    v.price === undefined || v.price === "" || 
-                    v.stock_quantity === undefined || v.stock_quantity === "" ||
+                  modalVariants.some((v) =>
+                    !v.variant_name?.trim() ||
+                    !v.sku?.trim() ||
+                    v.mrp === undefined || String(v.mrp) === "" ||
+                    v.price === undefined || String(v.price) === "" ||
+                    v.stock_quantity === undefined || String(v.stock_quantity) === "" ||
                     (!v.images || v.images.filter(Boolean).length === 0)
                   )
-                } 
+                }
                 whileTap={isSaving ? {} : { scale: 0.99 }} onClick={handleSaveProduct} className="flex-1 px-6 py-3 rounded-xl gradient-green text-primary-foreground text-sm font-bold green-glow-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
                 {isSaving ? "Saving..." : selectedProduct ? "Save Changes" : "Create Product"}
               </motion.button>
@@ -1582,14 +1633,13 @@ const Products = () => {
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          if (editIsActive) {
-                            setDeactivateDialog({
-                              message: "Are you sure you want to deactivate this variant?",
-                              onConfirm: () => setEditIsActive(false),
-                            });
-                            return;
-                          }
-                          setEditIsActive(!editIsActive);
+                          setConfirmDialog({
+                            title: !editIsActive ? "Activate Variant" : "Deactivate Variant",
+                            message: !editIsActive ? "Are you sure you want to activate this variant?" : "Are you sure you want to deactivate this variant?",
+                            actionLabel: !editIsActive ? "Activate" : "Deactivate",
+                            isDestructive: editIsActive,
+                            onConfirm: () => setEditIsActive(!editIsActive),
+                          });
                         }}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editIsActive ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                       >
@@ -1682,17 +1732,17 @@ const Products = () => {
                         variants: p.variants.map(v =>
                           v.id === selectedVariant.id
                             ? {
-                                ...v,
-                                variant_name: editVariantName || v.variant_name,
-                                sku: editSku || v.sku,
-                                mrp: editMrp ? Number(editMrp) : v.mrp,
-                                discount: editDiscount ? Number(editDiscount) : v.discount,
-                                price: Number(editPrice),
-                                stock_quantity: Number(editStock),
-                                images: editImages,
-                                image: editImages[0] || "",
-                                is_active: editIsActive,
-                              }
+                              ...v,
+                              variant_name: editVariantName || v.variant_name,
+                              sku: editSku || v.sku,
+                              mrp: editMrp ? Number(editMrp) : v.mrp,
+                              discount: editDiscount ? Number(editDiscount) : v.discount,
+                              price: Number(editPrice),
+                              stock_quantity: Number(editStock),
+                              images: editImages,
+                              image: editImages[0] || "",
+                              is_active: editIsActive,
+                            }
                             : v
                         )
                       }));
@@ -1734,7 +1784,7 @@ const Products = () => {
                 </span>
                 <button
                   onClick={() => setLightboxImages([])}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors backdrop-blur-md"
                 >
                   <X className="w-4 h-4 text-white" />
                 </button>
@@ -1748,11 +1798,13 @@ const Products = () => {
                     <ChevronLeft className="w-6 h-6" />
                   </button>
                 )}
-                <img
-                  src={lightboxImages[lightboxIndex]}
-                  alt={lightboxLabel}
-                  className="max-w-[90vw] max-h-[85vh] rounded-2xl object-contain shadow-2xl"
-                />
+                <div className="bg-white/5 p-2 md:p-3 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+                  <img
+                    src={lightboxImages[lightboxIndex]}
+                    alt={lightboxLabel}
+                    className="max-w-[85vw] max-h-[80vh] rounded-2xl object-contain"
+                  />
+                </div>
                 {lightboxImages.length > 1 && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setLightboxIndex(prev => (prev < lightboxImages.length - 1 ? prev + 1 : 0)); }}
@@ -1767,22 +1819,22 @@ const Products = () => {
         )}
       </AnimatePresence>
 
-      <AlertDialog open={!!deactivateDialog} onOpenChange={v => { if (!v) setDeactivateDialog(null); }}>
+      <AlertDialog open={!!confirmDialog} onOpenChange={v => { if (!v) setConfirmDialog(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate</AlertDialogTitle>
-            <AlertDialogDescription>{deactivateDialog?.message}</AlertDialogDescription>
+            <AlertDialogTitle>{confirmDialog?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                deactivateDialog?.onConfirm();
-                setDeactivateDialog(null);
+                confirmDialog?.onConfirm();
+                setConfirmDialog(null);
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className={confirmDialog?.isDestructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "bg-primary text-primary-foreground hover:bg-primary/90"}
             >
-              Deactivate
+              {confirmDialog?.actionLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

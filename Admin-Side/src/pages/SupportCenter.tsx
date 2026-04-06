@@ -42,7 +42,17 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { getAdminQueries, type AdminSupportTicket, type SupportTicketPriority as TicketPriority, type SupportTicketStatus as TicketStatus } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { getAdminQueries, getCustomerQueries, type AdminSupportTicket, type CustomerQuery, type SupportTicketPriority as TicketPriority, type SupportTicketStatus as TicketStatus } from "@/lib/api";
 
 // ─── Status config ─────────────────────────────────────────────────────────────
 const statusCfg: Record<TicketStatus, { cls: string; icon: React.ReactNode }> = {
@@ -454,6 +464,7 @@ const TicketsList = ({
   const customPickerRef                         = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage]          = useState(1);
   const [ticketStatuses, setTicketStatuses]    = useState<Record<string, TicketStatus>>({});
+  const [sortBy, setSortBy]                    = useState<"Newest" | "Oldest">("Newest");
   const itemsPerPage = 10;
 
   const getStatus = (t: AdminSupportTicket) => ticketStatuses[t.id] ?? t.status;
@@ -495,8 +506,12 @@ const TicketsList = ({
       if (dateFrom && date < dateFrom) return false;
       if (dateTo   && date > new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59)) return false;
       return true;
+    }).sort((a, b) => {
+      const tA = new Date(a.created_at).getTime();
+      const tB = new Date(b.created_at).getTime();
+      return sortBy === "Oldest" ? tA - tB : tB - tA;
     });
-  }, [tickets, search, statusFilters, priorityFilters, dateFrom, dateTo]);
+  }, [tickets, search, statusFilters, priorityFilters, dateFrom, dateTo, sortBy]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated  = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -650,9 +665,37 @@ const TicketsList = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Sort */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className={`gap-1.5 text-sm h-9 hover:bg-muted transition-colors ${sortBy !== "Newest" ? "border-primary text-primary" : ""}`}>
+                <TrendingUp className="w-4 h-4" />
+                {sortBy === "Newest" ? "Newest First" : "Oldest First"}
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-2xl border border-border bg-card shadow-2xl p-0 overflow-hidden">
+              <div className="px-4 pt-3.5 pb-1.5">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Sort By</p>
+              </div>
+              <div className="px-2 pb-2">
+                {(["Newest", "Oldest"] as const).map(s => (
+                  <DropdownMenuItem
+                    key={s}
+                    onSelect={() => { setSortBy(s); setCurrentPage(1); }}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm cursor-pointer transition-colors ${sortBy === s ? "bg-primary/10 text-primary font-semibold" : "text-foreground hover:bg-muted"}`}
+                  >
+                    {s === "Newest" ? "Newest First" : "Oldest First"}
+                    {sortBy === s ? <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" /> : <span className="w-3.5" />}
+                  </DropdownMenuItem>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {hasFilters && (
             <button
-              onClick={() => { setSearch(""); setDateFrom(null); setDateTo(null); setActiveDatePreset(null); setShowCustomPicker(false); setStatusFilters(filterStatus ? [filterStatus] : []); setPriFilters([]); setCurrentPage(1); }}
+              onClick={() => { setSearch(""); setDateFrom(null); setDateTo(null); setActiveDatePreset(null); setShowCustomPicker(false); setStatusFilters(filterStatus ? [filterStatus] : []); setPriFilters([]); setSortBy("Newest"); setCurrentPage(1); }}
               className="text-xs text-muted-foreground hover:text-destructive transition-colors h-9 px-2"
             >
               Clear filters
@@ -772,11 +815,157 @@ const TicketsList = ({
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// QUERIES LIST sub-page
+// ═══════════════════════════════════════════════════════════════════════════════
+const QueriesList = () => {
+  const [queries, setQueries] = useState<CustomerQuery[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    getCustomerQueries()
+      .then(data => mounted && setQueries(data))
+      .catch(err => mounted && setError(err.message))
+      .finally(() => mounted && setLoading(false));
+    return () => { mounted = false; };
+  }, []);
+
+  const filtered = useMemo(() => {
+    return queries.filter(q => {
+      const term = search.toLowerCase();
+      if (!term) return true;
+      return String(q.id).includes(term) ||
+             q.firstName.toLowerCase().includes(term) ||
+             q.lastName.toLowerCase().includes(term) ||
+             q.email.toLowerCase().includes(term) ||
+             q.subject.toLowerCase().includes(term);
+    });
+  }, [queries, search]);
+
+  return (
+    <div className="space-y-4">
+      <GlassCard className="p-4">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search user queries (name, email, subject)…"
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+        </div>
+      </GlassCard>
+
+      {error ? (
+        <GlassCard className="p-6 text-sm text-red-600 bg-red-50 border-red-200">{error}</GlassCard>
+      ) : (
+        <GlassCard className="overflow-hidden p-0 relative min-h-[400px]">
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-card/50 backdrop-blur-sm z-10">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            </div>
+          )}
+          <div className="px-4 py-3 border-b border-border/60 bg-muted/30">
+            <span className="text-sm font-medium text-muted-foreground">{filtered.length} quer{filtered.length !== 1 ? "ies" : "y"} found</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50 text-left text-muted-foreground">
+                  <th className="px-4 py-3 font-medium w-16">ID</th>
+                  <th className="px-4 py-3 font-medium">Customer</th>
+                  <th className="px-4 py-3 font-medium hidden md:table-cell">Subject</th>
+                  <th className="px-4 py-3 font-medium hidden lg:table-cell">Message</th>
+                  <th className="px-4 py-3 font-medium whitespace-nowrap">Date</th>
+                  <th className="px-4 py-3 font-medium text-right">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && !loading ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center text-muted-foreground">
+                      <Inbox className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                      No user queries found
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(q => (
+                    <tr key={q.id} className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
+                      <td className="px-4 py-3 font-mono text-xs font-semibold text-primary">#{q.id}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
+                            {(q.firstName || q.lastName || "U").charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-foreground whitespace-nowrap">{[q.firstName, q.lastName].filter(Boolean).join(" ") || "Unknown Customer"}</p>
+                            <p className="text-xs text-muted-foreground truncate hidden sm:block">{q.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-foreground hidden md:table-cell max-w-[200px] truncate">{q.subject}</td>
+                      <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell max-w-[300px] truncate">{q.message}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap text-xs">
+                        {format(parseISO(q.createdAt), "d MMM yyyy, HH:mm")}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <button className="inline-flex items-center justify-center text-primary hover:text-primary/70 transition-colors p-1.5 rounded bg-primary/5 hover:bg-primary/10">
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle className="text-lg">Query Details #{q.id}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-2">
+                              <div>
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Customer</h4>
+                                <p className="font-medium">{[q.firstName, q.lastName].filter(Boolean).join(" ") || "N/A"}</p>
+                                <p className="text-sm text-muted-foreground">{q.email}</p>
+                              </div>
+                              <div className="h-px bg-border/50 w-full" />
+                              <div>
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Subject</h4>
+                                <p className="font-medium">{q.subject}</p>
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Message</h4>
+                                <div className="text-sm bg-muted/40 p-3 rounded-lg border border-border/50 whitespace-pre-wrap">
+                                  {q.message}
+                                </div>
+                              </div>
+                              <div className="text-xs text-muted-foreground text-right pt-2">
+                                Received: {format(parseISO(q.createdAt), "dd MMM yyyy, hh:mm a")}
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </GlassCard>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 const subSectionMeta: Record<string, { title: string; filterStatus?: TicketStatus }> = {
   overview:   { title: "Overview" },
   all:        { title: "All Tickets" },
+  queries:    { title: "User Queries" },
   open:       { title: "Open Tickets",       filterStatus: "Open" },
   inprogress: { title: "In Progress",        filterStatus: "In Progress" },
   waiting:    { title: "Waiting for Customer", filterStatus: "Waiting for Customer" },
@@ -822,8 +1011,8 @@ const SupportCenter = () => {
 
   return (
     <DashboardLayout>
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-1">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 mb-1 sm:mb-0">
           <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
             <LifeBuoy className="w-5 h-5 text-primary" />
           </div>
@@ -832,6 +1021,7 @@ const SupportCenter = () => {
           </div>
         </div>
       </div>
+
 
       <motion.div
         key={section}
@@ -845,14 +1035,17 @@ const SupportCenter = () => {
           </GlassCard>
         )}
 
-        {loading && section !== "orderquery" && (
-          <GlassCard className="p-6 text-sm text-muted-foreground">Loading support queries...</GlassCard>
+
+        {loading && section !== "orderquery" && section !== "queries" && (
+          <GlassCard className="p-6 text-sm text-muted-foreground">Loading support data...</GlassCard>
         )}
 
         {section === "overview" ? (
           <Overview onNavigate={onNavigate} tickets={tickets} />
         ) : section === "orderquery" ? (
           <OrderQueryForm />
+        ) : section === "queries" ? (
+          <QueriesList />
         ) : (
           <TicketsList
             filterStatus={meta.filterStatus}

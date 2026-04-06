@@ -15,6 +15,9 @@ interface SearchFilterProps {
   onFilterButtonClick?: () => void;
   placeholder?: string;
   className?: string;
+  sortValue?: string;
+  setSortValue?: (value: string) => void;
+  sortOptions?: { label: string; value: string }[];
 }
 
 export const SearchFilter = ({
@@ -26,6 +29,9 @@ export const SearchFilter = ({
   onFilterButtonClick,
   placeholder = "Search...",
   className = "",
+  sortValue,
+  setSortValue,
+  sortOptions,
 }: SearchFilterProps) => {
   return (
     <div className={`flex items-center gap-3 w-full ${className}`}>
@@ -64,14 +70,34 @@ export const SearchFilter = ({
                   <DropdownMenuItem
                     key={opt.value}
                     onClick={() => setFilterValue(opt.value)}
-                    className={`cursor-pointer rounded-lg mx-1 my-0.5 text-xs font-medium ${filterValue === opt.value
+                    className={`cursor-pointer rounded-lg mx-1 my-0.5 text-xs font-medium ${
+                      filterValue === opt.value
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
+                    }`}
                   >
                     {opt.label}
                   </DropdownMenuItem>
                 ))}
+                {sortOptions && setSortValue && (
+                  <>
+                    <div className="my-1 border-t border-border/50 mx-2" />
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-3 pt-1 pb-0.5">Sort By</p>
+                    {sortOptions.map((s) => (
+                      <DropdownMenuItem
+                        key={s.value}
+                        onClick={() => setSortValue(s.value)}
+                        className={`cursor-pointer rounded-lg mx-1 my-0.5 text-xs font-medium ${
+                          sortValue === s.value
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {s.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

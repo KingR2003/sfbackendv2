@@ -196,14 +196,28 @@ function AnalogClockPicker({ time, onChange, onConfirm }: { time: string; onChan
       {/* AM/PM SECTION */}
       <div className="flex items-center justify-center gap-3 w-full">
         <span className="text-sm font-medium">TIME:</span>
-        <select
-          value={isAM ? "AM" : "PM"}
-          onChange={(e) => setMeridiem(e.target.value as "AM" | "PM")}
-          className="px-3 py-1.5 rounded-lg text-sm font-semibold border border-border bg-background text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option value="AM">AM</option>
-          <option value="PM">PM</option>
-        </select>
+        <div className="flex items-center p-0.5 bg-muted/50 rounded-lg border border-border">
+          <button
+            type="button"
+            onClick={() => setMeridiem("AM")}
+            className={cn(
+              "px-4 py-1.5 text-xs font-bold rounded-md transition-all",
+              isAM ? "bg-background text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            )}
+          >
+            AM
+          </button>
+          <button
+            type="button"
+            onClick={() => setMeridiem("PM")}
+            className={cn(
+              "px-4 py-1.5 text-xs font-bold rounded-md transition-all",
+              !isAM ? "bg-background text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            )}
+          >
+            PM
+          </button>
+        </div>
       </div>
 
       {/* Hour/Minute Stepper + Digital readout */}
@@ -343,7 +357,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick date & tim
   const handleTimeChange = (t: string) => {
     setLocalTime(t);
     // If user changes time without selecting a date first, default to today
-    const selectedDate = date || new Date(); 
+    const selectedDate = date || new Date();
     onChange(toISO(selectedDate, t));
   };
 

@@ -404,16 +404,17 @@ export function AddBannerModal({ open, onClose, onSave, onDelete, editBanner, ne
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Priority</Label>
-                <Select value={String(form.priority)} onValueChange={v => set("priority", Number(v))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6].map(n => (
-                      <SelectItem key={n} value={String(n)}>
-                        {n}{n === 1 ? " — First" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  type="number"
+                  min={1}
+                  max={nextPriority}
+                  value={form.priority}
+                  onChange={e => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!isNaN(v) && v >= 1) set("priority", Math.min(v, nextPriority));
+                  }}
+                />
+                <p className="text-[11px] text-muted-foreground">1 = highest. Max: {nextPriority}</p>
               </div>
 
               <div className="space-y-1.5">

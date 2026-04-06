@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, createContext, useContext } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 
@@ -6,15 +6,25 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+const DashboardLayoutContext = createContext<boolean>(false);
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const isNested = useContext(DashboardLayoutContext);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // If we are already inside a DashboardLayout (i.e. we made it global),
+  // skip rendering the nested layout shell and just render children.
+  if (isNested) {
+    return <>{children}</>;
+  }
+
   return (
-    <div className="min-h-screen bg-background">
-      <AppSidebar
-        collapsed={sidebarCollapsed}
-        onCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
+    <DashboardLayoutContext.Provider value={true}>
+      <div className="min-h-screen bg-background">
+        <AppSidebar
+          collapsed={sidebarCollapsed}
+          onCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
 
       {/* Main content area */}
       <div
@@ -30,5 +40,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
       </div>
     </div>
+    </DashboardLayoutContext.Provider>
   );
 }

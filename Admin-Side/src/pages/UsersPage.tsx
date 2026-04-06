@@ -44,6 +44,7 @@ const Users = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [filterStatus, setFilterStatus] = useState<"All" | "Active" | "Inactive" | "Blocked">("All");
+    const [sortBy, setSortBy] = useState<"Newest" | "Oldest" | "AZ" | "ZA">("Newest");
     const [filterGender, setFilterGender] = useState<"All" | "Male" | "Female" | "Others">("All");
     const [filterJoiningFrom, setFilterJoiningFrom] = useState("");
     const [filterJoiningTo, setFilterJoiningTo] = useState("");
@@ -128,8 +129,20 @@ const Users = () => {
     };
 
     const sortedUsers = [...users].sort((a, b) => {
+        if (sortBy === "AZ") return a.name.localeCompare(b.name);
+        if (sortBy === "ZA") return b.name.localeCompare(a.name);
+        
         const dateA = parseSafeDate(a.joiningDate);
         const dateB = parseSafeDate(b.joiningDate);
+        
+        if (sortBy === "Oldest") {
+            if (!dateA && !dateB) return Number(a.id) - Number(b.id);
+            if (!dateA) return -1;
+            if (!dateB) return 1;
+            return dateA.getTime() - dateB.getTime();
+        }
+        
+        // Default: Newest
         if (!dateA && !dateB) return Number(b.id) - Number(a.id);
         if (!dateA) return 1;
         if (!dateB) return -1;
@@ -494,6 +507,14 @@ const Users = () => {
                             { label: "Active", value: "Active" },
                             { label: "Inactive", value: "Inactive" },
                             { label: "Blocked", value: "Blocked" }
+                        ]}
+                        sortValue={sortBy}
+                        setSortValue={(val) => { setSortBy(val as any); setCurrentPage(1); }}
+                        sortOptions={[
+                            { label: "Newest First", value: "Newest" },
+                            { label: "Oldest First", value: "Oldest" },
+                            { label: "Name A–Z", value: "AZ" },
+                            { label: "Name Z–A", value: "ZA" },
                         ]}
                         onFilterButtonClick={openAdvancedFilterModal}
                         placeholder="Search users by name or email..."

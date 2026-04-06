@@ -102,11 +102,11 @@ function fmtDate(s: string) {
   });
 }
 
-function StatCard({ label, value, icon: Icon, color }: {
-  label: string; value: number; icon: React.ElementType; color: string;
+function StatCard({ label, value, icon: Icon, color, active }: {
+  label: string; value: number; icon: React.ElementType; color: string; active?: boolean;
 }) {
   return (
-    <GlassCard className="flex items-center gap-4 px-5 py-4 cursor-default transition-all hover:ring-2 hover:ring-primary/50">
+    <GlassCard className={cn("flex items-center gap-4 px-5 py-4 transition-all hover:ring-2 hover:ring-primary/50", active && "ring-2 ring-primary/60")}>
       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", color)}>
         <Icon className="w-5 h-5 text-white" />
       </div>
@@ -156,8 +156,9 @@ export default function Banners() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterAudience, setFilterAudience] = useState("All");
   const [filterCampaign, setFilterCampaign] = useState("All");
-  const dragRef = useRef<number | null>(null);
-  const dragOverRef = useRef<number | null>(null);
+  const [sortBy, setSortBy] = useState("Newest");
+  const dragRef = useRef<number | string | null>(null);
+  const dragOverRef = useRef<number | string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -197,6 +198,11 @@ export default function Banners() {
     if (filterAudience !== "All" && b.gender !== filterAudience) return false;
     if (filterCampaign !== "All" && b.campaign !== filterCampaign) return false;
     return true;
+  }).sort((a, b) => {
+    if (sortBy === "A→Z") return a.title.localeCompare(b.title);
+    if (sortBy === "Z→A") return b.title.localeCompare(a.title);
+    if (sortBy === "Oldest") return Number(a.id) - Number(b.id);
+    return Number(b.id) - Number(a.id); // Newest
   });
 
   const nextPriority = Math.max(...banners.map(b => b.priority), 0) + 1;
@@ -280,7 +286,10 @@ export default function Banners() {
     setIsLoading(true);
     try {
       const newActive = !banner.active;
-      // Map to backend field names for the PATCH/PUT request
+      // When deactivating, assign the lowest priority (below all active banners)
+      const newPriority = newActive
+        ? banner.priority
+        : Math.max(...banners.map(b => b.priority), 0) + 1;
       const payload = {
         title: banner.title,
         description: banner.description,
@@ -290,9 +299,9 @@ export default function Banners() {
         campaignType: banner.campaign,
         buttonText: banner.buttonText,
         redirectTo: banner.redirectPage,
-        priority: banner.priority,
-        displayOrder: banner.priority,
-        orderNo: banner.priority,
+        priority: newPriority,
+        displayOrder: newPriority,
+        orderNo: newPriority,
         startDateTime: banner.startDate,
         endDateTime: banner.endDate,
         bannerImage: banner.imageUrl ?? null,
@@ -333,40 +342,47 @@ export default function Banners() {
   });
 
   const onDragEnd = () => {
-    const from = dragRef.current, to = dragOverRef.current;
-    if (from === null || to === null || from === to) return;
+    const fromId = dragRef.current, toId = dragOverRef.current;
+    if (fromId === null || toId === null || fromId === toId) return;
+
     let reordered: Banner[] = [];
     setBanners(prev => {
       const arr = [...prev];
+      const from = arr.findIndex(b => b.id === fromId);
+      const to = arr.findIndex(b => b.id === toId);
+      if (from === -1 || to === -1) return prev;
       const [moved] = arr.splice(from, 1);
       arr.splice(to, 0, moved);
       reordered = arr.map((b, i) => ({ ...b, priority: i + 1 }));
       return reordered;
     });
 
-    const changed = reordered.filter(b => {
-      const old = banners.find(prev => prev.id === b.id);
-      return !old || old.priority !== b.priority;
-    });
+    // Give setState a tick to commit, then compute changed banners
+    setTimeout(() => {
+      const changed = reordered.filter(b => {
+        const old = banners.find(prev => prev.id === b.id);
+        return !old || old.priority !== b.priority;
+      });
 
-    if (changed.length > 0) {
-      setIsLoading(true);
-      Promise.all(
-        changed.map(b => updateBanner(b.id, buildBannerUpdatePayload(b)))
-      )
-        .catch((err: any) => {
-          console.error("Failed to persist banner order:", err);
-          toast({
-            title: "Error",
-            description: err.message || "Failed to save banner order.",
-            variant: "destructive"
+      if (changed.length > 0) {
+        setIsLoading(true);
+        Promise.all(
+          changed.map(b => updateBanner(b.id, buildBannerUpdatePayload(b)))
+        )
+          .catch((err: any) => {
+            console.error("Failed to persist banner order:", err);
+            toast({
+              title: "Error",
+              description: err.message || "Failed to save banner order.",
+              variant: "destructive"
+            });
+            fetchBanners();
+          })
+          .finally(() => {
+            setIsLoading(false);
           });
-          fetchBanners();
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    }
+      }
+    }, 0);
 
     dragRef.current = null;
     dragOverRef.current = null;
@@ -400,9 +416,15 @@ export default function Banners() {
                 <Plus className="w-5 h-5" />
               </motion.button>
             </GlassCard>
-            <StatCard label="Active" value={active} icon={TrendingUp} color="bg-emerald-500" />
-            <StatCard label="Scheduled" value={scheduled} icon={Clock} color="bg-amber-500" />
-            <StatCard label="Expired" value={expired} icon={Ban} color="bg-destructive" />
+            <div onClick={() => setFilterStatus(filterStatus === "Active" ? "All" : "Active")} className="cursor-pointer">
+              <StatCard label="Active" value={active} icon={TrendingUp} color="bg-emerald-500" active={filterStatus === "Active"} />
+            </div>
+            <div onClick={() => setFilterStatus(filterStatus === "Scheduled" ? "All" : "Scheduled")} className="cursor-pointer">
+              <StatCard label="Scheduled" value={scheduled} icon={Clock} color="bg-amber-500" active={filterStatus === "Scheduled"} />
+            </div>
+            <div onClick={() => setFilterStatus(filterStatus === "Expired" ? "All" : "Expired")} className="cursor-pointer">
+              <StatCard label="Expired" value={expired} icon={Ban} color="bg-destructive" active={filterStatus === "Expired"} />
+            </div>
           </div>
 
           {/* Filters */}
@@ -418,13 +440,16 @@ export default function Banners() {
               <FilterDropdown label="Status" value={filterStatus}
                 options={["All", "Active", "Scheduled", "Expired", "Inactive"]} onChange={setFilterStatus} />
               <FilterDropdown label="Audience" value={filterAudience}
-                options={["All", "All Users", "Men", "Women"]} onChange={setFilterAudience} />
+                options={["All", "Men", "Women"]} onChange={setFilterAudience} />
               <FilterDropdown label="Campaign" value={filterCampaign}
                 options={["All", "Festival", "Seasonal", "Discount", "New Product", "Announcement"]}
                 onChange={setFilterCampaign} />
+              <FilterDropdown label="Sort" value={sortBy}
+                options={["Newest First", "Oldest First", "A→Z", "Z→A"]}
+                onChange={(v) => { setSortBy(v as any); setCurrentPage(1); }} />
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" className="text-xs h-9 text-muted-foreground"
-                  onClick={() => { setSearch(""); setFilterPlatform("All"); setFilterStatus("All"); setFilterAudience("All"); setFilterCampaign("All"); }}>
+                  onClick={() => { setSearch(""); setFilterPlatform("All"); setFilterStatus("All"); setFilterAudience("All"); setFilterCampaign("All"); setSortBy("Newest First"); }}>
                   Clear filters
                 </Button>
               )}
@@ -491,8 +516,8 @@ export default function Banners() {
                           exit={{ opacity: 0, x: -20 }}
                           transition={{ duration: 0.18 }}
                           draggable
-                          onDragStart={() => { dragRef.current = idx; }}
-                          onDragEnter={() => { dragOverRef.current = idx; }}
+                          onDragStart={() => { dragRef.current = banner.id; }}
+                          onDragEnter={() => { dragOverRef.current = banner.id; }}
                           onDragEnd={onDragEnd}
                           onDragOver={e => e.preventDefault()}
                           className={cn(
