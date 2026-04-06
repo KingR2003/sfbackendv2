@@ -1,6 +1,5 @@
 // API endpoint configuration for easy maintenance
 export const BASE_URL = "";
-
 export const API_ENDPOINTS = {
   GET_USER_PROFILE: `${BASE_URL}/api/v1/users/profile`,
   GET_USER_INFO: `${BASE_URL}/api/v1/users`,
