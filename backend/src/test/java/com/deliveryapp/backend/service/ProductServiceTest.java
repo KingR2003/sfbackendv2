@@ -37,12 +37,12 @@ public class ProductServiceTest {
         ProductRequest request = new ProductRequest();
         request.setCategoryId(999L);
 
-        when(categoryRepository.existsById(999L)).thenReturn(false);
+        when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> {
             productService.createProduct(request, null);
         });
-        org.junit.jupiter.api.Assertions.assertEquals("Category is required and must be valid", exception.getMessage());
+        org.junit.jupiter.api.Assertions.assertEquals("Category not found", exception.getMessage());
     }
 
     @Test
@@ -50,10 +50,12 @@ public class ProductServiceTest {
         ProductRequest request = new ProductRequest();
         request.setCategoryId(null);
 
+        when(categoryRepository.findById(null)).thenReturn(Optional.empty());
+
         ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> {
             productService.createProduct(request, null);
         });
-        org.junit.jupiter.api.Assertions.assertEquals("Category is required and must be valid", exception.getMessage());
+        org.junit.jupiter.api.Assertions.assertEquals("Category not found", exception.getMessage());
     }
 
     @Test
@@ -62,10 +64,11 @@ public class ProductServiceTest {
         request.setCategoryId(999L);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(new com.deliveryapp.backend.entity.Product()));
-        when(categoryRepository.existsById(999L)).thenReturn(false);
+        when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> {
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> {
             productService.updateProduct(1L, request, null);
         });
+        org.junit.jupiter.api.Assertions.assertEquals("Category not found", exception.getMessage());
     }
 }

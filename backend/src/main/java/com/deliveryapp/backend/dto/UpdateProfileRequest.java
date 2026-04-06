@@ -12,7 +12,6 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class UpdateProfileRequest {
 
-    @NotBlank(message = "Name is required")
     private String name;
 
     @Email(message = "Invalid email format")
