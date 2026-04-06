@@ -77,11 +77,10 @@ public class ResponseStructureTest {
         category.setId(1L);
         category.setName("Test");
 
-        given(categoryService.createCategory(any(Category.class))).willReturn(category);
+        given(categoryService.createCategory(any(Category.class), any())).willReturn(category);
 
-        mockMvc.perform(post("/api/v1/categories")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(category)))
+        mockMvc.perform(multipart("/api/v1/categories")
+                .file(new org.springframework.mock.web.MockMultipartFile("category", "", "application/json", objectMapper.writeValueAsString(category).getBytes())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").exists())
                 .andExpect(jsonPath("$.message").exists())
@@ -112,7 +111,7 @@ public class ResponseStructureTest {
         given(productService.createProduct(any(ProductRequest.class), any())).willReturn(response);
 
         org.springframework.mock.web.MockMultipartFile productPart = new org.springframework.mock.web.MockMultipartFile(
-                "product", "", "application/json", "{}".getBytes());
+                "product", "", "application/json", "{\"name\":\"Test\",\"description\":\"Desc\",\"categoryId\":1,\"isActive\":true}".getBytes());
 
         mockMvc.perform(multipart("/api/v1/products").file(productPart))
                 .andExpect(status().isCreated())
@@ -168,7 +167,7 @@ public class ResponseStructureTest {
                 .willThrow(new ResourceNotFoundException("Category not found with id: 999"));
 
         org.springframework.mock.web.MockMultipartFile productPart = new org.springframework.mock.web.MockMultipartFile(
-                "product", "", "application/json", "{\"categoryId\": 999}".getBytes());
+                "product", "", "application/json", "{\"name\":\"Test\",\"description\":\"Desc\",\"categoryId\":999,\"isActive\":true}".getBytes());
 
         mockMvc.perform(multipart("/api/v1/products").file(productPart))
                 .andExpect(status().isNotFound());
