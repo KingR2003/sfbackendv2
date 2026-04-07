@@ -83,16 +83,26 @@ public class BannerServiceImpl implements BannerService {
     public List<BannerDto> getActiveBanners(String platform, String gender) {
         LocalDateTime now = LocalDateTime.now();
         List<Banner> activeBanners = bannerRepository.findByIsActiveTrueAndStatusAndStartDateTimeBeforeAndEndDateTimeAfter("active", now, now);
-        
+
         return activeBanners.stream()
                 .filter(b -> {
-                    // "BOTH" means it applies to both platforms
-                    if (platform != null && !b.getPlatform().equalsIgnoreCase("BOTH") && !b.getPlatform().equalsIgnoreCase(platform)) {
-                        return false;
+                    // Platform filter: if caller specifies a platform, only return banners
+                    // matching that platform OR set to "BOTH". Banners with null platform are excluded.
+                    if (platform != null) {
+                        String bannerPlatform = b.getPlatform();
+                        if (bannerPlatform == null) return false;
+                        if (!bannerPlatform.equalsIgnoreCase("BOTH") && !bannerPlatform.equalsIgnoreCase(platform)) {
+                            return false;
+                        }
                     }
-                    // "ALL" means it applies to all genders
-                    if (gender != null && !b.getGender().equalsIgnoreCase("ALL") && !b.getGender().equalsIgnoreCase(gender)) {
-                        return false;
+                    // Gender filter: if caller specifies a gender, only return banners
+                    // matching that gender OR set to "ALL". Banners with null gender are excluded.
+                    if (gender != null) {
+                        String bannerGender = b.getGender();
+                        if (bannerGender == null) return false;
+                        if (!bannerGender.equalsIgnoreCase("ALL") && !bannerGender.equalsIgnoreCase(gender)) {
+                            return false;
+                        }
                     }
                     return true;
                 })
