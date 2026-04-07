@@ -31,7 +31,13 @@ public class User {
     private String role; // "CUSTOMER" or "ADMIN"
     private boolean active = true;
     private String status = "ACTIVE"; // "ACTIVE", "INACTIVE", "PENDING"
-    
+
+    @Column(name = "google_id")
+    private String googleId;
+
+    @Column(name = "auth_provider")
+    private String authProvider = "LOCAL"; // "LOCAL" or "GOOGLE"
+
     // Added fields
     private String gender;
     @com.fasterxml.jackson.annotation.JsonProperty("dob")
