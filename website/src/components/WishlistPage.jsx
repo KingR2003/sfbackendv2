@@ -93,7 +93,7 @@ const WishlistPage = ({ wishlist, onAddToCart, onRemove, onViewProduct, onContin
                                 <div className="p-card-footer" style={{ marginTop: 'auto' }}>
                                     <div className="p-price-block">
                                         <div className="p-price-row">
-                                            <span className="p-mrp">₹{Math.round(product.price * 1.2)}</span>
+                                            <span className="p-mrp">₹{product.mrp ? Math.round(product.mrp) : Math.round(product.price * 1.2)}</span>
                                             <span className="p-price">₹{product.price}</span>
                                         </div>
                                     </div>

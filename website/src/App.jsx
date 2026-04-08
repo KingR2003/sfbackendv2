@@ -287,8 +287,10 @@ function mapApiWishlistToLocal(apiData) {
   };
 
   return raw.map((entry) => {
+    // Handle both nested product structure and flat structure
     const product = entry?.product || entry?.productDetails || entry?.product_detail || entry?.data || null;
 
+    // Get product ID from various possible locations
     const entryProductId =
       entry?.productId ||
       entry?.product_id ||
@@ -298,21 +300,18 @@ function mapApiWishlistToLocal(apiData) {
       entry?.product?.product_id ||
       "";
 
-    const productId =
-      entryProductId ||
-      product?.id ||
-      product?.productId ||
-      product?.product_id ||
-      entry?.id ||
-      "";
+    const productId = entryProductId || product?.id || product?.productId || product?.product_id || entry?.id || "";
 
+    // Get the first variant or selected variant
     const variant =
       product?.selectedVariant ||
       entry?.selectedVariant ||
       entry?.variant ||
       (Array.isArray(product?.variants) && product.variants[0]) ||
+      (Array.isArray(entry?.variants) && entry.variants[0]) ||
       null;
 
+    // Extract image URLs from multiple sources
     const imageFromEntry =
       entry?.imageUrl ||
       entry?.image_url ||
@@ -331,19 +330,53 @@ function mapApiWishlistToLocal(apiData) {
       product?.imageUrl ||
       product?.image ||
       product?.img ||
-      (Array.isArray(product?.images) && product.images[0]?.imageUrl);
+      (Array.isArray(product?.images) && product.images[0]?.imageUrl) ||
+      (Array.isArray(entry?.images) && entry.images[0]?.imageUrl);
 
+    // Get product name from various sources
+    const productName =
+      entry?.productName ||
+      product?.name ||
+      product?.productName ||
+      entry?.name ||
+      "Product";
+
+    // Get description from various sources
+    const description =
+      entry?.productDescription ||
+      product?.desc ||
+      product?.description ||
+      product?.productDescription ||
+      "";
+
+    // Get price - prioritize variant price, then product price
     const price =
-      asNumber(product?.price ?? product?.unitPrice ?? product?.unit_price ?? product?.mrp ?? product?.amount ?? null, NaN) ||
-      asNumber(variant?.price ?? variant?.unitPrice ?? variant?.unit_price ?? variant?.mrp ?? null, NaN) ||
+      asNumber(variant?.price ?? null, NaN) ||
+      asNumber(product?.price ?? product?.unitPrice ?? product?.unit_price ?? product?.amount ?? null, NaN) ||
       asNumber(entry?.price ?? entry?.unitPrice ?? entry?.unit_price ?? entry?.amount ?? null, 0);
+
+    // Get MRP - prioritize variant MRP, then product MRP
+    const mrp =
+      asNumber(variant?.mrp ?? null, NaN) ||
+      asNumber(product?.mrp ?? product?.MRP ?? null, NaN) ||
+      asNumber(entry?.mrp ?? null, NaN);
 
     return {
       id: String(productId || ""),
-      name: product?.name || product?.productName || product?.title || entry?.name || entry?.productName || "Product",
+      wishlistItemId: entry?.wishlistItemId,
+      name: productName,
+      desc: description,
       category: product?.category || product?.categoryName || entry?.category || entry?.categoryName || "",
       price: Number.isFinite(price) ? price : 0,
+      mrp: Number.isFinite(mrp) ? mrp : undefined,
       img: imageFromEntry || imageFromVariant || imageFromProduct || PLACEHOLDER_IMG,
+      isAvailable: entry?.isAvailable !== undefined ? entry.isAvailable : (product?.isActive !== false && variant?.isActive !== false),
+      addedAt: entry?.addedAt,
+      variants: Array.isArray(entry?.variants) ? entry.variants : (Array.isArray(product?.variants) ? product.variants : []),
+      images: Array.isArray(entry?.images) ? entry.images : (Array.isArray(product?.images) ? product.images : []),
+      stockQuantity: variant?.stockQuantity !== undefined ? variant.stockQuantity : (product?.stockQuantity ?? 0),
+      availabilityStatus: variant?.availabilityStatus || product?.availabilityStatus || (entry?.isAvailable ? "AVAILABLE" : "OUT_OF_STOCK"),
+      discount: variant?.discount,
     };
   });
 }
@@ -694,6 +727,7 @@ function App() {
   useEffect(() => {
     selectedOrderForTrackingRef.current = selectedOrderForTracking;
   }, [selectedOrderForTracking]);
+  const searchContainerRef = useRef(null);
   const [toast, setToast] = useState({ message: "", type: "success", action: null, actionLabel: "" });
   const [contactScrollTarget, setContactScrollTarget] = useState(null);
   const showToast = (message, type = "success", action = null, actionLabel = "") => {
@@ -724,6 +758,23 @@ function App() {
   useEffect(() => {
     localStorage.setItem("svasthya_orders", JSON.stringify(orders));
   }, [orders]);
+
+  // Close search when clicking outside of search container
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        if (isSearchOpen) {
+          setIsSearchOpen(false);
+          setSearchQuery("");
+        }
+      }
+    };
+
+    if (isSearchOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isSearchOpen]);
 
   // Persist the last order opened in "Track Your Order" so refresh can restore it.
   useEffect(() => {
@@ -2412,7 +2463,7 @@ function App() {
           </nav>
 
           <div className="header-actions">
-            <div className={`global-search-container ${isSearchOpen ? 'open' : ''}`}>
+            <div className={`global-search-container ${isSearchOpen ? 'open' : ''}`} ref={searchContainerRef}>
               {isSearchOpen && (
                 <>
                   <input

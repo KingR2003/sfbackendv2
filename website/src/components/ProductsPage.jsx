@@ -70,7 +70,7 @@ const CategorySection = ({ title, products, onViewProduct, onToggleWishlist, wis
 
             return (
             <div className="p-card-vertical" key={product.id}>
-              <div className="p-card-image">
+              <div className="p-card-image" onClick={() => onViewProduct(product)} style={{ cursor: 'pointer' }}>
                 <img src={product.img} alt={product.name} />
                 {product.badgeLeft && (
                   <span className="p-badge left-badge">{product.badgeLeft}</span>
