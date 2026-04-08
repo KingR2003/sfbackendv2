@@ -8,26 +8,22 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
-@Table(name = "user_queries")
+@Table(name = "support")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserQuery {
+public class Support {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "ticket_id", unique = true)
-    private String ticketId;
-
     @Column(nullable = false)
-    private String firstName;
-
-    @Column(nullable = false)
-    private String lastName;
+    private String name;
 
     @Column(nullable = false)
     private String email;
@@ -37,6 +33,12 @@ public class UserQuery {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String message;
+
+    @Column(name = "order_id")
+    private String orderId;
+
+    @Column(name = "ticket_id", unique = true)
+    private String ticketId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -49,4 +51,7 @@ public class UserQuery {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "support", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SupportImage> images = new ArrayList<>();
 }
