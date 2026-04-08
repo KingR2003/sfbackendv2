@@ -1,7 +1,11 @@
 package com.deliveryapp.backend.service.impl;
 
+import com.deliveryapp.backend.dto.ProductImageDto;
+import com.deliveryapp.backend.dto.ProductVariantDto;
 import com.deliveryapp.backend.dto.WishlistResponse;
 import com.deliveryapp.backend.entity.Product;
+import com.deliveryapp.backend.entity.ProductImage;
+import com.deliveryapp.backend.entity.ProductVariant;
 import com.deliveryapp.backend.entity.WishlistItem;
 import com.deliveryapp.backend.exception.ResourceNotFoundException;
 import com.deliveryapp.backend.repository.ProductRepository;
@@ -11,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,6 +50,63 @@ public class WishlistServiceImpl implements WishlistService {
             response.setProductDescription(product != null ? product.getDescription() : null);
             response.setAvailable(isAvailable);
             response.setAddedAt(item.getAddedAt());
+
+            if (product != null) {
+                // Map product-level images (not linked to a specific variant)
+                List<ProductImageDto> imageDtos = new ArrayList<>();
+                if (product.getImages() != null) {
+                    for (ProductImage img : product.getImages()) {
+                        if (img.getProductVariant() == null) {
+                            ProductImageDto imgDto = new ProductImageDto();
+                            imgDto.setId(img.getId());
+                            imgDto.setImageUrl(img.getImageUrl());
+                            imageDtos.add(imgDto);
+                        }
+                    }
+                }
+                response.setImages(imageDtos);
+
+                // Map variants with derived availability status
+                List<ProductVariantDto> variantDtos = new ArrayList<>();
+                if (product.getVariants() != null) {
+                    for (ProductVariant variant : product.getVariants()) {
+                        // Skip fully inactive variants
+                        if (!Boolean.TRUE.equals(variant.getIsActive())) continue;
+
+                        ProductVariantDto varDto = new ProductVariantDto();
+                        varDto.setId(variant.getId());
+                        varDto.setVariantName(variant.getVariantName());
+                        varDto.setSku(variant.getSku());
+                        varDto.setMrp(variant.getMrp());
+                        varDto.setPrice(variant.getPrice());
+                        varDto.setDiscount(variant.getDiscount());
+                        varDto.setStockQuantity(variant.getStockQuantity());
+                        varDto.setIsActive(variant.getIsActive());
+
+                        // Derive availability: product, category, stock must all be valid
+                        boolean outOfStock = !isAvailable
+                                || variant.getStockQuantity() == null
+                                || variant.getStockQuantity() <= 0;
+                        varDto.setAvailabilityStatus(outOfStock ? "OUT_OF_STOCK" : "AVAILABLE");
+
+                        // Map variant-specific images
+                        List<ProductImageDto> variantImages = new ArrayList<>();
+                        if (variant.getImages() != null) {
+                            for (ProductImage img : variant.getImages()) {
+                                ProductImageDto imgDto = new ProductImageDto();
+                                imgDto.setId(img.getId());
+                                imgDto.setImageUrl(img.getImageUrl());
+                                imgDto.setProductVariantId(variant.getId());
+                                variantImages.add(imgDto);
+                            }
+                        }
+                        varDto.setImages(variantImages);
+                        variantDtos.add(varDto);
+                    }
+                }
+                response.setVariants(variantDtos);
+            }
+
             return response;
         }).collect(Collectors.toList());
     }
