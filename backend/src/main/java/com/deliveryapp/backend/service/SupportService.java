@@ -69,6 +69,15 @@ public class SupportService {
         return mapToResponse(support);
     }
 
+    public SupportResponse updateStatus(String ticketId, com.deliveryapp.backend.dto.UpdateTicketStatusRequest request) {
+        Support support = supportRepository.findByTicketId(ticketId);
+        if (support == null) {
+            throw new RuntimeException("Support ticket not found");
+        }
+        support.setStatus(request.getStatus());
+        return mapToResponse(supportRepository.save(support));
+    }
+
     private SupportResponse mapToResponse(Support support) {
         List<String> imageUrls = support.getImages().stream()
                 .map(SupportImage::getImageUrl)

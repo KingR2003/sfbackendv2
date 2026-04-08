@@ -14,17 +14,19 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/support")
+@RequestMapping("/api/v1/support")
 public class SupportController {
 
     @Autowired
     private SupportService supportService;
 
     @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
-    public ResponseEntity<SupportResponse> createSupportTicket(
+    public ResponseEntity<com.deliveryapp.backend.dto.DataResponse<SupportResponse>> createSupportTicket(
             @Valid @ModelAttribute SupportRequest request,
             @RequestPart(value = "images", required = false) List<MultipartFile> images) {
         SupportResponse response = supportService.createSupportTicket(request, images);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        return new ResponseEntity<>(
+                new com.deliveryapp.backend.dto.DataResponse<>(HttpStatus.CREATED.value(), "Support ticket created successfully", response),
+                HttpStatus.CREATED);
     }
 }
