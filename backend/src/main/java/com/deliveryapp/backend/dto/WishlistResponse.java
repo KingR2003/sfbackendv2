@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -19,6 +20,12 @@ public class WishlistResponse {
     private String productName;
     private String productDescription;
     private boolean isAvailable;
+
+    /** Product-level images (not tied to a specific variant). */
+    private List<ProductImageDto> images;
+
+    /** All active variants with price, stock, and availability. */
+    private List<ProductVariantDto> variants;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime addedAt;
