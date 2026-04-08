@@ -17,6 +17,7 @@ public class WishlistResponse {
 
     private Long wishlistItemId;
     private Long productId;
+    private Long selectedVariantId;
     private String productName;
     private String productDescription;
     private boolean isAvailable;
