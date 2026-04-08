@@ -13,27 +13,130 @@ import {
   ChevronLeft
 } from "lucide-react";
 
-const OrderTracking = ({ order, onBack, onContactSupport }) => {
+const toNumber = (value) => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const cleaned = value.replace(/[^0-9.\-]/g, "");
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const formatINR = (value) => {
+  const numberValue = toNumber(value);
+  return numberValue.toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  });
+};
+
+const safeDate = (value) => {
+  if (!value) return new Date();
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? new Date() : value;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+const buildAddressString = (addressLike) => {
+  if (!addressLike) return "";
+  if (typeof addressLike === "string") return addressLike;
+  if (typeof addressLike !== "object") return "";
+
+  const {
+    building_no,
+    buildingNo,
+    building_name,
+    buildingName,
+    street_no,
+    streetNo,
+    area_name,
+    areaName,
+    city,
+    state,
+    pincode,
+    pinCode,
+    addressLine,
+    fullAddress,
+  } = addressLike;
+
+  if (fullAddress) return String(fullAddress);
+  if (addressLine) return String(addressLine);
+
+  const parts = [
+    building_no || buildingNo,
+    building_name || buildingName,
+    street_no || streetNo,
+    area_name || areaName,
+    city,
+    state,
+  ].filter(Boolean);
+
+  const pin = pincode || pinCode;
+  let built = parts.join(", ");
+  if (pin) built = built ? `${built} - ${pin}` : String(pin);
+  return built;
+};
+
+const pickUserDefaultAddress = (addresses = []) => {
+  if (!Array.isArray(addresses) || addresses.length === 0) return null;
+  return addresses.find((a) => a?.is_default) || addresses[0];
+};
+
+const OrderTracking = ({ order, user, addresses, onBack, onContactSupport }) => {
   // Transform the incoming order into the tracking format
   const generateTrackingData = (orderData) => {
     if (!orderData) return null;
-    
-    // Create timeline based on order status
-    const statusMap = {
-      "Delivered": "delivered",
-      "Out for Delivery": "out-for-delivery",
-      "In Transit": "shipped",
-      "Processing": "packed",
-      "Confirmed": "ordered"
+
+    // Create timeline based on order status (be permissive about backend/admin labels)
+    const normalizeStatusText = (raw) => {
+      if (!raw) return "";
+      if (typeof raw === "object") {
+        raw = raw.status || raw.name || raw.label || raw.value || "";
+      }
+      return String(raw).trim().toLowerCase();
     };
-    
-    const currentStatus = statusMap[orderData.status] || "ordered";
+
+    const mapStatusToStep = (raw) => {
+      const s = normalizeStatusText(raw);
+      const cleaned = s.replace(/[\-_]+/g, " ").replace(/\s+/g, " ").trim();
+      if (!cleaned) return "ordered";
+
+      // Admin statuses we need to support:
+      // PROCESSING, PACKED, ON THE WAY, DELIVERED, CANCELLED
+      if (cleaned.includes("cancel")) return "ordered";
+      if (cleaned.includes("deliver")) return "delivered";
+      if (cleaned.includes("on the way") || cleaned.includes("ontheway")) return "shipped";
+      if (cleaned.includes("out for delivery") || cleaned.includes("outfordelivery")) return "out-for-delivery";
+      if (cleaned.includes("packed")) return "packed";
+      if (cleaned.includes("processing") || cleaned.includes("confirmed") || cleaned.includes("placed")) return "ordered";
+
+      if (
+        cleaned.includes("ship") ||
+        cleaned.includes("in transit") ||
+        cleaned.includes("dispatch") ||
+        cleaned.includes("dispatched")
+      ) return "shipped";
+      if (cleaned.includes("pack") || cleaned.includes("ready to ship")) return "packed";
+
+      // Fall back to the first step for any unknown/early status.
+      return "ordered";
+    };
+
+    const currentStatus = mapStatusToStep(orderData.status || orderData.orderStatus || orderData.order_status);
     const statusOrder = ["ordered", "packed", "shipped", "out-for-delivery", "delivered"];
     const currentIndex = statusOrder.indexOf(currentStatus);
     
     // Generate timeline
-    const now = new Date();
-    const orderDate = new Date(orderData.date || now);
+    const rawOrderDate =
+      orderData.createdAt ||
+      orderData.created_at ||
+      orderData.orderDate ||
+      orderData.order_date ||
+      orderData.date;
+    const orderDate = safeDate(rawOrderDate);
     
     const timeline = [
       {
@@ -80,49 +183,139 @@ const OrderTracking = ({ order, onBack, onContactSupport }) => {
       }
     ];
     
+    const rawItems =
+      (Array.isArray(orderData.items) && orderData.items) ||
+      (Array.isArray(orderData.orderItems) && orderData.orderItems) ||
+      (Array.isArray(orderData.products) && orderData.products) ||
+      [];
+
+    const items = rawItems.map((item) => {
+      const quantity = toNumber(item.quantity || item.qty || 1) || 1;
+
+      const unitPrice = toNumber(
+        item.price ??
+          item.unitPrice ??
+          item.unit_price ??
+          item.amount ??
+          item.mrp ??
+          item.sellingPrice ??
+          item.selling_price
+      );
+
+      const lineTotal =
+        toNumber(item.total ?? item.lineTotal ?? item.line_total) ||
+        (unitPrice > 0 ? unitPrice * quantity : 0);
+
+      return {
+        name: item.name || item.productName || item.title || "Item",
+        quantity,
+        price: formatINR(lineTotal || unitPrice),
+        image:
+          item.img ||
+          item.image ||
+          item.imageUrl ||
+          item.image_url ||
+          "https://images.unsplash.com/photo-1586201375761-83865001e31c",
+      };
+    });
+
+    const computedTotal = items.reduce((sum, item) => sum + toNumber(item.price), 0);
+    const explicitTotalCandidate =
+      orderData.total ??
+      orderData.totalAmount ??
+      orderData.finalAmount ??
+      orderData.final_amount ??
+      orderData.amount;
+    const explicitTotalValue = toNumber(explicitTotalCandidate);
+    const hasExplicitTotal = explicitTotalCandidate !== null && explicitTotalCandidate !== undefined && explicitTotalValue > 0;
+
+    const discountAmount = toNumber(
+      orderData.discountAmount ??
+        orderData.discount_amount ??
+        orderData.discount ??
+        orderData.couponDiscount ??
+        orderData.coupon_discount
+    );
+
+    const shippingCharge = toNumber(
+      orderData.shippingCharge ??
+        orderData.shipping_charge ??
+        orderData.deliveryCharge ??
+        orderData.delivery_charge ??
+        orderData.deliveryFee ??
+        orderData.delivery_fee
+    );
+
+    const subtotalValue = toNumber(
+      orderData.subtotal ??
+        orderData.subTotal ??
+        orderData.sub_total ??
+        orderData.subtotal_amount
+    );
+
+    // Compute payable final amount from (subtotal/line-sum - discount + shipping).
+    // If backend provided a total, it may be either pre-discount or post-discount.
+    // When a discount exists, choose the explicit value that best matches the computed discounted total.
+    const computedSubtotal = subtotalValue > 0 ? subtotalValue : computedTotal;
+    const computedFinalTotal = Math.max(0, computedSubtotal - discountAmount) + shippingCharge;
+
+    let finalTotalValue = computedFinalTotal;
+    if (hasExplicitTotal) {
+      if (discountAmount > 0) {
+        const explicitMinusDiscount = Math.max(0, explicitTotalValue - discountAmount);
+        const diffIfNet = Math.abs(explicitTotalValue - computedFinalTotal);
+        const diffIfGross = Math.abs(explicitMinusDiscount - computedFinalTotal);
+        finalTotalValue = diffIfGross + 0.001 < diffIfNet ? explicitMinusDiscount : explicitTotalValue;
+      } else {
+        finalTotalValue = explicitTotalValue;
+      }
+    }
+
+    const rawCouponCode =
+      orderData.couponCode ??
+      orderData.coupon_code ??
+      orderData.coupon?.code ??
+      orderData.appliedCoupon?.code;
+    const couponCode =
+      typeof rawCouponCode === "string" || typeof rawCouponCode === "number"
+        ? String(rawCouponCode)
+        : null;
+
+    const orderAddress =
+      orderData.address ||
+      orderData.deliveryAddress ||
+      orderData.location ||
+      buildAddressString(orderData.shippingAddress) ||
+      buildAddressString(orderData.delivery_address);
+
+    const userAddress = buildAddressString(pickUserDefaultAddress(addresses));
+    const resolvedAddress = orderAddress || userAddress || "Delivery address not specified";
+
+    const resolvedEmail = orderData.email || user?.email || "email@example.com";
+    const resolvedPhone = orderData.phone || user?.phone || "+91 XXXXX XXXXX";
+    const resolvedCustomerName = orderData.customerName || user?.name || "Valued Customer";
+
     return {
       id: orderData.id || "ORD-UNKNOWN",
       date: orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       time: orderData.time || "10:30 AM",
-      total: orderData.total || "0",
-      expectedDelivery: new Date(orderDate.getTime() + 345600000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      total: formatINR(finalTotalValue),
+      discountAmount,
+      couponCode,
+      expectedDelivery: safeDate(orderDate.getTime() + 345600000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
       trackingNumber: `TRK${orderData.id?.replace(/[^0-9]/g, '') || Math.floor(Math.random() * 1000000000)}`,
-      customerName: orderData.customerName || "Valued Customer",
-      address: orderData.address || "Delivery address not specified",
-      phone: orderData.phone || "+91 XXXXX XXXXX",
-      email: orderData.email || "email@example.com",
+      customerName: resolvedCustomerName,
+      address: resolvedAddress,
+      phone: resolvedPhone,
+      email: resolvedEmail,
       paymentMethod: orderData.paymentMethod || "Not Specified",
       currentStatus: currentStatus,
-      items: orderData.items?.map(item => ({
-        name: item.name,
-        quantity: item.quantity || 1,
-        price: item.price,
-        image: item.img || item.image || "https://images.unsplash.com/photo-1586201375761-83865001e31c"
-      })) || [],
+      items,
       timeline: timeline
     };
   };
 
-  const orderData = order ? generateTrackingData(order) : generateTrackingData({
-    id: "ORD123456",
-    date: "2026-03-08",
-    time: "10:30 AM",
-    total: "1,299",
-    status: "Out for Delivery",
-    customerName: "John Doe",
-    address: "123 Green Valley, Apartment 4B, Mumbai - 400001",
-    phone: "+91 98765 43210",
-    email: "john.doe@example.com",
-    paymentMethod: "UPI",
-    items: [
-      {
-        name: "Organic Brown Rice",
-        quantity: 2,
-        price: "299",
-        img: "https://images.unsplash.com/photo-1586201375761-83865001e31c"
-      }
-    ]
-  });
+  const orderData = order ? generateTrackingData(order) : null;
   
   const getStatusIcon = (status) => {
     switch(status) {
@@ -140,6 +333,54 @@ const OrderTracking = ({ order, onBack, onContactSupport }) => {
         return <Package size={24} />;
     }
   };
+
+  if (!orderData) {
+    return (
+      <section style={{ background: '#FEF8F0', minHeight: 'calc(100vh - 120px)', padding: '24px 16px' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <button
+            onClick={onBack}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'none',
+              border: 'none',
+              color: '#7C3225',
+              cursor: 'pointer',
+              fontWeight: '700',
+              marginBottom: '16px'
+            }}
+          >
+            <ChevronLeft size={18} /> Back
+          </button>
+
+          <div style={{
+            background: '#FFF',
+            borderRadius: '20px',
+            padding: '28px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '16px',
+              background: '#FEF8F0',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '12px'
+            }}>
+              <Package size={28} color="#7C3225" />
+            </div>
+            <h2 style={{ margin: 0, color: '#7C3225', fontSize: '1.3rem', fontWeight: '800' }}>No order selected</h2>
+            <p style={{ margin: '10px 0 0', color: '#868889' }}>Go back to My Orders and open an order to track.</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className="order-tracking-page fade-in" style={{
@@ -494,6 +735,32 @@ const OrderTracking = ({ order, onBack, onContactSupport }) => {
                 <span style={{ color: '#868889' }}>Total Items:</span>
                 <span style={{ fontWeight: '600' }}>{orderData.items.length}</span>
               </div>
+              {(orderData.couponCode || orderData.discountAmount > 0) && (
+                <>
+                  {orderData.couponCode && (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '8px',
+                      fontSize: '0.9rem'
+                    }}>
+                      <span style={{ color: '#868889' }}>Coupon:</span>
+                      <span style={{ fontWeight: '600' }}>{orderData.couponCode}</span>
+                    </div>
+                  )}
+                  {orderData.discountAmount > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '8px',
+                      fontSize: '0.9rem'
+                    }}>
+                      <span style={{ color: '#868889' }}>Discount:</span>
+                      <span style={{ fontWeight: '700', color: '#1AA60B' }}>-₹{formatINR(orderData.discountAmount)}</span>
+                    </div>
+                  )}
+                </>
+              )}
               <div style={{
                 height: '1px',
                 background: '#E0E0E0',
@@ -504,7 +771,7 @@ const OrderTracking = ({ order, onBack, onContactSupport }) => {
                 justifyContent: 'space-between',
                 fontSize: '1.1rem'
               }}>
-                <span style={{ fontWeight: '700', color: '#7C3225' }}>Total Amount:</span>
+                <span style={{ fontWeight: '700', color: '#7C3225' }}>Final Amount:</span>
                 <span style={{ fontWeight: '700', color: '#1AA60B' }}>₹{orderData.total}</span>
               </div>
             </div>

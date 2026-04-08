@@ -132,6 +132,13 @@ export const verifyOtp = (payload) => fetchJson(API_ENDPOINTS.VERIFY_OTP, {
 	body: JSON.stringify(payload),
 });
 
+// Authenticates user with Google ID token and returns JWT token.
+export const googleAuth = (payload) => fetchJson(API_ENDPOINTS.GOOGLE_AUTH, {
+	method: "POST",
+	headers: { "Content-Type": "application/json" },
+	body: JSON.stringify(payload),
+});
+
 // Logs out the current user by invalidating their session/token on the backend.
 export const logoutUser = (token) => fetchJson(API_ENDPOINTS.LOGOUT, {
 	method: "POST",
@@ -210,7 +217,7 @@ export const getProducts = () => fetchJson(API_ENDPOINTS.GET_PRODUCTS);
 export const getProduct = (id) => fetchJson(API_ENDPOINTS.GET_PRODUCT(id));
 
 // Fetches active banners for the home page.
-export const getActiveBanners = () => fetchJson(API_ENDPOINTS.GET_ACTIVE_BANNERS);
+export const getActiveBanners = () => fetchJson(`${API_ENDPOINTS.GET_ACTIVE_BANNERS}?platform=WEBSITE`);
 
 // Submits a general contact/query message from the Contact page.
 // If a token is provided, it will be sent as a Bearer token.

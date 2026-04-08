@@ -48,7 +48,7 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
     ];
 
     const getDynamicContent = () => {
-        const cat = product.category.toLowerCase();
+        const cat = typeof product.category === 'string' ? product.category.toLowerCase() : (product.category?.name?.toLowerCase() || "");
         if (cat === "honey") {
             return {
                 features: [
@@ -158,28 +158,8 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
             }));
         }
 
-        const cat = typeof product.category === 'string' ? product.category.toLowerCase() : (product.category?.name?.toLowerCase() || "");
-        const basePrice = product.price;
-
-        if (cat === "honey") {
-            return [
-                { label: "250g", price: basePrice, multiplier: 1 },
-                { label: "500g", price: Math.round(basePrice * 1.8), multiplier: 2 },
-                { label: "1kg", price: Math.round(basePrice * 3.4), multiplier: 4 }
-            ];
-        } else if (cat === "ghee") {
-            return [
-                { label: "500ml", price: basePrice, multiplier: 1 },
-                { label: "1L", price: Math.round(basePrice * 1.9), multiplier: 2 },
-                { label: "2L", price: Math.round(basePrice * 3.6), multiplier: 4 }
-            ];
-        } else {
-            return [
-                { label: "200g", price: basePrice, multiplier: 1 },
-                { label: "500g", price: Math.round(basePrice * 2.2), multiplier: 2.5 },
-                { label: "1kg", price: Math.round(basePrice * 4.2), multiplier: 5 }
-            ];
-        }
+        // Return empty array if no variants from API - don't create hardcoded variants
+        return [];
     };
 
     const variants = getVariants();
@@ -225,7 +205,7 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
     }, [selectedVariant, product]);
 
     // How many units of the selected variant are already in the cart
-    const selectedVariantId = selectedVariant?.variantId || selectedVariant?.id || selectedVariant?.label;
+    const selectedVariantId = selectedVariant?.variantId || selectedVariant?.id || selectedVariant?.label || product.id;
     const inCartQuantity = Array.isArray(cart)
         ? cart
             .filter((item) => {
@@ -235,14 +215,14 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
             .reduce((sum, item) => sum + (item.quantity || 0), 0)
         : 0;
 
-    const rawStockQty = typeof selectedVariant?.stockQuantity === "number" ? selectedVariant.stockQuantity : null;
+    const rawStockQty = typeof selectedVariant?.stockQuantity === "number" ? selectedVariant.stockQuantity : (typeof product.stockQuantity === "number" ? product.stockQuantity : null);
     const hasFiniteStock = rawStockQty !== null && rawStockQty > 0;
     const totalStock = hasFiniteStock ? rawStockQty : null;
     const remainingStockForAdd = hasFiniteStock ? Math.max(totalStock - inCartQuantity, 0) : null;
     const hasReachedMax = hasFiniteStock && remainingStockForAdd === 0;
     const effectiveAvailability = (rawStockQty !== null && rawStockQty <= 0)
         ? 'OUT_OF_STOCK'
-        : selectedVariant.availabilityStatus;
+        : (selectedVariant?.availabilityStatus || product.availabilityStatus || 'IN_STOCK');
 
     const getTabContent = () => {
         switch (activeTab) {
@@ -316,7 +296,7 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
             {/* Breadcrumb / Back button */}
             <div className="pd-breadcrumb">
                 <button onClick={onBack} className="back-btn">
-                    <ChevronLeft size={18} /> Back to {product.category}
+                    <ChevronLeft size={18} /> Back to {typeof product.category === 'string' ? product.category : (product.category?.name || 'Products')}
                 </button>
             </div>
 
@@ -345,7 +325,7 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
                 {/* Right: Product Info */}
                 <div className="pd-info">
                     <div className="pd-header">
-                        <span className="pd-cat-label">{product.category.toUpperCase()}</span>
+                        <span className="pd-cat-label">{(typeof product.category === 'string' ? product.category : (product.category?.name || 'Product')).toUpperCase()}</span>
                         <div className="pd-actions">
                             <Heart
                                 size={20}
@@ -371,9 +351,9 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
                     </div>
 
                     <div className="pd-price-row">
-                        <span className="pd-current-price">₹{selectedVariant.price}</span>
-                        <span className="pd-old-price">₹{Math.round(selectedVariant.mrp || selectedVariant.price * 1.2)}</span>
-                        <span className="pd-save-badge">Save ₹{Math.round((selectedVariant.mrp || selectedVariant.price * 1.2) - selectedVariant.price)}</span>
+                        <span className="pd-current-price">₹{selectedVariant?.price || product.price}</span>
+                        <span className="pd-old-price">₹{Math.round(selectedVariant?.mrp || product.mrp || (selectedVariant?.price || product.price) * 1.2)}</span>
+                        <span className="pd-save-badge">Save ₹{Math.round((selectedVariant?.mrp || product.mrp || (selectedVariant?.price || product.price) * 1.2) - (selectedVariant?.price || product.price))}</span>
                     </div>
                     
                     {/* Stock Information */}
@@ -383,33 +363,35 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
                         ) : effectiveAvailability === 'LOW_STOCK' && rawStockQty !== null ? (
                             <span className="pd-low-stock">Only {rawStockQty} left!</span>
                         ) : (
-                            <span className="pd-in-stock">In Stock ({rawStockQty ?? '—'} available)</span>
+                            <span className="pd-in-stock">In Stock{rawStockQty !== null ? ` (${rawStockQty} available)` : ''}</span>
                         )}
                     </div>
 
-                    <div className="pd-variant-selector">
-                        <span className="pd-variant-label">Select Variant:</span>
-                        <div className="variant-options">
-                            {variants.map((v, i) => (
-                                <button
-                                    key={i}
-                                    className={`variant-btn ${selectedVariant.label === v.label ? 'active' : ''}`}
-                                    onClick={() => {
-                                        setSelectedVariant(v);
-                                    }}
-                                    disabled={v.availabilityStatus === 'OUT_OF_STOCK'}
-                                >
-                                    <div className="variant-name">{v.label}</div>
-                                    <div className="variant-price">₹{v.price}</div>
-                                    <div className="variant-stock">
-                                        {v.availabilityStatus === 'OUT_OF_STOCK' ? 'Out of Stock' : 
-                                         v.availabilityStatus === 'LOW_STOCK' ? `Only ${v.stockQuantity} left` : 
-                                         'In Stock'}
-                                    </div>
-                                </button>
-                            ))}
+                    {variants.length > 0 && (
+                        <div className="pd-variant-selector">
+                            <span className="pd-variant-label">Select Variant:</span>
+                            <div className="variant-options">
+                                {variants.map((v, i) => (
+                                    <button
+                                        key={i}
+                                        className={`variant-btn ${selectedVariant?.label === v.label ? 'active' : ''}`}
+                                        onClick={() => {
+                                            setSelectedVariant(v);
+                                        }}
+                                        disabled={v.availabilityStatus === 'OUT_OF_STOCK'}
+                                    >
+                                        <div className="variant-name">{v.label}</div>
+                                        <div className="variant-price">₹{v.price}</div>
+                                        <div className="variant-stock">
+                                            {v.availabilityStatus === 'OUT_OF_STOCK' ? 'Out of Stock' : 
+                                             v.availabilityStatus === 'LOW_STOCK' ? `Only ${v.stockQuantity} left` : 
+                                             'In Stock'}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <p className="pd-short-desc">
                         {product.desc} Handpicked and processed naturally to preserve essential nutrients and authentic flavor.
@@ -417,8 +399,9 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
 
                     <div className="pd-buy-block">
                         <button
-                            className={`pd-add-to-cart ${isAdded ? 'added' : ''} ${(effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax)) ? 'out-of-stock' : ''}`}
+                            className={`pd-add-to-cart ${isAdded ? 'added' : ''} ${(product.isActive === false || effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax)) ? 'out-of-stock' : ''}`}
                             onClick={() => {
+                                if (product.isActive === false) return;
                                 if (effectiveAvailability === 'OUT_OF_STOCK') return;
                                 if (hasFiniteStock && hasReachedMax) {
                                     return;
@@ -428,19 +411,27 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
                                     setIsAdded(true);
                                 }
                             }}
-                            disabled={effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax)}
-                            style={(effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax)) ? { backgroundColor: '#888', cursor: 'not-allowed' } : {}}
+                            disabled={product.isActive === false || effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax)}
+                            style={(product.isActive === false || effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax)) ? { backgroundColor: '#888', cursor: 'not-allowed' } : {}}
                         >
-                            {(effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax))
+                            {product.isActive === false
+                                ? "NOT AVAILABLE"
+                                : (effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax))
                                 ? "OUT OF STOCK"
-                                : (isAdded ? "ADDED TO CART" : "ADD TO CART")} {isAdded && !(hasFiniteStock && hasReachedMax) ? <CheckCircle size={18} color="#FFF" /> : <ChevronRight size={18} />}
+                                : (isAdded ? "ADDED TO CART" : "ADD TO CART")} {isAdded && !(hasFiniteStock && hasReachedMax) && product.isActive !== false ? <CheckCircle size={18} color="#FFF" /> : <ChevronRight size={18} />}
                         </button>
                     </div>
 
                     <div className="pd-delivery-status">
-                        <span className="status-item"><CheckCircle size={14} color="#1AA60B" /> IN STOCK</span>
-                        <span className="status-item"><Truck size={14} /> SHIPS IN 24 HOURS</span>
-                        <span className="status-item"><ShieldCheck size={14} /> 100% AUTHENTIC</span>
+                        {product.isActive === false ? (
+                            <span className="status-item" style={{ color: '#7C3225' }}><CheckCircle size={14} color="#7C3225" /> NOT AVAILABLE</span>
+                        ) : (
+                            <>
+                                <span className="status-item"><CheckCircle size={14} color="#1AA60B" /> IN STOCK</span>
+                                <span className="status-item"><Truck size={14} /> SHIPS IN 24 HOURS</span>
+                                <span className="status-item"><ShieldCheck size={14} /> 100% AUTHENTIC</span>
+                            </>
+                        )}
                     </div>
 
                     {/* Sidebar / Why Choose Svasthya */}

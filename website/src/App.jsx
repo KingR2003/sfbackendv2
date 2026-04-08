@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./styles.css";
 import "./products.css";
 import "./cart.css";
@@ -90,6 +90,70 @@ function extractUserFromResponse(json) {
   // Fallback: if no wrapper worked but json itself has profile fields, use json directly
   if (json.name || json.email || json.mobileNumber || json.phone || json.gender) return json;
   return null;
+}
+
+function markInactiveCartItemsFromCatalog(items = [], catalog = []) {
+  if (!Array.isArray(items) || items.length === 0) return { items, changed: false };
+  if (!Array.isArray(catalog) || catalog.length === 0) return { items, changed: false };
+
+  const productIds = new Set(catalog.map((p) => String(p?.id || "")).filter(Boolean));
+  
+  // Create a map of variants with their current status
+  const variantMap = new Map();
+  catalog.forEach((p) => {
+    if (Array.isArray(p?.variants)) {
+      p.variants.forEach((v) => {
+        const vId = String(v?.id || v?.variantId || v?.variant_id || "");
+        if (vId) {
+          variantMap.set(vId, {
+            availabilityStatus: v.availabilityStatus,
+            stockQuantity: v.stockQuantity,
+            isActive: v.isActive
+          });
+        }
+      });
+    }
+  });
+
+  let changed = false;
+  const next = items.map((item) => {
+    const productId = String(item?.productId || item?.product_id || item?.id || "");
+    const variantId = String(item?.variantId || item?.variant_id || item?.cartItemId || "");
+
+    const hasProduct = productId && productIds.has(productId);
+    const hasVariant = variantId && variantMap.has(variantId);
+
+    // If we have a variant id and it's not in the catalog variants, treat as inactive.
+    // If we don't have variant id, fall back to product id presence.
+    const shouldBeInactive = variantId ? !hasVariant : !hasProduct;
+
+    const prevInactive = !!item?.isInactive;
+    
+    // Get updated variant info from catalog
+    const catalogVariant = variantId ? variantMap.get(variantId) : null;
+    
+    // Update availability status and stock from catalog
+    const updatedItem = { ...item, isInactive: shouldBeInactive };
+    
+    if (catalogVariant) {
+      // Sync availability status from catalog
+      if (item.availabilityStatus !== catalogVariant.availabilityStatus) {
+        updatedItem.availabilityStatus = catalogVariant.availabilityStatus;
+        changed = true;
+      }
+      // Sync stock quantity from catalog
+      if (item.stockQuantity !== catalogVariant.stockQuantity) {
+        updatedItem.stockQuantity = catalogVariant.stockQuantity;
+        changed = true;
+      }
+    }
+    
+    if (prevInactive !== shouldBeInactive) changed = true;
+    
+    return updatedItem;
+  });
+
+  return { items: next, changed };
 }
 
 // Helper: normalise user data into a consistent profile shape
@@ -216,30 +280,165 @@ function mapApiWishlistToLocal(apiData) {
   else if (Array.isArray(apiData?.wishlistItems)) raw = apiData.wishlistItems;
   else if (Array.isArray(apiData?.wishlist)) raw = apiData.wishlist;
 
-  return raw.map((entry) => {
-    const product = entry?.product || entry?.productDetails || entry?.product_detail || entry?.data || entry;
+  const PLACEHOLDER_IMG = "/wild_honey.png";
+  const asNumber = (value, fallback = 0) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+  };
 
-    const id =
+  return raw.map((entry) => {
+    const product = entry?.product || entry?.productDetails || entry?.product_detail || entry?.data || null;
+
+    const entryProductId =
+      entry?.productId ||
+      entry?.product_id ||
+      entry?.productID ||
+      entry?.product?.id ||
+      entry?.product?.productId ||
+      entry?.product?.product_id ||
+      "";
+
+    const productId =
+      entryProductId ||
       product?.id ||
       product?.productId ||
       product?.product_id ||
-      entry?.productId ||
-      entry?.product_id ||
+      entry?.id ||
       "";
 
+    const variant =
+      product?.selectedVariant ||
+      entry?.selectedVariant ||
+      entry?.variant ||
+      (Array.isArray(product?.variants) && product.variants[0]) ||
+      null;
+
+    const imageFromEntry =
+      entry?.imageUrl ||
+      entry?.image_url ||
+      entry?.image ||
+      entry?.img ||
+      entry?.productImage ||
+      entry?.product_image;
+
+    const imageFromVariant =
+      variant?.imageUrl ||
+      variant?.image ||
+      variant?.img ||
+      (Array.isArray(variant?.images) && variant.images[0]?.imageUrl);
+
+    const imageFromProduct =
+      product?.imageUrl ||
+      product?.image ||
+      product?.img ||
+      (Array.isArray(product?.images) && product.images[0]?.imageUrl);
+
+    const price =
+      asNumber(product?.price ?? product?.unitPrice ?? product?.unit_price ?? product?.mrp ?? product?.amount ?? null, NaN) ||
+      asNumber(variant?.price ?? variant?.unitPrice ?? variant?.unit_price ?? variant?.mrp ?? null, NaN) ||
+      asNumber(entry?.price ?? entry?.unitPrice ?? entry?.unit_price ?? entry?.amount ?? null, 0);
+
     return {
-      id,
-      name: product?.name || product?.productName || product?.title || "Product",
-      category: product?.category || product?.categoryName || "",
-      price: Number(product?.price || product?.unitPrice || product?.mrp || 0),
-      img:
-        product?.imageUrl ||
-        product?.image ||
-        product?.img ||
-        (Array.isArray(product?.images) && product.images[0]?.imageUrl) ||
-        "/wild_honey.png",
+      id: String(productId || ""),
+      name: product?.name || product?.productName || product?.title || entry?.name || entry?.productName || "Product",
+      category: product?.category || product?.categoryName || entry?.category || entry?.categoryName || "",
+      price: Number.isFinite(price) ? price : 0,
+      img: imageFromEntry || imageFromVariant || imageFromProduct || PLACEHOLDER_IMG,
     };
   });
+}
+
+function readWishlistFromStorage() {
+  try {
+    const raw = localStorage.getItem("svasthya_wishlist");
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function mergeWishlistWithSavedDetails(items, savedItems) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  if (!Array.isArray(savedItems) || savedItems.length === 0) return items;
+
+  const PLACEHOLDER_IMG = "/wild_honey.png";
+  const isPlaceholderImg = (value) => !value || value === PLACEHOLDER_IMG;
+
+  const savedById = new Map(
+    savedItems
+      .filter((x) => x && x.id)
+      .map((x) => [String(x.id), x])
+  );
+
+  return items.map((it) => {
+    const saved = savedById.get(String(it?.id || ""));
+    if (!saved) return it;
+
+    const merged = { ...it };
+    if (!merged.name || merged.name === "Product") merged.name = saved.name || merged.name;
+    if (!merged.category) merged.category = saved.category || merged.category;
+
+    const currentPrice = Number(merged.price);
+    const savedPrice = Number(saved.price);
+    if ((!currentPrice || currentPrice <= 0) && Number.isFinite(savedPrice) && savedPrice > 0) {
+      merged.price = savedPrice;
+    }
+
+    if (isPlaceholderImg(merged.img) && saved.img) {
+      merged.img = saved.img;
+    }
+
+    return merged;
+  });
+}
+
+function enrichWishlistFromCatalog(items, catalog) {
+  if (!Array.isArray(items) || items.length === 0) return { items: [], changed: false };
+  if (!Array.isArray(catalog) || catalog.length === 0) return { items, changed: false };
+
+  const PLACEHOLDER_IMG = "/wild_honey.png";
+  const isPlaceholderImg = (value) => !value || value === PLACEHOLDER_IMG;
+
+  const byId = new Map(
+    catalog
+      .filter((p) => p && p.id)
+      .map((p) => [String(p.id), p])
+  );
+
+  let changed = false;
+  const next = items.map((it) => {
+    const prod = byId.get(String(it?.id || ""));
+    if (!prod) return it;
+
+    const merged = { ...it };
+    if (!merged.name || merged.name === "Product") {
+      if (prod.name) {
+        merged.name = prod.name;
+        changed = true;
+      }
+    }
+    if (!merged.category && prod.category) {
+      merged.category = prod.category;
+      changed = true;
+    }
+
+    const currentPrice = Number(merged.price);
+    const catalogPrice = Number(prod.price || prod.unitPrice || prod.mrp || 0);
+    if ((!currentPrice || currentPrice <= 0) && Number.isFinite(catalogPrice) && catalogPrice > 0) {
+      merged.price = catalogPrice;
+      changed = true;
+    }
+
+    if (isPlaceholderImg(merged.img) && prod.img) {
+      merged.img = prod.img;
+      changed = true;
+    }
+
+    return merged;
+  });
+
+  return { items: next, changed };
 }
 
 function formatOrderDate(value) {
@@ -247,6 +446,24 @@ function formatOrderDate(value) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return String(value);
   return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function getDiscountFromCoupon(coupon, subtotal) {
+  if (!coupon) return 0;
+  const toNumber = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const safeSubtotal = Math.max(0, toNumber(subtotal));
+  const directDiscount = toNumber(coupon.discountAmount);
+  if (directDiscount > 0) return Math.min(directDiscount, safeSubtotal);
+
+  if (coupon.type === "percentage") {
+    return Math.min((safeSubtotal * toNumber(coupon.discount)) / 100, safeSubtotal);
+  }
+
+  return Math.min(toNumber(coupon.discount), safeSubtotal);
 }
 
 function mapApiOrderItemToLocal(item) {
@@ -261,6 +478,34 @@ function mapApiOrderItemToLocal(item) {
     quantity: Number(item?.quantity || item?.qty || item?.item_quantity || 1),
     price: Number(item?.unitPrice || item?.price || item?.amount || item?.unit_price || item?.price_per_unit || 0),
   };
+}
+
+function normalizeOrderStatus(rawStatus) {
+  if (!rawStatus) return "PROCESSING";
+
+  let candidate = rawStatus;
+  if (typeof candidate === "object") {
+    candidate = candidate.status || candidate.name || candidate.label || candidate.value || "";
+  }
+
+  const text = String(candidate).trim().toLowerCase();
+  const cleaned = text.replace(/[\-_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned) return "PROCESSING";
+
+  if (cleaned.includes("cancel")) return "CANCELLED";
+  if (cleaned.includes("deliver")) return "DELIVERED";
+
+  // Admin label
+  if (cleaned.includes("on the way") || cleaned.includes("ontheway")) return "ON THE WAY";
+
+  // Backend-ish labels that should map into the admin set
+  if (cleaned.includes("out for delivery") || cleaned.includes("outfordelivery")) return "ON THE WAY";
+  if (cleaned.includes("ship") || cleaned.includes("in transit") || cleaned.includes("dispatch") || cleaned.includes("dispatched")) return "ON THE WAY";
+
+  if (cleaned.includes("pack") || cleaned.includes("ready to ship")) return "PACKED";
+  if (cleaned.includes("process") || cleaned.includes("confirm") || cleaned.includes("placed") || cleaned.includes("order")) return "PROCESSING";
+
+  return "PROCESSING";
 }
 
 function mapApiOrderToLocal(order, fallback = {}) {
@@ -279,6 +524,42 @@ function mapApiOrderToLocal(order, fallback = {}) {
   const totalRaw = order?.totalAmount ?? order?.grandTotal ?? order?.total ?? order?.amount ?? order?.total_amount ?? order?.total_price ?? fallback.total ?? 0;
   const total = Number(totalRaw);
 
+  const subtotalRaw = order?.subtotal ?? order?.subTotal ?? order?.sub_total ?? order?.subtotal_amount ?? order?.data?.subtotal ?? fallback.subtotal ?? 0;
+  const shippingRaw = order?.shippingCharge ?? order?.shipping_charge ?? order?.deliveryCharge ?? order?.delivery_charge ?? order?.deliveryFee ?? order?.delivery_fee ?? order?.data?.shippingCharge ?? fallback.shippingCharge ?? 0;
+  const discountRaw = order?.discountAmount ?? order?.discount_amount ?? order?.discount ?? order?.couponDiscount ?? order?.coupon_discount ?? order?.data?.discountAmount ?? fallback.discountAmount ?? 0;
+  const couponCode = order?.couponCode ?? order?.coupon_code ?? order?.coupon?.code ?? order?.appliedCoupon?.code ?? order?.data?.couponCode ?? order?.data?.coupon_code ?? fallback.couponCode ?? null;
+  const rawStatus = order?.status || order?.orderStatus || order?.order_status || order?.displayStatus || fallback.status || "";
+  const normalizedStatus = normalizeOrderStatus(rawStatus);
+
+  const deliveredDateCandidate =
+    order?.deliveryDate ||
+    order?.delivery_date ||
+    order?.deliveredDate ||
+    order?.delivered_date ||
+    order?.deliveredOn ||
+    order?.delivered_on ||
+    order?.deliveredAt ||
+    order?.delivered_at ||
+    order?.completedAt ||
+    order?.completed_at ||
+    order?.data?.deliveryDate ||
+    order?.data?.delivery_date ||
+    order?.data?.deliveredDate ||
+    order?.data?.delivered_date ||
+    order?.data?.deliveredOn ||
+    order?.data?.delivered_on ||
+    order?.data?.deliveredAt ||
+    order?.data?.delivered_at ||
+    order?.data?.completedAt ||
+    order?.data?.completed_at ||
+    // Last resort for delivered orders: many APIs only update updatedAt when status changes
+    ((normalizedStatus === "DELIVERED") ? (order?.updatedAt || order?.updated_at || order?.data?.updatedAt || order?.data?.updated_at) : null) ||
+    fallback.deliveryDate ||
+    fallback.deliveredDate ||
+    null;
+
+  const deliveredDateFormatted = deliveredDateCandidate ? formatOrderDate(deliveredDateCandidate) : null;
+
   return {
     ...fallback,
     ...order,
@@ -286,7 +567,14 @@ function mapApiOrderToLocal(order, fallback = {}) {
     date: formatOrderDate(order?.createdAt || order?.orderDate || order?.date || order?.created_at || order?.order_date || fallback.date),
     items: rawItems.length ? rawItems.map(mapApiOrderItemToLocal) : (fallback.items || []),
     total: Number.isFinite(total) ? total : Number(fallback.total || 0),
-    status: order?.status || order?.orderStatus || order?.order_status || order?.displayStatus || fallback.status || "Processing",
+    subtotal: Number.isFinite(Number(subtotalRaw)) ? Number(subtotalRaw) : Number(fallback.subtotal || 0),
+    shippingCharge: Number.isFinite(Number(shippingRaw)) ? Number(shippingRaw) : Number(fallback.shippingCharge || 0),
+    discountAmount: Number.isFinite(Number(discountRaw)) ? Number(discountRaw) : Number(fallback.discountAmount || 0),
+    couponCode: couponCode ? String(couponCode) : null,
+    status: normalizedStatus,
+    // Keep both keys since UI has used both historically
+    deliveryDate: deliveredDateFormatted || (fallback.deliveryDate ?? null),
+    deliveredDate: deliveredDateFormatted || (fallback.deliveredDate ?? null),
     paymentMethod: order?.paymentMethod || order?.paymentType || order?.payment_method || order?.payment_mode || order?.payment_type || order?.method || order?.paymentMethodName || fallback.paymentMethod || "Not Specified",
     customerName: order?.customerName || order?.customer?.name || order?.user?.name || order?.user?.full_name || order?.full_name || order?.name || order?.shippingAddress?.name || order?.customer_name || order?.user_name || order?.billingAddress?.name || fallback.customerName || "Valued Member",
     address: order?.deliveryAddress || order?.shippingAddress?.addressLine || order?.shippingAddress?.fullAddress || order?.address || order?.location || fallback.address,
@@ -388,14 +676,26 @@ function App() {
     try { const saved = localStorage.getItem("svasthya_user"); return saved ? JSON.parse(saved) : null; } catch { return null; }
   });
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [wishlist, setWishlist] = useState([]);
+  const [wishlist, setWishlist] = useState(() => readWishlistFromStorage());
   const [orders, setOrders] = useState(() => {
     const savedOrders = localStorage.getItem("svasthya_orders");
     return savedOrders ? JSON.parse(savedOrders) : [];
   });
   const [supportInitialOrder, setSupportInitialOrder] = useState(null);
-  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState(null);
+  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState(() => {
+    try {
+      const raw = localStorage.getItem("svasthya_selected_order");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const selectedOrderForTrackingRef = useRef(null);
+  useEffect(() => {
+    selectedOrderForTrackingRef.current = selectedOrderForTracking;
+  }, [selectedOrderForTracking]);
   const [toast, setToast] = useState({ message: "", type: "success", action: null, actionLabel: "" });
+  const [contactScrollTarget, setContactScrollTarget] = useState(null);
   const showToast = (message, type = "success", action = null, actionLabel = "") => {
     setToast({ message, type, action, actionLabel });
     setTimeout(() => setToast({ message: "", type: "success", action: null, actionLabel: "" }), 5000);
@@ -424,6 +724,128 @@ function App() {
   useEffect(() => {
     localStorage.setItem("svasthya_orders", JSON.stringify(orders));
   }, [orders]);
+
+  // Persist the last order opened in "Track Your Order" so refresh can restore it.
+  useEffect(() => {
+    try {
+      if (selectedOrderForTracking) {
+        localStorage.setItem("svasthya_selected_order", JSON.stringify(selectedOrderForTracking));
+      }
+    } catch (e) {
+      // no-op
+    }
+  }, [selectedOrderForTracking]);
+
+  // If user refreshes while on the tracking page, restore the selected order.
+  useEffect(() => {
+    if (currentPage !== "orderTracking") return;
+    if (selectedOrderForTracking) return;
+
+    let saved = null;
+    try {
+      const raw = localStorage.getItem("svasthya_selected_order");
+      saved = raw ? JSON.parse(raw) : null;
+    } catch {
+      saved = null;
+    }
+
+    if (!saved) return;
+
+    const savedId = saved?.id ? String(saved.id) : "";
+    const fromOrders = savedId ? (orders || []).find((o) => String(o?.id || "") === savedId) : null;
+    const baseOrder = fromOrders || saved;
+    setSelectedOrderForTracking(baseOrder);
+
+    // If authenticated, refresh details from backend to ensure latest totals/status.
+    if (!apiToken) return;
+
+    (async () => {
+      try {
+        const orderId = String(baseOrder?.id || "").replace(/^#/, "");
+        if (!orderId) return;
+        const res = await getOrderDetails(apiToken, orderId);
+        const rawOrder = extractOrderFromResponse(res?.data || {});
+        const mappedOrder = rawOrder ? mapApiOrderToLocal(rawOrder, baseOrder) : baseOrder;
+        setSelectedOrderForTracking(mappedOrder);
+      } catch (err) {
+        // no-op: keep restored local copy
+      }
+    })();
+  }, [currentPage, selectedOrderForTracking, apiToken, orders]);
+
+  // While on the tracking page, periodically refresh order details so admin updates reflect here.
+  useEffect(() => {
+    if (currentPage !== "orderTracking") return;
+    if (!apiToken) return;
+
+    const idRaw = selectedOrderForTracking?.id;
+    const orderId = String(idRaw || "").replace(/^#/, "");
+    if (!orderId) return;
+
+    let cancelled = false;
+    let timerId = null;
+
+    const refresh = async () => {
+      const baseOrder = selectedOrderForTrackingRef.current;
+      const activeId = String(baseOrder?.id || "").replace(/^#/, "");
+      if (!activeId || activeId !== orderId) return;
+
+      try {
+        const res = await getOrderDetails(apiToken, orderId);
+        const rawOrder = extractOrderFromResponse(res?.data || {});
+        if (!rawOrder || cancelled) return;
+
+        const mapped = mapApiOrderToLocal(rawOrder, baseOrder || {});
+
+        setSelectedOrderForTracking((prev) => {
+          const prevId = String(prev?.id || "").replace(/^#/, "");
+          if (prevId && prevId !== orderId) return prev;
+
+          const sameStatus = String(prev?.status || "") === String(mapped?.status || "");
+          const sameTotals =
+            Number(prev?.total || 0) === Number(mapped?.total || 0) &&
+            Number(prev?.subtotal || 0) === Number(mapped?.subtotal || 0) &&
+            Number(prev?.shippingCharge || 0) === Number(mapped?.shippingCharge || 0) &&
+            Number(prev?.discountAmount || 0) === Number(mapped?.discountAmount || 0);
+
+          return sameStatus && sameTotals ? prev : mapped;
+        });
+
+        setOrders((prev) => {
+          if (!Array.isArray(prev) || prev.length === 0) return prev;
+          let changed = false;
+          const next = prev.map((o) => {
+            const oid = String(o?.id || "").replace(/^#/, "");
+            if (oid !== orderId) return o;
+            changed = true;
+            return mapApiOrderToLocal(rawOrder, o);
+          });
+          return changed ? next : prev;
+        });
+      } catch {
+        // no-op
+      } finally {
+        if (!cancelled) {
+          timerId = setTimeout(refresh, 15000);
+        }
+      }
+    };
+
+    refresh();
+    return () => {
+      cancelled = true;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [currentPage, apiToken, selectedOrderForTracking?.id]);
+
+  // Sync wishlist to localStorage so price/image survive refresh
+  useEffect(() => {
+    try {
+      localStorage.setItem("svasthya_wishlist", JSON.stringify(wishlist));
+    } catch (e) {
+      // no-op
+    }
+  }, [wishlist]);
 
   // Sync addresses to localStorage
   useEffect(() => {
@@ -558,6 +980,7 @@ function App() {
               desc: p.description || p.desc || "",
               variants: activeVariants,
               selectedVariant: activeVariants[0] || null,
+              isActive: p.isActive !== false, // Preserve the isActive status from API
             };
           });
           setProducts(normalizedProducts);
@@ -652,14 +1075,16 @@ function App() {
   useEffect(() => {
     const fetchWishlistData = async () => {
       if (!apiToken) {
-        setWishlist([]);
+        setWishlist(readWishlistFromStorage());
         return;
       }
 
       try {
         const res = await getWishlist(apiToken);
         const mapped = mapApiWishlistToLocal(res?.data ?? res);
-        setWishlist(mapped);
+        const saved = readWishlistFromStorage();
+        const merged = mergeWishlistWithSavedDetails(mapped, saved);
+        setWishlist(merged);
       } catch (err) {
         console.error("❌ Fetch wishlist error:", err.message || err);
       }
@@ -667,6 +1092,26 @@ function App() {
 
     fetchWishlistData();
   }, [apiToken]);
+
+  // Once catalog loads, enrich wishlist entries that came back from API without price/image
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+    setWishlist((prev) => {
+      const { items: enriched, changed } = enrichWishlistFromCatalog(prev, products);
+      return changed ? enriched : prev;
+    });
+  }, [products]);
+
+  // Once catalog loads, mark cart items that no longer exist as inactive and sync stock status.
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+    if (!cart || cart.length === 0) return;
+    
+    setCart((prev) => {
+      const { items: next, changed } = markInactiveCartItemsFromCatalog(prev, products);
+      return changed ? next : prev;
+    });
+  }, [products, cart.length]); // Re-run when products load or cart length changes
 
   // Sync orders from API on token change
   useEffect(() => {
@@ -924,12 +1369,10 @@ function App() {
     setAddresses([]);
     // DO NOT clear orders state - keep them in memory
     // setOrders([]);
-    setWishlist([]);
     setSelectedAddressId(null);
     setCart([]);
     if (token) {
       clearCart(token).catch(() => { });
-      clearWishlist(token).catch(() => { });
     }
     setCurrentPage("auth");
   };
@@ -1302,6 +1745,22 @@ function App() {
     }
   };
 
+  const clearAllCartItems = async () => {
+    if (cart.length === 0) return;
+
+    const previous = [...cart];
+    setCart([]);
+
+    if (!apiToken) return;
+
+    try {
+      await clearCart(apiToken);
+    } catch (err) {
+      console.error("Clear cart error:", err);
+      setCart(previous);
+    }
+  };
+
   const toggleWishlist = (product) => {
     const isAlreadyWishlisted = wishlist.some((item) => item.id === product.id);
 
@@ -1570,6 +2029,15 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const navigateCheckoutStep = (stepNumber) => {
+    const step = Number(stepNumber);
+    if (step === 1) setCurrentPage("checkout");
+    else if (step === 2) setCurrentPage("delivery");
+    else if (step === 3) setCurrentPage("payment");
+    else return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handlePlaceOrder = async (method) => {
     // Validate cart has items
     if (!cart || cart.length === 0) {
@@ -1621,7 +2089,9 @@ function App() {
 
     const shippingCharge = deliveryMethod === "express" ? 150 : 0;
     const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const total = subtotal + shippingCharge;
+    const discountAmount = getDiscountFromCoupon(appliedCoupon, subtotal);
+    const couponCode = appliedCoupon?.code ? String(appliedCoupon.code) : undefined;
+    const total = Math.max(0, subtotal - discountAmount) + shippingCharge;
 
     // Build a human-readable shipping address string for storing with the order
     let shippingAddressText = "";
@@ -1655,6 +2125,10 @@ function App() {
       paymentMethod: method,
       deliveryMethod: deliveryMethod || "standard",
       addressId: selectedAddress?.id,
+      couponCode: couponCode,
+      coupon_code: couponCode,
+      discountAmount: discountAmount > 0 ? discountAmount : undefined,
+      discount_amount: discountAmount > 0 ? discountAmount : undefined,
       shippingAddress: {
         id: selectedAddress?.id,
         type: selectedAddress?.type || selectedAddress?.address_type,
@@ -1699,20 +2173,34 @@ function App() {
         id: fallbackOrderId,
         date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
         items: [...cart],
+        subtotal,
+        shippingCharge,
+        discountAmount: discountAmount > 0 ? discountAmount : 0,
+        couponCode: couponCode || null,
         total,
-        status: 'Processing',
+        status: 'PROCESSING',
         deliveryMethod,
         paymentMethod: methodLabel,
         customerName: user?.name || 'Valued Member',
         // Persist a flattened address so My Orders can reliably show "Deliver to"
         deliveryAddress: shippingAddressText || undefined,
         address: shippingAddressText || undefined,
+        // Add estimated delivery date (5 days from now)
+        estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric' 
+        }),
       };
       const mappedOrder = raw ? { 
         ...mapApiOrderToLocal(raw, localFallback), 
         items: localFallback.items, 
         paymentMethod: localFallback.paymentMethod, 
         customerName: localFallback.customerName,
+        subtotal: localFallback.subtotal,
+        shippingCharge: localFallback.shippingCharge,
+        discountAmount: localFallback.discountAmount,
+        couponCode: localFallback.couponCode,
         total: localFallback.total  // Preserve the total from local calculation
       } : localFallback;
 
@@ -2168,6 +2656,8 @@ function App() {
           {currentPage === "orderTracking" && (
             <OrderTracking
               order={selectedOrderForTracking}
+              user={user}
+              addresses={addresses}
               onBack={() => {
                 setCurrentPage("myOrders");
                 window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2184,6 +2674,10 @@ function App() {
               orders={orders}
               products={products}
               initialOrder={supportInitialOrder}
+              onGoToContactMessage={() => {
+                setContactScrollTarget("message");
+                setCurrentPage("contact");
+              }}
               onContinueShopping={() => { setCurrentPage("products"); setActiveCategory("All"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
             />
           )}
@@ -2193,6 +2687,7 @@ function App() {
               apiToken={apiToken}
               onUpdateQuantity={updateQuantity}
               onRemove={removeFromCart}
+              onClearCart={clearAllCartItems}
               onContinueShopping={() => { setCurrentPage("products"); setActiveCategory("All"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
               appliedCoupon={appliedCoupon}
               onApplyCoupon={setAppliedCoupon}
@@ -2201,7 +2696,14 @@ function App() {
             />
           )}
           {currentPage === "ourStory" && <OurStory />}
-          {currentPage === "contact" && <Contact onShowToast={showToast} apiToken={apiToken} />}
+          {currentPage === "contact" && (
+            <Contact
+              onShowToast={showToast}
+              apiToken={apiToken}
+              scrollTarget={contactScrollTarget}
+              onDidScrollToTarget={() => setContactScrollTarget(null)}
+            />
+          )}
           {currentPage === "checkout" && (
             <Checkout
               cart={cart}
@@ -2219,6 +2721,7 @@ function App() {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               onContinue={goToDelivery}
+              onNavigateStep={navigateCheckoutStep}
               onShowToast={showToast}
             />
           )}
@@ -2235,6 +2738,7 @@ function App() {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               onContinue={handleDeliveryContinue}
+              onNavigateStep={navigateCheckoutStep}
             />
           )}
           {currentPage === "payment" && (
@@ -2249,6 +2753,7 @@ function App() {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               onPlaceOrder={handlePlaceOrder}
+              onNavigateStep={navigateCheckoutStep}
             />
           )}
           {currentPage === "orderConfirmation" && (

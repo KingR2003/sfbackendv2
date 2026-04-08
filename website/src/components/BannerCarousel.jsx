@@ -20,15 +20,56 @@ const BannerCarousel = () => {
   const hasBanners = Array.isArray(banners) && banners.length > 0;
 
   const normalizeBannersResponse = (json) => {
+    console.log("🔍 Normalizing response, input:", json);
+    
     if (!json) return [];
 
-    if (Array.isArray(json)) return json;
-    if (Array.isArray(json.data)) return json.data;
-    if (Array.isArray(json.banners)) return json.banners;
-    if (Array.isArray(json.data?.banners)) return json.data.banners;
-    if (Array.isArray(json.items)) return json.items;
-    if (Array.isArray(json.data?.items)) return json.data.items;
+    // Direct array
+    if (Array.isArray(json)) {
+      console.log("✓ Found direct array");
+      return json;
+    }
+    
+    // Common nested structures
+    if (Array.isArray(json.data)) {
+      console.log("✓ Found json.data array");
+      return json.data;
+    }
+    if (Array.isArray(json.banners)) {
+      console.log("✓ Found json.banners array");
+      return json.banners;
+    }
+    if (Array.isArray(json.data?.banners)) {
+      console.log("✓ Found json.data.banners array");
+      return json.data.banners;
+    }
+    if (Array.isArray(json.items)) {
+      console.log("✓ Found json.items array");
+      return json.items;
+    }
+    if (Array.isArray(json.data?.items)) {
+      console.log("✓ Found json.data.items array");
+      return json.data.items;
+    }
+    
+    // Check for single banner object wrapped in data
+    if (json.data && typeof json.data === 'object' && !Array.isArray(json.data)) {
+      console.log("✓ Found json.data object, checking for banner fields");
+      // If data is a single banner object, wrap it in array
+      if (json.data.id || json.data.bannerId || json.data.imageUrl || json.data.image_url) {
+        console.log("✓ Wrapping single banner in array");
+        return [json.data];
+      }
+    }
+    
+    // Check if json itself is a single banner object
+    if (json.id || json.bannerId || json.imageUrl || json.image_url) {
+      console.log("✓ Wrapping single banner (root level) in array");
+      return [json];
+    }
 
+    console.warn("⚠️ Could not find banners in response structure");
+    console.log("Available keys:", Object.keys(json));
     return [];
   };
 
@@ -36,17 +77,26 @@ const BannerCarousel = () => {
     setLoading(true);
     setError("");
     try {
+      console.log("🎨 Fetching banners from API...");
       const res = await getActiveBanners();
+      console.log("🎨 Banner API response:", res);
+      console.log("🎨 Banner API res.data:", res?.data);
+      
       const list = normalizeBannersResponse(res?.data ?? res);
+      console.log("🎨 Normalized banners list:", list);
+      
       if (Array.isArray(list) && list.length > 0) {
+        console.log(`✅ Successfully loaded ${list.length} banners`);
         setBanners(list);
         setCurrentIndex(0);
       } else {
+        console.warn("⚠️ No banners found in API response");
         setBanners([]);
       }
     } catch (err) {
-      console.error("Failed to load banners", err);
-      setError("We couldn't load today’s offers. Showing our signature banner instead.");
+      console.error("❌ Failed to load banners:", err);
+      console.error("❌ Error details:", err.message, err.response);
+      setError("We couldn't load today's offers. Showing our signature banner instead.");
       setBanners([]);
     } finally {
       setLoading(false);

@@ -92,7 +92,12 @@ const CategorySection = ({ title, products, onViewProduct, onToggleWishlist, wis
                     color={wishlist?.some(item => item.id === product.id) ? "#7C3225" : "#4A4A4A"}
                   />
                 </button>
-                {isProductOutOfStock(product) && (
+                {product.isActive === false && (
+                  <div className="p-out-of-stock-label">
+                    Not Available
+                  </div>
+                )}
+                {product.isActive !== false && isProductOutOfStock(product) && (
                   <div className="p-out-of-stock-label">
                     Out of Stock
                   </div>
@@ -100,7 +105,7 @@ const CategorySection = ({ title, products, onViewProduct, onToggleWishlist, wis
               </div>
               <div className="p-card-info">
                 <div className="p-card-meta">
-                  <span className="p-cat">{product.category.toUpperCase()}</span>
+                  <span className="p-cat">{(typeof product.category === 'string' ? product.category : (product.category?.name || 'Product')).toUpperCase()}</span>
                   <span className="p-rating">
                     <Star size={12} fill="#FFC107" color="#FFC107" />{" "}
                     {product.rating}
@@ -122,47 +127,54 @@ const CategorySection = ({ title, products, onViewProduct, onToggleWishlist, wis
                     )}
                   </div>
                   <div className="p-card-buttons">
-                    {/* Single-variant products: show Add to Cart, then quantity controls once added */}
-                    {hasSingleVariant && !isProductOutOfStock(product) ? (
-                      cartItem && onUpdateQuantity ? (
-                        <div className="p-qty-controls">
-                          <button
-                            className="quantity-btn"
+                    {/* Inactive products: show Not Available button */}
+                    {product.isActive === false ? (
+                      <button className="p-view-btn" disabled style={{ backgroundColor: '#888', cursor: 'not-allowed' }}>
+                        Not Available
+                      </button>
+                    ) : (
+                      /* Single-variant products: show Add to Cart, then quantity controls once added */
+                      hasSingleVariant && !isProductOutOfStock(product) ? (
+                        cartItem && onUpdateQuantity ? (
+                          <div className="p-qty-controls">
+                            <button
+                              className="quantity-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUpdateQuantity(cartItem.cartItemId, cartItem.quantity - 1);
+                              }}
+                              disabled={cartItem.quantity <= 1}
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className="quantity">{cartItem.quantity}</span>
+                            <button
+                              className="quantity-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUpdateQuantity(cartItem.cartItemId, cartItem.quantity + 1);
+                              }}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            className="p-view-btn" 
                             onClick={(e) => {
                               e.stopPropagation();
-                              onUpdateQuantity(cartItem.cartItemId, cartItem.quantity - 1);
+                              onAddToCart(product, singleVariant, 1);
                             }}
-                            disabled={cartItem.quantity <= 1}
+                            style={{ backgroundColor: '#1AA60B', color: '#fff' }}
                           >
-                            <Minus size={14} />
+                            Add to Cart
                           </button>
-                          <span className="quantity">{cartItem.quantity}</span>
-                          <button
-                            className="quantity-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onUpdateQuantity(cartItem.cartItemId, cartItem.quantity + 1);
-                            }}
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
+                        )
                       ) : (
-                        <button 
-                          className="p-view-btn" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAddToCart(product, singleVariant, 1);
-                          }}
-                          style={{ backgroundColor: '#1AA60B', color: '#fff' }}
-                        >
-                          Add to Cart
+                        <button className="p-view-btn" onClick={() => onViewProduct(product)}>
+                          View Details
                         </button>
                       )
-                    ) : (
-                      <button className="p-view-btn" onClick={() => onViewProduct(product)}>
-                        View Details
-                      </button>
                     )}
                   </div>
                 </div>

@@ -409,6 +409,13 @@
   color: #1AA60B;
 }
 
+.cp-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .cp-item {
   display: flex;
   align-items: center;

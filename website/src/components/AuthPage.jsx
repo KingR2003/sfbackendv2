@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { sendOtp, verifyOtp } from "../api";
+import GoogleAuthButton from "./GoogleAuthButton";
 
 const OTP_RESEND_ATTEMPTS_KEY = "otp_resend_attempts"; // stores resend clicks by phone for the last hour
 
@@ -313,13 +314,23 @@ const AuthPage = ({ isSignIn, setIsSignIn, handleAuth, isLoggingIn, showPassword
                                 </div>
 
                                 <div className="auth-social">
-                                    <button type="button" className="auth-social-btn google">
-                                        <img
-                                            src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
-                                            alt="Google"
-                                        />
-                                        Google
-                                    </button>
+                                    <GoogleAuthButton
+                                        onSuccess={(result) => {
+                                            console.log("[AuthPage] Google auth success:", result);
+                                            // Call parent handler with Google auth result
+                                            const email = result.user.email || "";
+                                            const name = result.user.name || "";
+                                            const token = result.token;
+                                            const isSignUp = result.isNew;
+                                            
+                                            onOTPVerified && onOTPVerified(email, name, token, !isSignUp, result.fullResponse);
+                                        }}
+                                        onError={(error) => {
+                                            console.error("[AuthPage] Google auth error:", error);
+                                            setError(error);
+                                        }}
+                                        isLoading={isLoading}
+                                    />
                                 </div>
                             </form>
                         </div>

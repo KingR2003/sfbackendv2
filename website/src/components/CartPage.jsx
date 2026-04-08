@@ -47,7 +47,7 @@ const getDiscountFromCoupon = (coupon, subtotal) => {
   return Math.min(toNumber(coupon.discount), subtotal);
 };
 
-const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onContinueShopping, appliedCoupon, onApplyCoupon = () => { }, onProceedToCheckout = () => { }, onShowToast }) => {
+const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onClearCart = () => { }, onContinueShopping, appliedCoupon, onApplyCoupon = () => { }, onProceedToCheckout = () => { }, onShowToast }) => {
   const [couponCode, setCouponCode] = useState("");
   const [couponError, setCouponError] = useState("");
   const [availableCoupons, setAvailableCoupons] = useState([]);
@@ -55,6 +55,9 @@ const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onContinueShoppi
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   const subtotal = cart.reduce((t, i) => t + i.price * i.quantity, 0);
+  const hasOutOfStockItems = cart.some((item) => item.availabilityStatus === "OUT_OF_STOCK");
+  const hasInactiveItems = cart.some((item) => !!item.isInactive);
+  const canProceedToCheckout = !hasOutOfStockItems && !hasInactiveItems;
   const shippingFree = subtotal >= FREE_SHIPPING_THRESHOLD;
   const progress = Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100);
   const remaining = FREE_SHIPPING_THRESHOLD - subtotal;
@@ -205,9 +208,10 @@ const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onContinueShoppi
                 const itemMrp = providedMrp > 0 ? providedMrp : fallbackMrp;
                 const showStrikedPrice = itemMrp > itemPrice;
                 const isOutOfStock = item.availabilityStatus === "OUT_OF_STOCK";
+                const isInactive = !!item.isInactive;
 
                 return (
-                <div key={item.cartItemId} className={`cp-item ${isOutOfStock ? 'oos-item' : ''}`}>
+                <div key={item.cartItemId} className={`cp-item ${(isOutOfStock || isInactive) ? 'oos-item' : ''}`}>
                   <div className="cp-item-img">
                     <img src={item.img} alt={item.name} />
                   </div>
@@ -219,7 +223,9 @@ const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onContinueShoppi
                         <span className="cp-item-variant">Quantity: {item.selectedVariant}</span>
                       )}
                     </div>
-                    {isOutOfStock ? (
+                    {isInactive ? (
+                      <p className="cp-item-oos-message">This product is not available.</p>
+                    ) : isOutOfStock ? (
                       <p className="cp-item-oos-message">Sorry, this item is currently out of stock.</p>
                     ) : (
                       <div className="cp-item-price-row">
@@ -232,7 +238,7 @@ const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onContinueShoppi
                     <button className="cp-remove-btn" onClick={() => onRemove(item.cartItemId)}>
                       <X size={13} /> REMOVE
                     </button>
-                    {!isOutOfStock && (
+                    {(!isOutOfStock && !isInactive) && (
                       <div className="cp-qty-row">
                         <button
                           className="cp-qty-btn"
@@ -264,9 +270,14 @@ const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onContinueShoppi
               })}
             </div>
 
-            <button className="cp-add-more-btn" onClick={onContinueShopping}>
-              + Add more items
-            </button>
+            <div className="cp-actions-row">
+              <button className="cp-add-more-btn" onClick={onContinueShopping}>
+                + Add more items
+              </button>
+              <button className="cp-add-more-btn cp-remove-all-btn" onClick={onClearCart}>
+                Remove all
+              </button>
+            </div>
           </div>
 
           {/* Right column - order summary */}
@@ -356,16 +367,21 @@ const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onContinueShoppi
                 <span>Order Total</span>
                 <span>₹{(finalSubtotal + shipping).toFixed(0)}</span>
               </div>
-              {cart.some(item => item.availabilityStatus === "OUT_OF_STOCK") && (
+              {hasInactiveItems && (
+                <p className="cp-oos-overall-warning" style={{ color: '#7C3225', fontSize: '13px', marginBottom: '10px', textAlign: 'center', fontWeight: '500' }}>
+                  Please remove unavailable items to proceed.
+                </p>
+              )}
+              {hasOutOfStockItems && (
                 <p className="cp-oos-overall-warning" style={{ color: '#7C3225', fontSize: '13px', marginBottom: '10px', textAlign: 'center', fontWeight: '500' }}>
                   Please remove out of stock items to proceed.
                 </p>
               )}
               <button 
-                className={`cp-checkout-btn ${cart.some(item => item.availabilityStatus === "OUT_OF_STOCK") ? 'disabled' : ''}`} 
+                className={`cp-checkout-btn ${!canProceedToCheckout ? 'disabled' : ''}`} 
                 onClick={onProceedToCheckout}
-                disabled={cart.some(item => item.availabilityStatus === "OUT_OF_STOCK")}
-                style={cart.some(item => item.availabilityStatus === "OUT_OF_STOCK") ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                disabled={!canProceedToCheckout}
+                style={!canProceedToCheckout ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
               >
                 PROCEED TO CHECKOUT <ArrowRight size={16} />
               </button>

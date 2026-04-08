@@ -43,6 +43,7 @@ const Checkout = ({
   cart = [],
   onBackToCart = () => { },
   onContinue = () => { },
+  onNavigateStep = null,
   details = {},
   addresses = [],
   selectedAddressId = null,
@@ -110,6 +111,7 @@ const Checkout = ({
           backLabel="← BACK TO CART"
           onBack={onBackToCart}
           showBackLink
+          onStepClick={onNavigateStep}
         />
 
         <div className="checkout-grid">

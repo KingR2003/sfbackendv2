@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Mail, Phone, MapPin, Send } from "lucide-react";
 import { submitQuery } from "../api";
 
@@ -18,7 +18,8 @@ const ImageWithLoader = ({ src, alt, className }) => {
   );
 };
 
-const Contact = ({ onShowToast, apiToken }) => {
+const Contact = ({ onShowToast, apiToken, scrollTarget = null, onDidScrollToTarget = () => { } }) => {
+  const messageSectionRef = useRef(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -71,6 +72,29 @@ const Contact = ({ onShowToast, apiToken }) => {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (scrollTarget !== "message") return;
+
+    const el = messageSectionRef.current;
+    if (!el) return;
+
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        const headerEl = document.querySelector("header");
+        const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
+        const extraOffset = 24;
+        const top = Math.max(0, window.scrollY + el.getBoundingClientRect().top - headerHeight - extraOffset);
+
+        window.scrollTo({ top, behavior: "smooth" });
+        onDidScrollToTarget();
+      });
+
+      return () => cancelAnimationFrame(raf2);
+    });
+
+    return () => cancelAnimationFrame(raf1);
+  }, [scrollTarget, onDidScrollToTarget]);
 
   return (
     <div className="contact-page">
@@ -143,7 +167,7 @@ const Contact = ({ onShowToast, apiToken }) => {
           </div>
 
           {/* Right: Message Form */}
-          <div className="contact-form-white-card">
+          <div className="contact-form-white-card" ref={messageSectionRef} id="contact-send-message">
             <h2>Send us a Message</h2>
             
             <form onSubmit={handleSubmit} className="contact-form-refined">

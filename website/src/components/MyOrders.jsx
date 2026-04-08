@@ -1,7 +1,9 @@
-import React from "react";
-import { Package, Truck, ShoppingBag, MapPin } from "lucide-react";
+import React, { useState } from "react";
+import { Package, Truck, ShoppingBag, MapPin, ChevronDown, X } from "lucide-react";
 
 const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrder, onContactSupport }) => {
+    const [expandedAddress, setExpandedAddress] = useState(null);
+    
     if (orders.length === 0) {
         return (
             <div className="empty-orders-container fade-in" style={{ padding: '80px 20px', textAlign: 'center', minHeight: '60vh' }}>
@@ -30,6 +32,11 @@ const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrde
 
             <div className="orders-list" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {orders.map((order) => {
+                    const totalValue = order.total ?? order.finalAmount ?? order.totalAmount ?? order.grandTotal ?? order.amount ?? order.total_amount ?? order.total_price;
+                    const discountValue = Number(order.discountAmount ?? order.discount_amount ?? order.discount ?? order.couponDiscount ?? order.coupon_discount ?? 0);
+                    const rawCouponCode = order.couponCode ?? order.coupon_code ?? order.coupon?.code ?? order.appliedCoupon?.code;
+                    const couponCode = (typeof rawCouponCode === 'string' || typeof rawCouponCode === 'number') ? String(rawCouponCode) : null;
+
                     // Use user name from order, fallback to logged-in user's name
                     const displayName = order.customerName && order.customerName !== 'Valued Member'
                         ? order.customerName
@@ -107,11 +114,66 @@ const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrde
                                     </div>
                                     <div>
                                         <span style={{ fontSize: '0.75rem', color: '#868889', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px' }}>Total</span>
-                                        <span style={{ fontWeight: '600', color: '#4A4A4A' }}>₹{order.total || order.finalAmount || order.totalAmount || '—'}</span>
+                                        <span style={{ fontWeight: '600', color: '#4A4A4A' }}>₹{totalValue ?? '—'}</span>
+                                        {discountValue > 0 && (
+                                            <div style={{ marginTop: '4px', fontSize: '0.8rem', color: '#1AA60B', fontWeight: '600' }}>
+                                                Discount{couponCode ? ` (${couponCode})` : ''}: -₹{Math.round(discountValue)}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div>
-                                        <span style={{ fontSize: '0.75rem', color: '#868889', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px' }}>Customer</span>
-                                        <span style={{ fontWeight: '600', color: '#4A4A4A' }}>{displayName}</span>
+                                    <div 
+                                        style={{ position: 'relative' }}
+                                        onMouseEnter={() => setExpandedAddress(order.id)}
+                                        onMouseLeave={() => setExpandedAddress(null)}
+                                    >
+                                        <span style={{ fontSize: '0.75rem', color: '#868889', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px' }}>Ship To</span>
+                                        <div 
+                                            style={{ 
+                                                fontWeight: '600', 
+                                                color: '#007185', 
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                            onClick={() => setExpandedAddress(expandedAddress === order.id ? null : order.id)}
+                                        >
+                                            {displayName} <ChevronDown size={14} />
+                                        </div>
+                                        
+                                        {/* Address Dropdown */}
+                                        {expandedAddress === order.id && shippingAddress && (
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: '100%',
+                                                left: 0,
+                                                marginTop: '8px',
+                                                background: '#FFF',
+                                                border: '1px solid #DDD',
+                                                borderRadius: '12px',
+                                                padding: '16px',
+                                                boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                                                zIndex: 10,
+                                                minWidth: '280px',
+                                                maxWidth: '350px'
+                                            }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                    <div style={{ fontWeight: '700', color: '#0F1111', fontSize: '0.95rem' }}>{displayName}</div>
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setExpandedAddress(null);
+                                                        }}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                                    >
+                                                        <X size={18} color="#565959" />
+                                                    </button>
+                                                </div>
+                                                <div style={{ color: '#565959', fontSize: '0.875rem', lineHeight: '1.5' }}>
+                                                    {shippingAddress}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <span style={{ fontSize: '0.75rem', color: '#868889', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px' }}>Payment Method</span>
@@ -119,71 +181,114 @@ const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrde
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
-                                    <span style={{ fontSize: '0.75rem', color: '#868889', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px' }}>Order ID</span>
-                                    <span style={{ fontWeight: '700', color: '#7C3225' }}>{order.id}</span>
+                                    <span style={{ fontSize: '0.75rem', color: '#868889', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '4px' }}>ORDER # {order.id}</span>
+                                    <a 
+                                        href="#" 
+                                        onClick={(e) => { 
+                                            e.preventDefault(); 
+                                            onTrackOrder && onTrackOrder(order); 
+                                        }} 
+                                        style={{ 
+                                            color: '#007185', 
+                                            textDecoration: 'none',
+                                            fontSize: '0.85rem',
+                                            fontWeight: '400'
+                                        }}
+                                    >
+                                        View order details
+                                    </a>
                                 </div>
                             </div>
 
                             {/* Order Content */}
-                            <div className="order-content" style={{ padding: '6px 24px 24px' }}>
-                                {shippingAddress && (
-                                    <div
-                                        className="order-address"
-                                        style={{
-                                            display: 'flex',
-                                            gap: '10px',
-                                            alignItems: 'flex-start',
-                                            marginBottom: '20px',
-                                            padding: '14px 16px',
-                                            background: '#FEF8F0',
-                                            borderRadius: '10px',
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                width: 32,
-                                                height: 32,
-                                                borderRadius: '999px',
-                                                background: '#F3E1DC',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                flexShrink: 0,
-                                            }}
-                                        >
-                                            <MapPin size={18} color="#7C3225" />
-                                        </div>
-                                        <div>
-                                            <div
-                                                style={{
-                                                    fontSize: '0.75rem',
-                                                    color: '#868889',
-                                                    textTransform: 'uppercase',
-                                                    letterSpacing: '0.5px',
-                                                    marginBottom: 4,
-                                                }}
-                                            >
-                                                Deliver to
-                                            </div>
-                                            <div style={{ color: '#4A4A4A', fontSize: '0.9rem', lineHeight: 1.45 }}>
-                                                {shippingAddress}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                            <div className="order-content" style={{ padding: '20px 24px 24px' }}>
+                                {/* Delivery Status - Amazon Style */}
+                                <div style={{ marginBottom: '24px' }}>
+                                    {(String(order.status || '').toUpperCase() === 'DELIVERED') ? (
+                                        <>
+                                            {(() => {
+                                                // Debug: log the order object to see what fields are available
+                                                console.log('Delivered order object:', order);
+                                                console.log('Available date fields:', {
+                                                    deliveryDate: order.deliveryDate,
+                                                    deliveredDate: order.deliveredDate,
+                                                    delivered_on: order.delivered_on,
+                                                    deliveredAt: order.deliveredAt,
+                                                    delivered_at: order.delivered_at,
+                                                    completedAt: order.completedAt,
+                                                    completed_at: order.completed_at,
+                                                    updatedAt: order.updatedAt,
+                                                    updated_at: order.updated_at,
+                                                    createdAt: order.createdAt,
+                                                    created_at: order.created_at,
+                                                    date: order.date
+                                                });
+                                                
+                                                const deliveredOn =
+                                                    order.deliveryDate ||
+                                                    order.deliveredDate ||
+                                                    order.delivered_on ||
+                                                    order.deliveredAt ||
+                                                    order.delivered_at ||
+                                                    order.completedAt ||
+                                                    order.completed_at ||
+                                                    order.updatedAt ||
+                                                    order.updated_at ||
+                                                    '';
 
-                                <div className="order-status-bar" style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    marginBottom: '24px',
-                                    padding: '12px 16px',
-                                    background: '#F4F9F4',
-                                    borderRadius: '8px',
-                                    width: 'fit-content'
-                                }}>
-                                    <Truck size={18} color="#2E7D32" />
-                                    <span style={{ color: '#2E7D32', fontWeight: '700', fontSize: '0.9rem' }}>{order.status || order.orderStatus || 'PROCESSING'}</span>
+                                                return (
+                                                    <>
+                                                        <div style={{
+                                                            display: 'flex',
+                                                            alignItems: 'baseline',
+                                                            gap: '10px',
+                                                            flexWrap: 'wrap',
+                                                            marginBottom: '6px'
+                                                        }}>
+                                                            <div style={{
+                                                                fontSize: '1.5rem',
+                                                                fontWeight: '700',
+                                                                color: '#007600'
+                                                            }}>
+                                                                Delivered
+                                                            </div>
+                                                        </div>
+                                                        <div style={{
+                                                            fontSize: '0.95rem',
+                                                            color: '#565959',
+                                                            fontWeight: '500',
+                                                            marginBottom: '6px'
+                                                        }}>
+                                                            {deliveredOn ? `Delivered on: ${deliveredOn}` : 'Your order has been delivered successfully'}
+                                                        </div>
+                                                        <div style={{
+                                                            paddingBottom: '16px',
+                                                            borderBottom: '1px solid #E7E7E7'
+                                                        }} />
+                                                    </>
+                                                );
+                                            })()}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div style={{ 
+                                                fontSize: '1.5rem', 
+                                                fontWeight: '700', 
+                                                color: '#007600',
+                                                marginBottom: '6px'
+                                            }}>
+                                                {order.status || 'PROCESSING'}
+                                            </div>
+                                            <div style={{ 
+                                                fontSize: '0.95rem', 
+                                                color: '#565959',
+                                                paddingBottom: '16px',
+                                                borderBottom: '1px solid #E7E7E7'
+                                            }}>
+                                                
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
                                 {/* Products */}
@@ -242,6 +347,7 @@ const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrde
                                         <span>Product details not available for this order. The items were successfully ordered.</span>
                                     </div>
                                 )}
+
                             </div>
 
                             {/* Order Actions */}

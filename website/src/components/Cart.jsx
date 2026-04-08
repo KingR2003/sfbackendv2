@@ -10,6 +10,10 @@ const Cart = ({ cart, onClose, onUpdateQuantity, onRemove }) => {
     return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
+  const hasOutOfStockItems = cart.some((item) => item.availabilityStatus === 'OUT_OF_STOCK');
+  const hasInactiveItems = cart.some((item) => !!item.isInactive);
+  const canProceedToCheckout = !hasOutOfStockItems && !hasInactiveItems;
+
   if (cart.length === 0) {
     return (
       <div className="cart-empty">
@@ -42,14 +46,16 @@ const Cart = ({ cart, onClose, onUpdateQuantity, onRemove }) => {
               <p className="cart-item-category">
                 {item.category} {item.selectedVariant && `(${item.selectedVariant})`}
               </p>
-              {item.availabilityStatus === 'OUT_OF_STOCK' ? (
+              {item.isInactive ? (
+                <p className="cart-item-oos" style={{ color: '#7C3225', fontSize: '11px', fontWeight: 'bold' }}>NOT AVAILABLE</p>
+              ) : item.availabilityStatus === 'OUT_OF_STOCK' ? (
                 <p className="cart-item-oos" style={{ color: '#7C3225', fontSize: '11px', fontWeight: 'bold' }}>OUT OF STOCK</p>
               ) : (
                 <p className="cart-item-price">₹{item.price}</p>
               )}
             </div>
             <div className="cart-item-quantity">
-              {!item.availabilityStatus || item.availabilityStatus !== 'OUT_OF_STOCK' ? (
+              {(!item.isInactive && (!item.availabilityStatus || item.availabilityStatus !== 'OUT_OF_STOCK')) ? (
                 <>
                   <button
                     className="quantity-btn"
@@ -71,7 +77,7 @@ const Cart = ({ cart, onClose, onUpdateQuantity, onRemove }) => {
               )}
             </div>
             <div className="cart-item-total">
-              {item.availabilityStatus === 'OUT_OF_STOCK' ? '-' : `₹${item.price * item.quantity}`}
+              {(item.isInactive || item.availabilityStatus === 'OUT_OF_STOCK') ? '-' : `₹${item.price * item.quantity}`}
             </div>
             <button className="remove-item-btn" onClick={() => onRemove(item.cartItemId)}>
               <X size={16} />
@@ -85,7 +91,11 @@ const Cart = ({ cart, onClose, onUpdateQuantity, onRemove }) => {
           <span>Total:</span>
           <span className="total-amount">₹{getTotalPrice()}</span>
         </div>
-        <button className="checkout-btn">
+        <button
+          className={`checkout-btn ${!canProceedToCheckout ? 'disabled' : ''}`}
+          disabled={!canProceedToCheckout}
+          style={!canProceedToCheckout ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+        >
           Proceed to Checkout <ArrowRight size={16} />
         </button>
       </div>

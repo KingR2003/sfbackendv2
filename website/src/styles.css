@@ -100,10 +100,12 @@ body {
   display: flex;
   align-items: center;
   text-decoration: none;
+  height: 100%;
 }
 
 .logo img {
   height: 200px;
+  max-height: 100%;
   width: auto;
   object-fit: contain;
 }

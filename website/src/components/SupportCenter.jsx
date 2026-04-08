@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { MessageSquare, Headset, ChevronRight, HelpCircle, Package, Send, CheckCircle2 } from "lucide-react";
 
-const SupportCenter = ({ orders, products = [], onContinueShopping, initialOrder }) => {
+const SupportCenter = ({ orders, products = [], onContinueShopping, onGoToContactMessage = () => { }, initialOrder }) => {
     const [selectedType, setSelectedType] = useState(initialOrder ? 'order' : null);
     const [selectedItem, setSelectedItem] = useState(initialOrder || null);
     const [message, setMessage] = useState("");
@@ -55,7 +55,7 @@ const SupportCenter = ({ orders, products = [], onContinueShopping, initialOrder
                         <p>Questions about ingredients, usage, or shelf life.</p>
                         <ChevronRight size={20} className="arrow" />
                     </div>
-                    <div className="support-card" onClick={() => setSelectedType('general')} style={cardStyle}>
+                    <div className="support-card" onClick={onGoToContactMessage} style={cardStyle}>
                         <MessageSquare size={32} color="#7C3225" style={{ marginBottom: '15px' }} />
                         <h3>General Support</h3>
                         <p>Feedback, account issues, or other questions.</p>

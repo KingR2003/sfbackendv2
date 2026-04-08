@@ -64,6 +64,7 @@ const Delivery = ({
   onSelectMethod = () => { },
   onBack = () => { },
   onContinue = () => { },
+  onNavigateStep = null,
 }) => {
   const items = cart.length ? cart : FALLBACK_ITEMS;
   const subtotal = items.reduce(
@@ -81,7 +82,12 @@ const Delivery = ({
   return (
     <section className="bg-[#FEF8F0] min-h-[calc(100vh-120px)] px-4 py-10 font-['Poppins',sans-serif]">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <ProgressStepper currentStep={2} backLabel="← BACK" onBack={onBack} />
+        <ProgressStepper
+          currentStep={2}
+          backLabel="← BACK"
+          onBack={onBack}
+          onStepClick={onNavigateStep}
+        />
 
         <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
           <div className="rounded-[32px] border border-[#EBEBEB] bg-[#FFFFFF] p-8 shadow-[0_30px_75px_rgba(124,50,37,0.12)]">
