@@ -46,6 +46,7 @@ public class WishlistServiceImpl implements WishlistService {
             WishlistResponse response = new WishlistResponse();
             response.setWishlistItemId(item.getId());
             response.setProductId(item.getProductId());
+            response.setSelectedVariantId(item.getVariantId());
             response.setProductName(product != null ? product.getName() : "Unknown Product");
             response.setProductDescription(product != null ? product.getDescription() : null);
             response.setAvailable(isAvailable);
@@ -112,13 +113,20 @@ public class WishlistServiceImpl implements WishlistService {
     }
 
     @Override
-    public void addToWishlist(Long userId, Long productId) {
+    public void addToWishlist(Long userId, Long productId, Long variantId) {
         // Verify product exists and is active
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
 
         if (!Boolean.TRUE.equals(product.getIsActive()) || !"active".equals(product.getStatus())) {
             throw new IllegalArgumentException("Product is inactive and cannot be added to wishlist");
+        }
+
+        // Verify variant belongs to product
+        boolean variantExists = product.getVariants() != null && product.getVariants().stream()
+                .anyMatch(v -> v.getId().equals(variantId) && Boolean.TRUE.equals(v.getIsActive()));
+        if (!variantExists) {
+            throw new IllegalArgumentException("Variant does not exist or is inactive for this product");
         }
 
         // Check category status
@@ -128,23 +136,24 @@ public class WishlistServiceImpl implements WishlistService {
         }
 
         // Prevent duplicate
-        if (wishlistRepository.existsByUserIdAndProductId(userId, productId)) {
-            throw new IllegalArgumentException("Product is already in your wishlist");
+        if (wishlistRepository.existsByUserIdAndProductIdAndVariantId(userId, productId, variantId)) {
+            throw new IllegalArgumentException("This product size/variant is already in your wishlist");
         }
 
         WishlistItem item = new WishlistItem();
         item.setUserId(userId);
         item.setProductId(productId);
+        item.setVariantId(variantId);
         wishlistRepository.save(item);
     }
 
     @Override
     @Transactional
-    public void removeFromWishlist(Long userId, Long productId) {
-        if (!wishlistRepository.existsByUserIdAndProductId(userId, productId)) {
-            throw new ResourceNotFoundException("Wishlist item not found for productId: " + productId);
+    public void removeFromWishlist(Long userId, Long productId, Long variantId) {
+        if (!wishlistRepository.existsByUserIdAndProductIdAndVariantId(userId, productId, variantId)) {
+            throw new ResourceNotFoundException("Wishlist item not found");
         }
-        wishlistRepository.deleteByUserIdAndProductId(userId, productId);
+        wishlistRepository.deleteByUserIdAndProductIdAndVariantId(userId, productId, variantId);
     }
 
     @Override
@@ -154,7 +163,7 @@ public class WishlistServiceImpl implements WishlistService {
     }
 
     @Override
-    public boolean isProductWishlisted(Long userId, Long productId) {
-        return wishlistRepository.existsByUserIdAndProductId(userId, productId);
+    public boolean isProductWishlisted(Long userId, Long productId, Long variantId) {
+        return wishlistRepository.existsByUserIdAndProductIdAndVariantId(userId, productId, variantId);
     }
 }

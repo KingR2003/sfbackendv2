@@ -12,8 +12,8 @@ import java.time.LocalDateTime;
 @Table(
         name = "wishlist_items",
         uniqueConstraints = @UniqueConstraint(
-                name = "uq_wishlist_user_product",
-                columnNames = {"user_id", "product_id"}
+                name = "uq_wishlist_user_product_variant",
+                columnNames = {"user_id", "product_id", "variant_id"}
         )
 )
 @Getter
@@ -31,6 +31,9 @@ public class WishlistItem {
 
     @Column(name = "product_id", nullable = false)
     private Long productId;
+
+    @Column(name = "variant_id", nullable = false)
+    private Long variantId;
 
     @Column(name = "added_at", updatable = false)
     @com.fasterxml.jackson.annotation.JsonFormat(

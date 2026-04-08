@@ -39,19 +39,19 @@ public class WishlistController {
         return ResponseEntity.ok(response);
     }
 
-    /** POST /api/v1/wishlist/add/{productId} — add product to wishlist */
-    @PostMapping("/add/{productId}")
-    public ResponseEntity<ApiResponse> addToWishlist(@PathVariable Long productId) {
+    /** POST /api/v1/wishlist/add/{productId}/variant/{variantId} — add product to wishlist */
+    @PostMapping("/add/{productId}/variant/{variantId}")
+    public ResponseEntity<ApiResponse> addToWishlist(@PathVariable Long productId, @PathVariable Long variantId) {
         Long userId = getAuthenticatedUserId();
-        wishlistService.addToWishlist(userId, productId);
+        wishlistService.addToWishlist(userId, productId, variantId);
         return ResponseEntity.ok(new ApiResponse(200, "Product added to wishlist"));
     }
 
-    /** DELETE /api/v1/wishlist/{productId} — remove product from wishlist */
-    @DeleteMapping("/{productId}")
-    public ResponseEntity<ApiResponse> removeFromWishlist(@PathVariable Long productId) {
+    /** DELETE /api/v1/wishlist/{productId}/variant/{variantId} — remove product from wishlist */
+    @DeleteMapping("/{productId}/variant/{variantId}")
+    public ResponseEntity<ApiResponse> removeFromWishlist(@PathVariable Long productId, @PathVariable Long variantId) {
         Long userId = getAuthenticatedUserId();
-        wishlistService.removeFromWishlist(userId, productId);
+        wishlistService.removeFromWishlist(userId, productId, variantId);
         return ResponseEntity.ok(new ApiResponse(200, "Product removed from wishlist"));
     }
 
@@ -63,14 +63,15 @@ public class WishlistController {
         return ResponseEntity.ok(new ApiResponse(200, "Wishlist cleared successfully"));
     }
 
-    /** GET /api/v1/wishlist/check/{productId} — check if product is wishlisted */
-    @GetMapping("/check/{productId}")
-    public ResponseEntity<Object> checkWishlist(@PathVariable Long productId) {
+    /** GET /api/v1/wishlist/check/{productId}/variant/{variantId} — check if product is wishlisted */
+    @GetMapping("/check/{productId}/variant/{variantId}")
+    public ResponseEntity<Object> checkWishlist(@PathVariable Long productId, @PathVariable Long variantId) {
         Long userId = getAuthenticatedUserId();
-        boolean wishlisted = wishlistService.isProductWishlisted(userId, productId);
+        boolean wishlisted = wishlistService.isProductWishlisted(userId, productId, variantId);
         Map<String, Object> response = new HashMap<>();
         response.put("status", 200);
         response.put("productId", productId);
+        response.put("variantId", variantId);
         response.put("wishlisted", wishlisted);
         return ResponseEntity.ok(response);
     }
