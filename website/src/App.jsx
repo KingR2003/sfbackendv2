@@ -65,9 +65,12 @@ import {
   getCategories,
   getWishlist,
   addWishlistItem,
+  addWishlistItemWithVariant,
   removeWishlistItem,
-  clearWishlist,
+  removeWishlistItemWithVariant,
   checkWishlistItem,
+  checkWishlistItemWithVariant,
+  clearWishlist,
   logoutUser,
 } from "./api";
 
@@ -271,113 +274,211 @@ function mapApiCartToLocal(apiCart) {
 }
 
 function mapApiWishlistToLocal(apiData) {
-  if (!apiData) return [];
+  if (!apiData) {
+    console.log("[Wishlist Mapping] No apiData provided");
+    return [];
+  }
 
   let raw = [];
-  if (Array.isArray(apiData)) raw = apiData;
-  else if (Array.isArray(apiData?.data)) raw = apiData.data;
-  else if (Array.isArray(apiData?.items)) raw = apiData.items;
-  else if (Array.isArray(apiData?.wishlistItems)) raw = apiData.wishlistItems;
-  else if (Array.isArray(apiData?.wishlist)) raw = apiData.wishlist;
+  if (Array.isArray(apiData)) {
+    console.log("[Wishlist Mapping] apiData is already an array");
+    raw = apiData;
+  }
+  else if (Array.isArray(apiData?.data)) {
+    console.log("[Wishlist Mapping] Found wishlist in apiData.data");
+    raw = apiData.data;
+  }
+  else if (Array.isArray(apiData?.items)) {
+    console.log("[Wishlist Mapping] Found wishlist in apiData.items");
+    raw = apiData.items;
+  }
+  else if (Array.isArray(apiData?.wishlistItems)) {
+    console.log("[Wishlist Mapping] Found wishlist in apiData.wishlistItems");
+    raw = apiData.wishlistItems;
+  }
+  else if (Array.isArray(apiData?.wishlist)) {
+    console.log("[Wishlist Mapping] Found wishlist in apiData.wishlist");
+    raw = apiData.wishlist;
+  }
 
-  const PLACEHOLDER_IMG = "/wild_honey.png";
-  const asNumber = (value, fallback = 0) => {
-    const num = Number(value);
-    return Number.isFinite(num) ? num : fallback;
-  };
+  console.log("[Wishlist Mapping] Extracted raw array with", raw.length, "items");
+  if (raw.length > 0) {
+    console.log("[Wishlist Mapping] First raw item:", raw[0]);
+  }
 
-  return raw.map((entry) => {
-    // Handle both nested product structure and flat structure
-    const product = entry?.product || entry?.productDetails || entry?.product_detail || entry?.data || null;
+  return raw.map((entry, idx) => {
+    const productId = String(entry?.productId || entry?.product?.id || entry?.id || "").trim();
+    
+    // Log the FULL raw entry to see what the backend is sending
+    console.log(`[Wishlist API] Item ${idx} raw entry:`, entry);
+    console.log(`[Wishlist API] Item ${idx} variant IDs:`, 
+      Array.isArray(entry?.variants) ? entry.variants.map(v => ({ id: v.id, name: v.variantName })) : 'no variants'
+    );
+    console.log(`[Wishlist API] Item ${idx} looking for variantId fields:`, {
+      entry_variantId: entry?.variantId,
+      entry_selectedVariantId: entry?.selectedVariantId,
+      entry_selectedVariant: entry?.selectedVariant?.id,
+      entry_variantIndex: entry?.variantIndex,
+    });
 
-    // Get product ID from various possible locations
-    const entryProductId =
-      entry?.productId ||
-      entry?.product_id ||
-      entry?.productID ||
-      entry?.product?.id ||
-      entry?.product?.productId ||
-      entry?.product?.product_id ||
-      "";
-
-    const productId = entryProductId || product?.id || product?.productId || product?.product_id || entry?.id || "";
-
-    // Get the first variant or selected variant
-    const variant =
-      product?.selectedVariant ||
-      entry?.selectedVariant ||
-      entry?.variant ||
-      (Array.isArray(product?.variants) && product.variants[0]) ||
-      (Array.isArray(entry?.variants) && entry.variants[0]) ||
-      null;
-
-    // Extract image URLs from multiple sources
-    const imageFromEntry =
-      entry?.imageUrl ||
-      entry?.image_url ||
-      entry?.image ||
-      entry?.img ||
-      entry?.productImage ||
-      entry?.product_image;
-
-    const imageFromVariant =
-      variant?.imageUrl ||
-      variant?.image ||
-      variant?.img ||
-      (Array.isArray(variant?.images) && variant.images[0]?.imageUrl);
-
-    const imageFromProduct =
-      product?.imageUrl ||
-      product?.image ||
-      product?.img ||
-      (Array.isArray(product?.images) && product.images[0]?.imageUrl) ||
-      (Array.isArray(entry?.images) && entry.images[0]?.imageUrl);
-
-    // Get product name from various sources
-    const productName =
-      entry?.productName ||
-      product?.name ||
-      product?.productName ||
-      entry?.name ||
-      "Product";
-
-    // Get description from various sources
-    const description =
-      entry?.productDescription ||
-      product?.desc ||
-      product?.description ||
-      product?.productDescription ||
-      "";
-
-    // Get price - prioritize variant price, then product price
-    const price =
-      asNumber(variant?.price ?? null, NaN) ||
-      asNumber(product?.price ?? product?.unitPrice ?? product?.unit_price ?? product?.amount ?? null, NaN) ||
-      asNumber(entry?.price ?? entry?.unitPrice ?? entry?.unit_price ?? entry?.amount ?? null, 0);
-
-    // Get MRP - prioritize variant MRP, then product MRP
-    const mrp =
-      asNumber(variant?.mrp ?? null, NaN) ||
-      asNumber(product?.mrp ?? product?.MRP ?? null, NaN) ||
-      asNumber(entry?.mrp ?? null, NaN);
-
-    return {
-      id: String(productId || ""),
-      wishlistItemId: entry?.wishlistItemId,
-      name: productName,
-      desc: description,
-      category: product?.category || product?.categoryName || entry?.category || entry?.categoryName || "",
-      price: Number.isFinite(price) ? price : 0,
-      mrp: Number.isFinite(mrp) ? mrp : undefined,
-      img: imageFromEntry || imageFromVariant || imageFromProduct || PLACEHOLDER_IMG,
-      isAvailable: entry?.isAvailable !== undefined ? entry.isAvailable : (product?.isActive !== false && variant?.isActive !== false),
+    const mapped = {
+      // Core identifiers
+      id: productId,
+      wishlistItemId: entry?.wishlistItemId ? String(entry.wishlistItemId) : undefined,
+      productId: productId,
+      selectedVariantId: entry?.variantId || entry?.selectedVariantId || undefined,
+      
+      // Basic info - from top-level fields
+      name: entry?.productName || "Product",
+      productName: entry?.productName || "Product",
+      desc: entry?.productDescription || "",
+      productDescription: entry?.productDescription || "",
+      
+      // All variants (preserved completely)
+      variants: Array.isArray(entry?.variants) ? entry.variants : [],
+      
+      // All images at product level
+      images: Array.isArray(entry?.images) ? entry.images : [],
+      
+      // Helper function to get selected or first available variant
+      _getDisplayVariant: () => {
+        if (!Array.isArray(entry?.variants)) return null;
+        
+        // Try to find the selected variant first
+        if (entry?.variantId || entry?.selectedVariantId) {
+          const varId = entry?.variantId || entry?.selectedVariantId;
+          const found = entry.variants.find(v => String(v?.id) === String(varId));
+          if (found) return found;
+        }
+        
+        // Otherwise return first available variant
+        return entry.variants.find(v => v?.availabilityStatus === "AVAILABLE" || v?.stockQuantity > 0) || entry.variants[0];
+      },
+      
+      // Get primary image from SELECTED variant, or product images
+      img: (() => {
+        // First, try to get image from selected variant
+        const displayVariant = (Array.isArray(entry?.variants) && 
+          (entry.variants.find(v => String(v?.id) === String(entry?.variantId || entry?.selectedVariantId)) || 
+           entry.variants.find(v => v?.availabilityStatus === "AVAILABLE" || v?.stockQuantity > 0) || 
+           entry.variants[0]));
+        
+        if (displayVariant?.images && Array.isArray(displayVariant.images) && displayVariant.images.length > 0) {
+          return displayVariant.images[0]?.imageUrl || displayVariant.images[0]?.url;
+        }
+        
+        // Fallback to product-level images
+        if (Array.isArray(entry?.images) && entry.images.length > 0) {
+          return entry.images[0]?.imageUrl || entry.images[0]?.url || entry.images[0];
+        }
+        
+        return "/wild_honey.png";
+      })(),
+      
+      // Metadata
       addedAt: entry?.addedAt,
-      variants: Array.isArray(entry?.variants) ? entry.variants : (Array.isArray(product?.variants) ? product.variants : []),
-      images: Array.isArray(entry?.images) ? entry.images : (Array.isArray(product?.images) ? product.images : []),
-      stockQuantity: variant?.stockQuantity !== undefined ? variant.stockQuantity : (product?.stockQuantity ?? 0),
-      availabilityStatus: variant?.availabilityStatus || product?.availabilityStatus || (entry?.isAvailable ? "AVAILABLE" : "OUT_OF_STOCK"),
-      discount: variant?.discount,
+      available: entry?.available !== undefined ? entry.available : true,
+      
+      // Stock & availability from selected variant (or first available)
+      stockQuantity: (() => {
+        let displayVariant = null;
+        
+        if (entry?.variantId || entry?.selectedVariantId) {
+          const varId = entry?.variantId || entry?.selectedVariantId;
+          displayVariant = Array.isArray(entry?.variants) && 
+            entry.variants.find(v => String(v?.id) === String(varId));
+        }
+        
+        if (!displayVariant && Array.isArray(entry?.variants)) {
+          displayVariant = entry.variants.find(v => v?.availabilityStatus === "AVAILABLE" || v?.stockQuantity > 0) || entry.variants[0];
+        }
+        
+        return displayVariant?.stockQuantity || 0;
+      })(),
+      
+      availabilityStatus: (() => {
+        let displayVariant = null;
+        
+        if (entry?.variantId || entry?.selectedVariantId) {
+          const varId = entry?.variantId || entry?.selectedVariantId;
+          displayVariant = Array.isArray(entry?.variants) && 
+            entry.variants.find(v => String(v?.id) === String(varId));
+        }
+        
+        if (!displayVariant && Array.isArray(entry?.variants)) {
+          displayVariant = entry.variants.find(v => v?.availabilityStatus === "AVAILABLE" || v?.stockQuantity > 0) || entry.variants[0];
+        }
+        
+        return displayVariant?.availabilityStatus || "OUT_OF_STOCK";
+      })(),
+      
+      // Price, MRP, Discount from SELECTED variant (or first AVAILABLE variant)
+      price: (() => {
+        let displayVariant = null;
+        
+        if (entry?.variantId || entry?.selectedVariantId) {
+          const varId = entry?.variantId || entry?.selectedVariantId;
+          displayVariant = Array.isArray(entry?.variants) && 
+            entry.variants.find(v => String(v?.id) === String(varId));
+        }
+        
+        if (!displayVariant && Array.isArray(entry?.variants)) {
+          displayVariant = entry.variants.find(v => v?.availabilityStatus === "AVAILABLE" || v?.stockQuantity > 0) || entry.variants[0];
+        }
+        
+        return displayVariant?.price || 0;
+      })(),
+      
+      mrp: (() => {
+        let displayVariant = null;
+        
+        if (entry?.variantId || entry?.selectedVariantId) {
+          const varId = entry?.variantId || entry?.selectedVariantId;
+          displayVariant = Array.isArray(entry?.variants) && 
+            entry.variants.find(v => String(v?.id) === String(varId));
+        }
+        
+        if (!displayVariant && Array.isArray(entry?.variants)) {
+          displayVariant = entry.variants.find(v => v?.availabilityStatus === "AVAILABLE" || v?.stockQuantity > 0) || entry.variants[0];
+        }
+        
+        return displayVariant?.mrp || undefined;
+      })(),
+      
+      discount: (() => {
+        let displayVariant = null;
+        
+        if (entry?.variantId || entry?.selectedVariantId) {
+          const varId = entry?.variantId || entry?.selectedVariantId;
+          displayVariant = Array.isArray(entry?.variants) && 
+            entry.variants.find(v => String(v?.id) === String(varId));
+        }
+        
+        if (!displayVariant && Array.isArray(entry?.variants)) {
+          displayVariant = entry.variants.find(v => v?.availabilityStatus === "AVAILABLE" || v?.stockQuantity > 0) || entry.variants[0];
+        }
+        
+        return displayVariant?.discount || undefined;
+      })(),
     };
+    
+    // Log which variant's data is being displayed
+    const variantBeingUsed = Array.isArray(mapped.variants) && 
+      (mapped.variants.find(v => String(v?.id) === String(mapped.selectedVariantId)) || 
+       mapped.variants.find(v => v?.availabilityStatus === "AVAILABLE" || v?.stockQuantity > 0) || 
+       mapped.variants[0]);
+    
+    console.log(`[Wishlist Mapping] Item ${idx} final result:`, { 
+      id: mapped.id, 
+      name: mapped.name, 
+      displayPrice: `₹${mapped.price}`,
+      displayMrp: `₹${mapped.mrp || 'N/A'}`,
+      selectedVariantId: mapped.selectedVariantId,
+      variantBeingUsed: variantBeingUsed ? { id: variantBeingUsed.id, name: variantBeingUsed.variantName, price: variantBeingUsed.price } : 'none',
+      firstVariant: mapped.variants[0] ? { id: mapped.variants[0].id, price: mapped.variants[0].price } : 'none',
+      allVariantIds: mapped.variants.map(v => v.id),
+    });
+    return mapped;
   });
 }
 
@@ -385,8 +486,11 @@ function readWishlistFromStorage() {
   try {
     const raw = localStorage.getItem("svasthya_wishlist");
     const parsed = raw ? JSON.parse(raw) : [];
+    console.log("[Wishlist Storage] Read from localStorage - items:", parsed.length, 
+      parsed.map(p => ({ id: p.id, name: p.name, hasDesc: !!p.desc, desc: p.desc })));
     return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
+    console.error("[Wishlist Storage] Error reading:", e);
     return [];
   }
 }
@@ -411,6 +515,8 @@ function mergeWishlistWithSavedDetails(items, savedItems) {
     const merged = { ...it };
     if (!merged.name || merged.name === "Product") merged.name = saved.name || merged.name;
     if (!merged.category) merged.category = saved.category || merged.category;
+    if (!merged.desc) merged.desc = saved.desc || saved.description || merged.desc;
+    if (!merged.productDescription) merged.productDescription = saved.productDescription || saved.description || merged.productDescription;
 
     const currentPrice = Number(merged.price);
     const savedPrice = Number(saved.price);
@@ -453,6 +559,14 @@ function enrichWishlistFromCatalog(items, catalog) {
     }
     if (!merged.category && prod.category) {
       merged.category = prod.category;
+      changed = true;
+    }
+    if (!merged.desc && prod.desc) {
+      merged.desc = prod.desc;
+      changed = true;
+    }
+    if (!merged.productDescription && prod.productDescription) {
+      merged.productDescription = prod.productDescription;
       changed = true;
     }
 
@@ -892,9 +1006,10 @@ function App() {
   // Sync wishlist to localStorage so price/image survive refresh
   useEffect(() => {
     try {
+      console.log("[Wishlist Storage] Saving to localStorage:", wishlist.map(w => ({ id: w.id, name: w.name, hasDesc: !!w.desc })));
       localStorage.setItem("svasthya_wishlist", JSON.stringify(wishlist));
     } catch (e) {
-      // no-op
+      console.error("[Wishlist Storage] Error saving:", e);
     }
   }, [wishlist]);
 
@@ -1132,9 +1247,23 @@ function App() {
 
       try {
         const res = await getWishlist(apiToken);
-        const mapped = mapApiWishlistToLocal(res?.data ?? res);
+        console.log("[Wishlist] Full API response object:", res);
+        console.log("[Wishlist] res.data:", res?.data);
+        console.log("[Wishlist] res.wishlist:", res?.wishlist);
+        
+        // Check what structure the API returned
+        const apiData = res?.data ?? res;
+        console.log("[Wishlist] apiData being passed to mapping:", apiData);
+        
+        const mapped = mapApiWishlistToLocal(apiData);
+        console.log("[Wishlist] Mapped result:", mapped);
+        console.log("[Wishlist] First item from mapped:", mapped[0]);
+        
         const saved = readWishlistFromStorage();
         const merged = mergeWishlistWithSavedDetails(mapped, saved);
+        console.log("[Wishlist] After merge with saved details:", merged);
+        console.log("[Wishlist] First item after merge:", merged[0]);
+        
         setWishlist(merged);
       } catch (err) {
         console.error("❌ Fetch wishlist error:", err.message || err);
@@ -1598,9 +1727,27 @@ function App() {
   };
 
   const handleViewProduct = (product) => {
-    setSelectedProduct(product);
+    // Enrich product with latest data from catalog to ensure stock info is current
+    let enrichedProduct = product;
+    
+    if (products && Array.isArray(products)) {
+      const catalogProduct = products.find(p => String(p?.id) === String(product?.id));
+      if (catalogProduct) {
+        console.log("[ProductView] Found product in catalog, enriching with latest data");
+        // Merge catalog data into product, prioritizing catalog for stock/availability
+        enrichedProduct = {
+          ...product,
+          ...catalogProduct,
+          // Keep wishlist-specific fields if present
+          wishlistItemId: product?.wishlistItemId,
+          addedAt: product?.addedAt,
+        };
+      }
+    }
+    
+    setSelectedProduct(enrichedProduct);
     try {
-      localStorage.setItem("svasthya_selected_product", JSON.stringify(product));
+      localStorage.setItem("svasthya_selected_product", JSON.stringify(enrichedProduct));
     } catch (e) {
       // ignore storage errors
     }
@@ -1813,20 +1960,75 @@ function App() {
   };
 
   const toggleWishlist = (product) => {
-    const isAlreadyWishlisted = wishlist.some((item) => item.id === product.id);
+    // Extract variant ID - prioritize selectedVariantId (passed from WishlistPage), 
+    // then use first variant, then default to product ID
+    let variantId = product.id;
+    
+    if (product.selectedVariantId) {
+      variantId = product.selectedVariantId;
+    } else if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+      variantId = product.variants[0].id || product.variants[0].variantId || product.id;
+    }
+
+    // Normalize IDs to strings for consistent comparison
+    const normalizeId = (id) => String(id || "").trim();
+    const productIdNorm = normalizeId(product.id) || normalizeId(product.productId);
+    const variantIdNorm = normalizeId(variantId);
+
+    console.log("[Wishlist] Toggle starting - Product:", productIdNorm, "Variant:", variantIdNorm, "Wish ID:", product.wishlistItemId);
+
+    // Check if item is already in wishlist using consistent string comparisons
+    const isAlreadyWishlisted = wishlist.some((item) => {
+      // First try wishlistItemId (most unique identifier)
+      if (product.wishlistItemId && item.wishlistItemId) {
+        if (normalizeId(product.wishlistItemId) === normalizeId(item.wishlistItemId)) {
+          console.log("[Wishlist] Found match by wishlistItemId:", product.wishlistItemId);
+          return true;
+        }
+      }
+      
+      // Fall back to product ID + variant ID matching
+      const itemProdId = normalizeId(item.id) || normalizeId(item.productId);
+      const itemVarId = normalizeId(item.selectedVariantId) || normalizeId(item.variantId) || normalizeId(item.variant_id);
+      
+      const prodMatch = itemProdId === productIdNorm;
+      const varMatch = itemVarId === variantIdNorm;
+      
+      if (prodMatch && varMatch) {
+        console.log("[Wishlist] Found match by productId+variantId:", { itemProd: itemProdId, itemVar: itemVarId });
+        return true;
+      }
+      
+      return false;
+    });
+
+    console.log("[Wishlist] Toggle check - IsWishlisted:", isAlreadyWishlisted);
 
     // Local-only behaviour when not authenticated
     if (!apiToken) {
       setWishlist((prev) =>
         isAlreadyWishlisted
-          ? prev.filter((item) => item.id !== product.id)
+          ? prev.filter((item) => {
+              // Keep items that don't match this product+variant
+              if (product.wishlistItemId && item.wishlistItemId) {
+                if (normalizeId(product.wishlistItemId) === normalizeId(item.wishlistItemId)) {
+                  return false; // Remove this item
+                }
+              }
+              const itemProdId = normalizeId(item.id) || normalizeId(item.productId);
+              const itemVarId = normalizeId(item.selectedVariantId) || normalizeId(item.variantId) || normalizeId(item.variant_id);
+              const prodMatch = itemProdId === productIdNorm;
+              const varMatch = itemVarId === variantIdNorm;
+              return !(prodMatch && varMatch);
+            })
           : [...prev, product]
       );
       
-      // Show toast with action button for adding to wishlist
-      if (!isAlreadyWishlisted) {
+      if (isAlreadyWishlisted) {
+        showToast(`${product.name || product.productName || "Item"} removed from wishlist`, "success");
+      } else {
         showToast(
-          `${product.name} added to wishlist`,
+          `${product.name || product.productName || "Item"} added to wishlist`,
           "success",
           () => {
             setCurrentPage("wishlist");
@@ -1838,17 +2040,31 @@ function App() {
       return;
     }
 
-    // Optimistic update
+    // Optimistic update - remove only the specific variant combination
     setWishlist((prev) =>
       isAlreadyWishlisted
-        ? prev.filter((item) => item.id !== product.id)
+        ? prev.filter((item) => {
+            // Keep items that don't match this product+variant
+            if (product.wishlistItemId && item.wishlistItemId) {
+              if (normalizeId(product.wishlistItemId) === normalizeId(item.wishlistItemId)) {
+                return false; // Remove this item
+              }
+            }
+            const itemProdId = normalizeId(item.id) || normalizeId(item.productId);
+            const itemVarId = normalizeId(item.selectedVariantId) || normalizeId(item.variantId) || normalizeId(item.variant_id);
+            const prodMatch = itemProdId === productIdNorm;
+            const varMatch = itemVarId === variantIdNorm;
+            return !(prodMatch && varMatch);
+          })
         : [...prev, product]
     );
     
-    // Show toast with action button for adding to wishlist
-    if (!isAlreadyWishlisted) {
+    // Show toast message
+    if (isAlreadyWishlisted) {
+      showToast(`${product.name || product.productName || "Item"} removed from wishlist`, "success");
+    } else {
       showToast(
-        `${product.name} added to wishlist`,
+        `${product.name || product.productName || "Item"} added to wishlist`,
         "success",
         () => {
           setCurrentPage("wishlist");
@@ -1858,25 +2074,159 @@ function App() {
       );
     }
 
-    const productId = product.id;
+    // Extract productId with multiple fallbacks
+    let productId = String(product.id || product.productId || "").trim();
+    if (!productId) {
+      console.error("[Wishlist] ERROR: No productId found in product object:", product);
+      showToast("Error: Product ID not found", "error");
+      return;
+    }
 
     (async () => {
       try {
+        console.log("[Wishlist] Attempting operation:", {
+          operation: isAlreadyWishlisted ? "DELETE" : "ADD",
+          productId,
+          variantId,
+          wishlistItemId: product.wishlistItemId,
+          productObject: { id: product.id, productId: product.productId, selectedVariantId: product.selectedVariantId }
+        });
+        
         if (isAlreadyWishlisted) {
-          await removeWishlistItem(apiToken, productId);
+          // Ensure we have valid IDs before calling delete
+          if (!productId) {
+            throw new Error("Product ID is required for deletion");
+          }
+          
+          // Use variant-aware delete endpoint
+          console.log("[Wishlist] Calling DELETE endpoint - productId:", productId, "variantId:", variantId);
+          const deleteResult = await removeWishlistItemWithVariant(apiToken, productId, variantId);
+          console.log("[Wishlist] DELETE successful. Result:", deleteResult);
+          showToast(`${product.name || product.productName || "Item"} removed from wishlist`, "success");
+          return; // Keep optimistic deletion - it succeeded
         } else {
-          await addWishlistItem(apiToken, productId);
+          // Pre-check if item already exists on backend before adding
+          try {
+            const checkResult = await checkWishlistItemWithVariant(apiToken, productId, variantId);
+            if (checkResult.exists || checkResult.inWishlist) {
+              console.log("Item already exists in backend wishlist. Keeping local state.");
+              showToast(`${product.name} is already in your wishlist`, "info");
+              return;
+            }
+          } catch (checkErr) {
+            console.log("Check endpoint returned error (expected if not in wishlist):", checkErr.message);
+            // Continue with add operation if check fails
+          }
+          
+          // Use variant-aware add endpoint
+          await addWishlistItemWithVariant(apiToken, productId, variantId);
         }
       } catch (err) {
         console.error("Wishlist toggle error:", err);
-        // Revert optimistic update on failure
+        const errorStatus = err.response?.status;
+        const errorMessage = err.response?.data?.message || err.message || "";
+        
+        console.log(`[Wishlist] Error during ${isAlreadyWishlisted ? "DELETE" : "ADD"}: ${errorStatus} - ${errorMessage}`);
+        
+        // Handle 409 Conflict (product already in wishlist) - treat as success for ADD operations
+        if (errorStatus === 409 && !isAlreadyWishlisted) {
+          console.log("Product already in wishlist (409 conflict). Item exists in backend.");
+          showToast(`${product.name} is already in your wishlist`, "info");
+          return;
+        }
+        
+        // Handle 404 Not Found - for DELETE, treat as already deleted (success)
+        if (errorStatus === 404 && isAlreadyWishlisted) {
+          console.log("Wishlist item not found (404). Already removed from backend.");
+          return; // Keep optimistic deletion - item was already gone
+        }
+        
+        // Handle duplicate key errors on ADD - item already exists on backend
+        const isDuplicateError = errorMessage.includes("Duplicate entry") || errorMessage.includes("duplicate");
+        if (isDuplicateError && !isAlreadyWishlisted) {
+          console.log("Duplicate entry - item already in backend wishlist");
+          showToast(`${product.name} is already in your wishlist`, "info");
+          return; // Keep optimistic add (state is already correct)
+        }
+        
+        // For DELETE operations that fail, REVERT the optimistic deletion so item comes back
+        if (isAlreadyWishlisted) {
+          console.log("Delete operation failed on backend. Status:", errorStatus, "Message:", errorMessage);
+          console.log("Reverting to restore item.");
+          
+          // Revert: add the product back to wishlist
+          setWishlist((prev) => {
+            // Check if item is already back (from API response)
+            const itemExists = prev.some((item) => {
+              if (product.wishlistItemId && item.wishlistItemId) {
+                if (normalizeId(product.wishlistItemId) === normalizeId(item.wishlistItemId)) {
+                  return true;
+                }
+              }
+              const itemProdId = normalizeId(item.id) || normalizeId(item.productId);
+              const itemVarId = normalizeId(item.selectedVariantId) || normalizeId(item.variantId) || normalizeId(item.variant_id);
+              const prodMatch = itemProdId === productIdNorm;
+              const varMatch = itemVarId === variantIdNorm;
+              return prodMatch && varMatch;
+            });
+            if (!itemExists) {
+              console.log("[Wishlist] Re-adding product to state after failed delete");
+              return [...prev, product];
+            }
+            return prev;
+          });
+          
+          // Fetch fresh wishlist from backend to sync state
+          try {
+            console.log("[Wishlist] Fetching fresh wishlist to sync after delete failure");
+            const res = await getWishlist(apiToken);
+            const mapped = mapApiWishlistToLocal(res?.data ?? res);
+            const saved = readWishlistFromStorage();
+            const merged = mergeWishlistWithSavedDetails(mapped, saved);
+            setWishlist(merged);
+            console.log("[Wishlist] Synced with backend after delete failure");
+          } catch (syncErr) {
+            console.error("[Wishlist] Failed to sync with backend:", syncErr.message);
+          }
+          
+          showToast(`Failed to remove item: ${errorMessage || "Please try again"}`, "error");
+          return;
+        }
+        
+        // For ADD operations that fail (not 409/duplicate), revert the optimistic update
+        console.log("Add operation failed. Reverting optimistic update.");
         setWishlist((prev) =>
-          isAlreadyWishlisted
-            ? [...prev, product]
-            : prev.filter((item) => item.id !== product.id)
+          prev.filter((item) => {
+            const itemProdId = normalizeId(item.id) || normalizeId(item.productId);
+            const itemVarId = normalizeId(item.selectedVariantId) || normalizeId(item.variantId) || normalizeId(item.variant_id);
+            const prodMatch = itemProdId === productIdNorm;
+            const varMatch = itemVarId === variantIdNorm;
+            return !(prodMatch && varMatch);
+          })
         );
+        
+        showToast(errorMessage || "Failed to update wishlist", "error");
       }
     })();
+  };
+
+  const handleClearWishlist = async () => {
+    if (!apiToken) {
+      showToast("Please log in to clear wishlist", "error");
+      return;
+    }
+
+    try {
+      console.log("[Wishlist] Clearing all wishlist data...");
+      showToast("Your wishlist is being cleared...", "info");
+      await clearWishlist(apiToken);
+      console.log("[Wishlist] Wishlist cleared successfully!");
+      setWishlist([]);
+      showToast("Wishlist cleared successfully!", "success");
+    } catch (err) {
+      console.error("[Wishlist] Error clearing wishlist:", err);
+      showToast(`Failed to clear wishlist: ${err.message}`, "error");
+    }
   };
 
   const handleDetailsChange = (field, value) => {
@@ -2688,6 +3038,7 @@ function App() {
               onViewProduct={handleViewProduct}
               onContinueShopping={() => { setCurrentPage("products"); setActiveCategory("All"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
               onGoToCart={() => { setCurrentPage("cartPage"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              onClearWishlist={handleClearWishlist}
             />
           )}
           {currentPage === "myOrders" && (

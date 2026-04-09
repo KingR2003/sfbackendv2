@@ -23,9 +23,12 @@ export const API_ENDPOINTS = {
   // Wishlist
   GET_WISHLIST: `${BASE_URL}/api/v1/wishlist`,
   ADD_WISHLIST_ITEM: (productId) => `${BASE_URL}/api/v1/wishlist/add/${productId}`,
+  ADD_WISHLIST_ITEM_WITH_VARIANT: (productId, variantId) => `${BASE_URL}/api/v1/wishlist/add/${productId}/variant/${variantId}`,
   REMOVE_WISHLIST_ITEM: (productId) => `${BASE_URL}/api/v1/wishlist/${productId}`,
-  CLEAR_WISHLIST: `${BASE_URL}/api/v1/wishlist`,
+  REMOVE_WISHLIST_ITEM_WITH_VARIANT: (productId, variantId) => `${BASE_URL}/api/v1/wishlist/${productId}/variant/${variantId}`,
+  CLEAR_WISHLIST: `${BASE_URL}/api/v1/wishlist/clear`,
   CHECK_WISHLIST_ITEM: (productId) => `${BASE_URL}/api/v1/wishlist/check/${productId}`,
+  CHECK_WISHLIST_ITEM_WITH_VARIANT: (productId, variantId) => `${BASE_URL}/api/v1/wishlist/check/${productId}/variant/${variantId}`,
   GET_COUPONS: `${BASE_URL}/api/v1/coupons`,
   VERIFY_COUPON: `${BASE_URL}/api/v1/coupons/verify`,
   GET_CATEGORIES: `${BASE_URL}/api/v1/categories`,

@@ -29,6 +29,18 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
 
     if (!product) return null;
 
+    // Log product data for debugging stock issues
+    console.log("[ProductDetails] Product received:", {
+      id: product.id,
+      name: product.name,
+      isActive: product.isActive,
+      stockQuantity: product.stockQuantity,
+      availabilityStatus: product.availabilityStatus,
+      variants: product.variants?.length || 0,
+      firstVariantStock: product.variants?.[0]?.stockQuantity,
+      firstVariantAvailability: product.variants?.[0]?.availabilityStatus,
+    });
+
     const [isAdded, setIsAdded] = useState(false);
     const [mainImage, setMainImage] = useState(product.img);
     const [images, setImages] = useState(() => {
@@ -223,6 +235,17 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
     const effectiveAvailability = (rawStockQty !== null && rawStockQty <= 0)
         ? 'OUT_OF_STOCK'
         : (selectedVariant?.availabilityStatus || product.availabilityStatus || 'IN_STOCK');
+    
+    console.log("[ProductDetails] Stock calculation:", {
+      rawStockQty,
+      hasFiniteStock,
+      inCartQuantity,
+      remainingStockForAdd,
+      hasReachedMax,
+      selectedVariantAvailability: selectedVariant?.availabilityStatus,
+      productAvailability: product.availabilityStatus,
+      effectiveAvailability,
+    });
 
     const getTabContent = () => {
         switch (activeTab) {

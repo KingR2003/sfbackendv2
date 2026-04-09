@@ -172,25 +172,82 @@ export const getWishlist = (token) => fetchJson(API_ENDPOINTS.GET_WISHLIST, {
 });
 
 // Adds a product to the user's wishlist.
-export const addWishlistItem = (token, productId) => fetchJson(API_ENDPOINTS.ADD_WISHLIST_ITEM(productId), {
-	method: "POST",
-	headers: authHeader(token),
-});
+export const addWishlistItem = (token, productId) => {
+	console.log("[API] addWishlistItem called with productId:", productId, "Type:", typeof productId);
+	const endpoint = API_ENDPOINTS.ADD_WISHLIST_ITEM(productId);
+	console.log("[API] Endpoint URL being called:", endpoint);
+	return fetchJson(endpoint, {
+		method: "POST",
+		headers: {
+			...authHeader(token),
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({}),
+	});
+};
+
+// Adds a product with variant to the user's wishlist.
+export const addWishlistItemWithVariant = (token, productId, variantId) => {
+	console.log("[API] addWishlistItemWithVariant called with productId:", productId, "variantId:", variantId);
+	const endpoint = API_ENDPOINTS.ADD_WISHLIST_ITEM_WITH_VARIANT(productId, variantId);
+	console.log("[API] Endpoint URL being called:", endpoint);
+	return fetchJson(endpoint, {
+		method: "POST",
+		headers: {
+			...authHeader(token),
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({}),
+	});
+};
 
 // Removes a single product from the user's wishlist.
-export const removeWishlistItem = (token, productId) => fetchJson(API_ENDPOINTS.REMOVE_WISHLIST_ITEM(productId), {
-	method: "DELETE",
-	headers: authHeader(token),
-});
+export const removeWishlistItem = (token, productId) => {
+	console.log("[API] removeWishlistItem called with productId:", productId, "Type:", typeof productId);
+	const endpoint = API_ENDPOINTS.REMOVE_WISHLIST_ITEM(productId);
+	console.log("[API] Endpoint URL being called:", endpoint);
+	return fetchJson(endpoint, {
+		method: "DELETE",
+		headers: {
+			...authHeader(token),
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({}),
+	});
+};
+
+// Removes a product with variant from the user's wishlist.
+export const removeWishlistItemWithVariant = (token, productId, variantId) => {
+	console.log("[API] removeWishlistItemWithVariant called with productId:", productId, "variantId:", variantId);
+	const endpoint = API_ENDPOINTS.REMOVE_WISHLIST_ITEM_WITH_VARIANT(productId, variantId);
+	console.log("[API] Endpoint URL being called:", endpoint);
+	return fetchJson(endpoint, {
+		method: "DELETE",
+		headers: {
+			...authHeader(token),
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({}),
+	});
+};
 
 // Clears the entire wishlist for the logged-in user.
 export const clearWishlist = (token) => fetchJson(API_ENDPOINTS.CLEAR_WISHLIST, {
 	method: "DELETE",
-	headers: authHeader(token),
+	headers: {
+		...authHeader(token),
+		"Content-Type": "application/json",
+	},
+	body: JSON.stringify({}),
 });
 
 // Checks if a specific product is present in the wishlist.
 export const checkWishlistItem = (token, productId) => fetchJson(API_ENDPOINTS.CHECK_WISHLIST_ITEM(productId), {
+	headers: authHeader(token),
+});
+
+// Checks if a specific product with variant is present in the wishlist.
+export const checkWishlistItemWithVariant = (token, productId, variantId) => fetchJson(API_ENDPOINTS.CHECK_WISHLIST_ITEM_WITH_VARIANT(productId, variantId), {
 	headers: authHeader(token),
 });
 
