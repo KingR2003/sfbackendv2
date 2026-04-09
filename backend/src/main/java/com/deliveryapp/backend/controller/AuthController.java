@@ -32,13 +32,16 @@ public class AuthController {
     @Autowired
     private TokenService tokenService;
 
+    @Autowired
+    private com.deliveryapp.backend.repository.UserRepository userRepository;
+
     /**
      * Entry point for customer registration / first-time login.
      * Generates and sends a 6-digit OTP via AWS SNS SMS.
      */
     @PostMapping("/register")
     public ResponseEntity<OtpResponse> register(@Valid @RequestBody SendOtpRequest request) {
-        return sendOtpInternal(request);
+        return handleSignUpFlow(request);
     }
 
     /**
@@ -46,6 +49,31 @@ public class AuthController {
      */
     @PostMapping("/send-otp")
     public ResponseEntity<OtpResponse> sendOtp(@Valid @RequestBody SendOtpRequest request) {
+        return handleSignUpFlow(request);
+    }
+
+    /**
+     * Entry point for customer login.
+     * Generates and sends a 6-digit OTP only if the user already exists.
+     */
+    @PostMapping("/login/send-otp")
+    public ResponseEntity<OtpResponse> loginSendOtp(@Valid @RequestBody SendOtpRequest request) {
+        return handleLoginFlow(request);
+    }
+
+    private ResponseEntity<OtpResponse> handleSignUpFlow(SendOtpRequest request) {
+        if (userRepository.findByMobile(request.getMobileNumber()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new OtpResponse(HttpStatus.CONFLICT.value(), "User already exists, please login."));
+        }
+        return sendOtpInternal(request);
+    }
+
+    private ResponseEntity<OtpResponse> handleLoginFlow(SendOtpRequest request) {
+        if (userRepository.findByMobile(request.getMobileNumber()).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new OtpResponse(HttpStatus.NOT_FOUND.value(), "Account not found, please sign up."));
+        }
         return sendOtpInternal(request);
     }
 
