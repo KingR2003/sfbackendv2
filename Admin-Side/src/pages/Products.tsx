@@ -539,6 +539,7 @@ const Products = () => {
   const [editImages, setEditImages] = useState<string[]>([]);
   const [editIsActive, setEditIsActive] = useState<boolean>(true);
   const [editDragOver, setEditDragOver] = useState<boolean>(false);
+  const [isSavingVariantEdit, setIsSavingVariantEdit] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; actionLabel: string; onConfirm: () => void; isDestructive?: boolean } | null>(null);
 
   // Image Lightbox State
@@ -1725,34 +1726,97 @@ const Products = () => {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    if (selectedVariant) {
-                      const updatedProducts = products.map(p => ({
-                        ...p,
-                        variants: p.variants.map(v =>
-                          v.id === selectedVariant.id
-                            ? {
-                              ...v,
-                              variant_name: editVariantName || v.variant_name,
-                              sku: editSku || v.sku,
-                              mrp: editMrp ? Number(editMrp) : v.mrp,
-                              discount: editDiscount ? Number(editDiscount) : v.discount,
-                              price: Number(editPrice),
-                              stock_quantity: Number(editStock),
-                              images: editImages,
-                              image: editImages[0] || "",
-                              is_active: editIsActive,
-                            }
-                            : v
-                        )
+                  disabled={isSavingVariantEdit}
+                  onClick={async () => {
+                    if (!selectedVariant) return;
+
+                    const parsedPrice = Number(editPrice);
+                    const parsedStock = Number(editStock);
+                    if (!Number.isFinite(parsedPrice) || parsedPrice < 0 || !Number.isFinite(parsedStock) || parsedStock < 0) {
+                      toast({
+                        title: "Validation Error",
+                        description: "Price and stock must be valid non-negative numbers.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+
+                    const parentProduct = products.find(p => p.variants.some(v => v.id === selectedVariant.id));
+                    if (!parentProduct) {
+                      toast({ title: "Error", description: "Unable to locate product for this variant.", variant: "destructive" });
+                      return;
+                    }
+
+                    const updatedVariants = parentProduct.variants.map(v => {
+                      if (v.id !== selectedVariant.id) return v;
+                      const nextStock = parsedStock;
+                      return {
+                        ...v,
+                        variant_name: editVariantName || v.variant_name,
+                        sku: editSku || v.sku,
+                        mrp: editMrp ? Number(editMrp) : v.mrp,
+                        discount: editDiscount ? Number(editDiscount) : v.discount,
+                        price: parsedPrice,
+                        stock_quantity: nextStock,
+                        availability_status: nextStock <= 0 ? "Out of Stock" : nextStock <= 30 ? "Low Stock" : "In Stock",
+                        images: editImages,
+                        image: editImages[0] || "",
+                        is_active: editIsActive,
+                      };
+                    });
+
+                    const updatedProductIsActive = updatedVariants.some(v => v.is_active);
+
+                    try {
+                      setIsSavingVariantEdit(true);
+                      const categoryId = await resolveCategoryIdForProduct(parentProduct);
+                      if (!categoryId) {
+                        throw new Error("Category is required and must be valid.");
+                      }
+
+                      const fd = new FormData();
+                      fd.append("product", JSON.stringify({
+                        name: parentProduct.name,
+                        description: parentProduct.description,
+                        isActive: updatedProductIsActive,
+                        categoryId,
+                        images: (parentProduct.images || []).map(url => ({ imageUrl: url })),
+                        variants: updatedVariants.map(v => ({
+                          id: v.id,
+                          variantName: v.variant_name,
+                          sku: v.sku,
+                          mrp: v.mrp,
+                          price: v.price,
+                          discount: v.discount,
+                          stockQuantity: v.stock_quantity,
+                          availabilityStatus: v.availability_status,
+                          isActive: v.is_active,
+                          images: (v.images || []).filter(url => !String(url).startsWith("blob:")).map(url => ({ imageUrl: url })),
+                        })),
                       }));
-                      setProducts(updatedProducts);
+
+                      await updateProduct(parentProduct.id, fd);
+
+                      setProducts(prev => prev.map(p =>
+                        p.id === parentProduct.id
+                          ? { ...p, is_active: updatedProductIsActive, variants: updatedVariants }
+                          : p
+                      ));
                       setShowEditVariantModal(false);
+                      toast({ title: "Updated", description: "Variant changes saved successfully." });
+                    } catch (err: any) {
+                      toast({
+                        title: "Error",
+                        description: err?.message || "Failed to save variant changes.",
+                        variant: "destructive"
+                      });
+                    } finally {
+                      setIsSavingVariantEdit(false);
                     }
                   }}
-                  className="w-full mt-2 px-4 py-3 rounded-xl gradient-green text-primary-foreground font-semibold text-sm green-glow-sm shadow-lg flex items-center justify-center gap-2"
+                  className="w-full mt-2 px-4 py-3 rounded-xl gradient-green text-primary-foreground font-semibold text-sm green-glow-sm shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Save className="w-4 h-4" /> Save Changes
+                  <Save className="w-4 h-4" /> {isSavingVariantEdit ? "Saving..." : "Save Changes"}
                 </motion.button>
               </div>
             </motion.div>

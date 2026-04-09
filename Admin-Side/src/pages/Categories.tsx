@@ -13,8 +13,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { motion } from "framer-motion";
-import { Plus, Edit2, Boxes, CheckCircle2, CircleOff, ArrowRight } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import { Plus, Edit2, Boxes, CheckCircle2, CircleOff, ArrowRight, Upload, X } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Category, Product } from "@/data/mockData";
 import { Link } from "react-router-dom";
@@ -47,8 +47,11 @@ const Categories = () => {
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formIsActive, setFormIsActive] = useState(true);
+  const [formImageFile, setFormImageFile] = useState<File | null>(null);
+  const [formImagePreview, setFormImagePreview] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isStatusSyncing, setIsStatusSyncing] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [pendingStatusChange, setPendingStatusChange] = useState<{
     category: Category;
     nextStatus: boolean;
@@ -58,10 +61,46 @@ const Categories = () => {
     id: c.id,
     name: c.name,
     description: c.description || "",
-    image: c.image || "",
+    image: c.image || c.imageUrl || c.image_url || c.categoryImage || "",
     is_active: isCategoryActive(c),
     created_at: c.created_at ?? c.createdAt ?? "",
   });
+
+  const resetCategoryForm = () => {
+    setSelectedCategory(null);
+    setFormName("");
+    setFormDescription("");
+    setFormIsActive(true);
+    setFormImageFile(null);
+    setFormImagePreview("");
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  };
+
+  const handleCategoryImageChange = (file: File | null) => {
+    setFormImageFile(file);
+    if (!file) {
+      if (imageInputRef.current) {
+        imageInputRef.current.value = "";
+      }
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setFormImagePreview(String(event.target?.result ?? ""));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveCategoryImage = () => {
+    setFormImageFile(null);
+    setFormImagePreview("");
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  };
 
   const normalizeText = (value: unknown) => String(value ?? "").trim().toLowerCase();
   const doesProductBelongToCategory = (product: Product, category: Category) => {
@@ -77,24 +116,26 @@ const Categories = () => {
       .map((product) => product.id);
   };
 
+  const fetchCategoriesList = async () => {
+    const res: any = await getCategories();
+    const categories =
+      Array.isArray(res) ? res :
+      Array.isArray(res?.data) ? res.data :
+      Array.isArray(res?.categories) ? res.categories :
+      Array.isArray(res?.content) ? res.content :
+      Array.isArray(res?.data?.categories) ? res.data.categories :
+      Array.isArray(res?.data?.content) ? res.data.content :
+      [];
+    setCategoriesList(categories.map(normalizeCategory));
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoadingList(true);
       try {
-        const [catsResult, productsResult] = await Promise.allSettled([getCategories(), getProducts()]);
+        const [catsResult, productsResult] = await Promise.allSettled([fetchCategoriesList(), getProducts()]);
 
-        if (catsResult.status === "fulfilled") {
-          const res: any = catsResult.value;
-          const categories =
-            Array.isArray(res) ? res :
-            Array.isArray(res?.data) ? res.data :
-            Array.isArray(res?.categories) ? res.categories :
-            Array.isArray(res?.content) ? res.content :
-            Array.isArray(res?.data?.categories) ? res.data.categories :
-            Array.isArray(res?.data?.content) ? res.data.content :
-            [];
-          setCategoriesList(categories.map(normalizeCategory));
-        } else {
+        if (catsResult.status === "rejected") {
           setCategoriesList([]);
           console.error("Failed to fetch categories:", catsResult.reason);
           toast({
@@ -135,14 +176,16 @@ const Categories = () => {
     setFormName(category.name);
     setFormDescription(category.description || "");
     setFormIsActive(category.is_active ?? true);
+    setFormImageFile(null);
+    setFormImagePreview(category.image || "");
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
     setShowModal(true);
   };
 
   const handleAddCategory = () => {
-    setSelectedCategory(null);
-    setFormName("");
-    setFormDescription("");
-    setFormIsActive(true);
+    resetCategoryForm();
     setShowModal(true);
   };
 
@@ -226,12 +269,8 @@ const Categories = () => {
           description: formDescription,
           isActive: formIsActive,
         };
-        await updateCategory(selectedCategory.id, payload);
-        setCategoriesList(prev => prev.map(cat =>
-          cat.id === selectedCategory.id
-            ? { ...cat, name: formName, description: formDescription, is_active: formIsActive }
-            : cat
-        ));
+        await updateCategory(selectedCategory.id, payload, formImageFile);
+        await fetchCategoriesList();
         toast({
           title: "Success",
           description: `Category "${formName}" updated successfully!`,
@@ -245,18 +284,10 @@ const Categories = () => {
           description: formDescription,
           isActive: formIsActive,
         };
-        const res: any = await createCategory(payload);
+        const res: any = await createCategory(payload, formImageFile);
         
         if (res.success || res.id) {
-          const newCategory: Category = {
-            // @ts-ignore (handling possible id types from api response)
-            id: res.data?.id || res.id || Math.max(0, ...categoriesList.map(c => c.id)) + 1,
-            name: formName,
-            description: formDescription,
-            is_active: formIsActive,
-            created_at: new Date().toLocaleDateString()
-          };
-          setCategoriesList([...categoriesList, newCategory]);
+          await fetchCategoriesList();
           toast({
             title: "Success",
             description: `Category "${formName}" has been created successfully!`,
@@ -431,6 +462,15 @@ const Categories = () => {
                       transition={{ duration: 0.25 }}
                     >
                     <GlassCard className="p-0 overflow-hidden hover:scale-[1.02] transition-all duration-300 relative h-full flex flex-col justify-between border border-border/70 group-hover:border-primary/40">
+                    {cat.image ? (
+                      <div className="h-40 w-full overflow-hidden bg-muted/30">
+                        <img src={cat.image} alt={cat.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                      </div>
+                    ) : (
+                      <div className="h-40 w-full bg-gradient-to-br from-primary/10 via-muted/40 to-muted/20 flex items-center justify-center">
+                        <Boxes className="w-10 h-10 text-primary/60" />
+                      </div>
+                    )}
                     <div className={`h-1.5 w-full ${cat.is_active ? "bg-gradient-to-r from-green-500/70 to-primary/60" : "bg-gradient-to-r from-muted-foreground/40 to-muted-foreground/20"}`} />
                     <div className="p-5 flex-1">
                         <div className="flex justify-between items-start mb-4">
@@ -535,6 +575,38 @@ const Categories = () => {
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-strong shadow-elevated rounded-2xl p-6 w-full max-w-md relative z-10 mx-4">
             <h2 className="text-lg font-bold text-foreground mb-5">{selectedCategory ? "Edit Category" : "Add Category"}</h2>
             <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Category Image</label>
+                {formImagePreview ? (
+                  <div className="relative mb-3 overflow-hidden rounded-xl border border-border bg-muted/40">
+                    <img src={formImagePreview} alt="Category preview" className="h-44 w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={handleRemoveCategoryImage}
+                      className="absolute top-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="mb-3 flex h-44 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/70 bg-muted/30 text-center transition-colors hover:border-primary/60 hover:bg-primary/5"
+                  >
+                    <Upload className="mb-2 h-6 w-6 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">Upload category image</span>
+                    <span className="mt-1 text-[11px] text-muted-foreground">JPG, PNG or WebP</span>
+                  </button>
+                )}
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => handleCategoryImageChange(e.target.files?.[0] ?? null)}
+                />
+              </div>
               <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">Category Name</label>
                 <input
                   value={formName}
@@ -574,7 +646,10 @@ const Categories = () => {
             </div>
             <div className="flex gap-3 mt-6">
               <button 
-                onClick={() => setShowModal(false)} 
+                onClick={() => {
+                  setShowModal(false);
+                  resetCategoryForm();
+                }} 
                 disabled={isSaving || isStatusSyncing}
                 className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50">
                 Cancel

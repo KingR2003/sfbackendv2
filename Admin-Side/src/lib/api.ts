@@ -891,9 +891,12 @@ export async function getCategories() {
     return safeFetch(API_ENDPOINTS.GET_CATEGORIES_ADMIN, { method: "GET" });
 }
 
-export async function createCategory(data: any) {
+export async function createCategory(data: any, imageFile?: File | null) {
     const formData = new FormData();
     formData.append("category", JSON.stringify(data));
+    if (imageFile) {
+        formData.append("imageFile", imageFile);
+    }
 
     return safeFetch(API_ENDPOINTS.CREATE_CATEGORY, {
         method: "POST",
@@ -901,9 +904,12 @@ export async function createCategory(data: any) {
     });
 }
 
-export async function updateCategory(id: number | string, data: any) {
+export async function updateCategory(id: number | string, data: any, imageFile?: File | null) {
     const formData = new FormData();
     formData.append("category", JSON.stringify(data));
+    if (imageFile) {
+        formData.append("image", imageFile);
+    }
 
     return safeFetch(API_ENDPOINTS.UPDATE_CATEGORY(id), {
         method: "PUT",
