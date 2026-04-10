@@ -4,6 +4,7 @@ import com.deliveryapp.backend.dto.SupportRequest;
 import com.deliveryapp.backend.dto.SupportResponse;
 import com.deliveryapp.backend.dto.GeneralQueryRequest;
 import com.deliveryapp.backend.dto.OrderQueryRequest;
+import com.deliveryapp.backend.dto.AdminSupportOrderDetailsResponse;
 import com.deliveryapp.backend.entity.Support;
 import com.deliveryapp.backend.entity.SupportImage;
 import com.deliveryapp.backend.entity.StatusLogSupport;
@@ -37,6 +38,9 @@ public class SupportService {
 
     @Autowired
     private S3Service s3Service;
+
+    @Autowired
+    private OrderService orderService;
 
     private void logStatusChange(Support support, TicketStatus newStatus) {
         StatusLogSupport log = new StatusLogSupport();
@@ -181,5 +185,61 @@ public class SupportService {
                 support.getCreatedAt(),
                 imageUrls
         );
+    }
+
+    public AdminSupportOrderDetailsResponse getSupportWithOrderDetails(String ticketId) {
+        Support support = supportRepository.findByTicketId(ticketId);
+        if (support == null) {
+            throw new RuntimeException("Support ticket not found");
+        }
+
+        List<String> imageUrls = support.getImages().stream()
+                .map(SupportImage::getImageUrl)
+                .collect(Collectors.toList());
+
+        if (support.getOrderId() == null) {
+            return AdminSupportOrderDetailsResponse.fromSupportAndOrder(
+                    support, null, null, null, null, imageUrls);
+        }
+
+        try {
+            Long orderId = Long.parseLong(support.getOrderId());
+            com.deliveryapp.backend.dto.OrderDetailsResponse orderDetails = orderService.getOrderDetailsWithItems(orderId);
+
+            return AdminSupportOrderDetailsResponse.fromSupportAndOrder(
+                    support,
+                    orderDetails.getOrder(),
+                    orderDetails.getCustomer(),
+                    orderDetails.getShippingAddress(),
+                    orderDetails.getItems(),
+                    imageUrls);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Invalid order ID format");
+        }
+    }
+
+    public List<AdminSupportOrderDetailsResponse> getSupportTicketsByOrderId(String orderId) {
+        List<Support> supports = supportRepository.findByOrderId(orderId);
+
+        try {
+            Long orderIdLong = Long.parseLong(orderId);
+            com.deliveryapp.backend.dto.OrderDetailsResponse orderDetails = orderService.getOrderDetailsWithItems(orderIdLong);
+
+            return supports.stream().map(support -> {
+                List<String> imageUrls = support.getImages().stream()
+                        .map(SupportImage::getImageUrl)
+                        .collect(Collectors.toList());
+
+                return AdminSupportOrderDetailsResponse.fromSupportAndOrder(
+                        support,
+                        orderDetails.getOrder(),
+                        orderDetails.getCustomer(),
+                        orderDetails.getShippingAddress(),
+                        orderDetails.getItems(),
+                        imageUrls);
+            }).collect(Collectors.toList());
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Invalid order ID format");
+        }
     }
 }
