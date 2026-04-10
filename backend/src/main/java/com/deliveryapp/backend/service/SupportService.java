@@ -2,9 +2,16 @@ package com.deliveryapp.backend.service;
 
 import com.deliveryapp.backend.dto.SupportRequest;
 import com.deliveryapp.backend.dto.SupportResponse;
+import com.deliveryapp.backend.dto.GeneralQueryRequest;
+import com.deliveryapp.backend.dto.OrderQueryRequest;
 import com.deliveryapp.backend.entity.Support;
 import com.deliveryapp.backend.entity.SupportImage;
+import com.deliveryapp.backend.entity.StatusLogSupport;
+import com.deliveryapp.backend.entity.TicketStatus;
+import com.deliveryapp.backend.entity.User;
 import com.deliveryapp.backend.repository.SupportRepository;
+import com.deliveryapp.backend.repository.StatusLogSupportRepository;
+import com.deliveryapp.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,9 +30,86 @@ public class SupportService {
     private SupportRepository supportRepository;
 
     @Autowired
+    private StatusLogSupportRepository statusLogSupportRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
     private S3Service s3Service;
 
+    private void logStatusChange(Support support, TicketStatus newStatus) {
+        StatusLogSupport log = new StatusLogSupport();
+        log.setSupportId(support.getId());
+        log.setStatus(newStatus);
+        statusLogSupportRepository.save(log);
+    }
+
     @Transactional
+    public SupportResponse createGeneralQuery(GeneralQueryRequest request, List<MultipartFile> images) {
+        Support support = new Support();
+        support.setTicketId(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        support.setName(request.getName());
+        support.setEmail(request.getEmail());
+        support.setSubject(request.getSubject());
+        support.setMessage(request.getMessage());
+        support.setStatus(TicketStatus.OPEN);
+
+        if (images != null && !images.isEmpty()) {
+            for (MultipartFile file : images) {
+                if (!file.isEmpty()) {
+                    try {
+                        String imageUrl = s3Service.uploadFile(file.getBytes(), file.getOriginalFilename(), file.getContentType());
+                        SupportImage image = new SupportImage();
+                        image.setImageUrl(imageUrl);
+                        image.setSupport(support);
+                        support.getImages().add(image);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to upload image to S3", e);
+                    }
+                }
+            }
+        }
+
+        Support savedSupport = supportRepository.save(support);
+        logStatusChange(savedSupport, TicketStatus.OPEN);
+        return mapToResponse(savedSupport);
+    }
+
+    @Transactional
+    public SupportResponse createOrderQuery(String userEmail, OrderQueryRequest request, List<MultipartFile> images) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Support support = new Support();
+        support.setTicketId(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        support.setName(user.getName());
+        support.setEmail(user.getEmail());
+        support.setSubject(request.getSubject());
+        support.setMessage(request.getDescription());
+        support.setStatus(TicketStatus.OPEN);
+
+        if (images != null && !images.isEmpty()) {
+            for (MultipartFile file : images) {
+                if (!file.isEmpty()) {
+                    try {
+                        String imageUrl = s3Service.uploadFile(file.getBytes(), file.getOriginalFilename(), file.getContentType());
+                        SupportImage image = new SupportImage();
+                        image.setImageUrl(imageUrl);
+                        image.setSupport(support);
+                        support.getImages().add(image);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to upload image to S3", e);
+                    }
+                }
+            }
+        }
+
+        Support savedSupport = supportRepository.save(support);
+        logStatusChange(savedSupport, TicketStatus.OPEN);
+        return mapToResponse(savedSupport);
+    }
+
     public SupportResponse createSupportTicket(SupportRequest request, List<MultipartFile> images) {
         Support support = new Support();
         support.setTicketId(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
@@ -69,13 +153,16 @@ public class SupportService {
         return mapToResponse(support);
     }
 
+    @Transactional
     public SupportResponse updateStatus(String ticketId, com.deliveryapp.backend.dto.UpdateTicketStatusRequest request) {
         Support support = supportRepository.findByTicketId(ticketId);
         if (support == null) {
             throw new RuntimeException("Support ticket not found");
         }
         support.setStatus(request.getStatus());
-        return mapToResponse(supportRepository.save(support));
+        Support savedSupport = supportRepository.save(support);
+        logStatusChange(savedSupport, request.getStatus());
+        return mapToResponse(savedSupport);
     }
 
     private SupportResponse mapToResponse(Support support) {
