@@ -17,6 +17,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,6 +29,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class SupportService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SupportService.class);
+
 
     @Autowired
     private SupportRepository supportRepository;
@@ -82,9 +88,29 @@ public class SupportService {
 
     @Transactional
     public SupportResponse createOrderQuery(String username, OrderQueryRequest request, List<MultipartFile> images) {
+        logger.info("Attempting to create order query for username: {}", username);
+        
         User user = userRepository.findByEmail(username)
-                .orElseGet(() -> userRepository.findByMobile(username)
-                        .orElseThrow(() -> new RuntimeException("User not found")));
+                .or(() -> {
+                    logger.info("User not found by email, trying by mobile: {}", username);
+                    return userRepository.findByMobile(username);
+                })
+                .or(() -> {
+                    try {
+                        logger.info("User not found by email or mobile, checking if username is an ID: {}", username);
+                        Long id = Long.parseLong(username);
+                        return userRepository.findById(id);
+                    } catch (NumberFormatException e) {
+                        return java.util.Optional.empty();
+                    }
+                })
+                .orElseThrow(() -> {
+                    logger.error("User lookup failed for username: {}", username);
+                    return new RuntimeException("User not found");
+                });
+
+        logger.info("Successfully loaded user for order query - ID: {}, Name: {}, Mobile: {}, Status: {}, Role: {}", 
+                user.getId(), user.getName(), user.getMobile(), user.getStatus(), user.getRole());
 
         Support support = new Support();
         support.setTicketId(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
