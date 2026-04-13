@@ -15,4 +15,6 @@ public class OrderQueryRequest {
 
     @NotBlank(message = "Description is required")
     private String description;
+
+    private String orderId;
 }
