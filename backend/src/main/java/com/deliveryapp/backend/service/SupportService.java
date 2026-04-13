@@ -81,9 +81,10 @@ public class SupportService {
     }
 
     @Transactional
-    public SupportResponse createOrderQuery(String userEmail, OrderQueryRequest request, List<MultipartFile> images) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public SupportResponse createOrderQuery(String username, OrderQueryRequest request, List<MultipartFile> images) {
+        User user = userRepository.findByEmail(username)
+                .orElseGet(() -> userRepository.findByMobile(username)
+                        .orElseThrow(() -> new RuntimeException("User not found")));
 
         Support support = new Support();
         support.setTicketId(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
@@ -91,6 +92,7 @@ public class SupportService {
         support.setEmail(user.getEmail());
         support.setSubject(request.getSubject());
         support.setMessage(request.getDescription());
+        support.setOrderId(request.getOrderId());
         support.setStatus(TicketStatus.OPEN);
 
         if (images != null && !images.isEmpty()) {
