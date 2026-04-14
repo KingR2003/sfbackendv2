@@ -15,4 +15,6 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     BigDecimal calculateTotalRevenue();
 
     List<OrderEntity> findByUserId(Long userId);
+
+    List<OrderEntity> findByCreatedAtAfter(java.time.LocalDateTime date);
 }
