@@ -19,32 +19,20 @@ public class AdminSupportController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<com.deliveryapp.backend.dto.DataResponse<List<SupportResponse>>> getAllSupportTickets() {
+    public ResponseEntity<com.deliveryapp.backend.dto.DataResponse<List<AdminSupportOrderDetailsResponse>>> getSupportTickets(
+            @RequestParam(required = false) String ticketId,
+            @RequestParam(required = false) String orderId
+    ) {
+        List<AdminSupportOrderDetailsResponse> response;
+        if (ticketId != null) {
+            response = List.of(supportService.getSupportWithOrderDetails(ticketId));
+        } else if (orderId != null) {
+            response = supportService.getSupportTicketsByOrderId(orderId);
+        } else {
+            response = supportService.getAllSupportTicketsWithOrderDetails();
+        }
         return ResponseEntity.ok(
-                new com.deliveryapp.backend.dto.DataResponse<>(org.springframework.http.HttpStatus.OK.value(), "Support tickets retrieved successfully", supportService.getAllSupportTickets()));
-    }
-
-    @GetMapping("/{ticketId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<com.deliveryapp.backend.dto.DataResponse<SupportResponse>> getSupportTicket(@PathVariable String ticketId) {
-        return ResponseEntity.ok(
-                new com.deliveryapp.backend.dto.DataResponse<>(org.springframework.http.HttpStatus.OK.value(), "Support ticket retrieved successfully", supportService.getSupportTicketById(ticketId)));
-    }
-
-    @GetMapping("/{ticketId}/with-order")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<com.deliveryapp.backend.dto.DataResponse<AdminSupportOrderDetailsResponse>> getSupportWithOrderDetails(@PathVariable String ticketId) {
-        AdminSupportOrderDetailsResponse response = supportService.getSupportWithOrderDetails(ticketId);
-        return ResponseEntity.ok(
-                new com.deliveryapp.backend.dto.DataResponse<>(org.springframework.http.HttpStatus.OK.value(), "Support ticket with order details retrieved successfully", response));
-    }
-
-    @GetMapping("/order/{orderId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<com.deliveryapp.backend.dto.DataResponse<List<AdminSupportOrderDetailsResponse>>> getSupportTicketsByOrderId(@PathVariable String orderId) {
-        List<AdminSupportOrderDetailsResponse> response = supportService.getSupportTicketsByOrderId(orderId);
-        return ResponseEntity.ok(
-                new com.deliveryapp.backend.dto.DataResponse<>(org.springframework.http.HttpStatus.OK.value(), "Support tickets for order retrieved successfully", response));
+                new com.deliveryapp.backend.dto.DataResponse<>(org.springframework.http.HttpStatus.OK.value(), "Support tickets retrieved successfully", response));
     }
 
     @PatchMapping("/{ticketId}/status")
