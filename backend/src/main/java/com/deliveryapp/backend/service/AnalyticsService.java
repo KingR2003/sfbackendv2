@@ -7,6 +7,8 @@ import com.deliveryapp.backend.dto.DemographicReportDto;
 import com.deliveryapp.backend.dto.FunnelReportDto;
 import com.deliveryapp.backend.dto.OrderStatusReportDto;
 import com.deliveryapp.backend.dto.BannerAnalyticsDto;
+import com.deliveryapp.backend.dto.PaymentRefundReportDto;
+import com.deliveryapp.backend.dto.InventoryReportDto;
 
 public interface AnalyticsService {
     AnalyticsDashboardDto getDashboardMetrics();
@@ -16,4 +18,6 @@ public interface AnalyticsService {
     FunnelReportDto getFunnelReport(int days);
     OrderStatusReportDto getOrderStatusReport(int days);
     BannerAnalyticsDto getBannerAnalytics(int days);
+    PaymentRefundReportDto getPaymentRefundReport(int days);
+    InventoryReportDto getInventoryReport(int days);
 }
