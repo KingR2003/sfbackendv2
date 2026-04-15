@@ -171,10 +171,33 @@ public class SupportService {
         return mapToResponse(savedSupport);
     }
 
-    public List<SupportResponse> getAllSupportTickets() {
-        return supportRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    public List<AdminSupportOrderDetailsResponse> getAllSupportTicketsWithOrderDetails() {
+        return supportRepository.findAll().stream().map(support -> {
+            List<String> imageUrls = support.getImages().stream()
+                    .map(SupportImage::getImageUrl)
+                    .collect(Collectors.toList());
+
+            if (support.getOrderId() == null) {
+                return AdminSupportOrderDetailsResponse.fromSupportAndOrder(
+                        support, null, null, null, null, imageUrls);
+            }
+
+            try {
+                Long orderId = Long.parseLong(support.getOrderId());
+                com.deliveryapp.backend.dto.OrderDetailsResponse orderDetails = orderService.getOrderDetailsWithItems(orderId);
+
+                return AdminSupportOrderDetailsResponse.fromSupportAndOrder(
+                        support,
+                        orderDetails.getOrder(),
+                        orderDetails.getCustomer(),
+                        orderDetails.getShippingAddress(),
+                        orderDetails.getItems(),
+                        imageUrls);
+            } catch (Exception e) {
+                return AdminSupportOrderDetailsResponse.fromSupportAndOrder(
+                        support, null, null, null, null, imageUrls);
+            }
+        }).collect(Collectors.toList());
     }
 
     public SupportResponse getSupportTicketById(String ticketId) {

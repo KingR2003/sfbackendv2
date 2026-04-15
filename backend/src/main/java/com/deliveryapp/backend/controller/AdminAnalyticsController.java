@@ -74,4 +74,20 @@ public class AdminAnalyticsController {
             @RequestParam(value = "days", defaultValue = "30") int days) {
         return ResponseEntity.ok(analyticsService.getBannerAnalytics(days));
     }
+
+    @Operation(summary = "Get Payment & Refund Report", description = "Retrieves payment methods, refund analytics, and transaction status.")
+    @GetMapping("/payment-refund")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PaymentRefundReportDto> getPaymentRefundReport(
+            @RequestParam(value = "days", defaultValue = "30") int days) {
+        return ResponseEntity.ok(analyticsService.getPaymentRefundReport(days));
+    }
+
+    @Operation(summary = "Get Inventory Report", description = "Retrieves stock levels, inventory movement, and reorder information.")
+    @GetMapping("/inventory")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<InventoryReportDto> getInventoryReport(
+            @RequestParam(value = "days", defaultValue = "30") int days) {
+        return ResponseEntity.ok(analyticsService.getInventoryReport(days));
+    }
 }
