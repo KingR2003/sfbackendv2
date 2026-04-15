@@ -1,0 +1,910 @@
+{
+  "controllers": [
+    {
+      "name": "AddressController",
+      "basePath": "/api/v1/addresses",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/addresses",
+          "methodName": "addAddress",
+          "description": "Add a new address for authenticated user",
+          "requestBody": "Address",
+          "responseBody": "{ status, message, address }"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/addresses",
+          "methodName": "getAddressesByUserId",
+          "description": "Get all addresses for authenticated user",
+          "responseBody": "{ status, message, addresses }"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/addresses/customer/{userId}",
+          "methodName": "getAddressesByCustomerUserId",
+          "description": "Get addresses for a customer (Admin only)",
+          "pathParameters": ["userId"],
+          "responseBody": "{ status, message, addresses }"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/addresses/{id}",
+          "methodName": "getAddressById",
+          "description": "Get a specific address by ID",
+          "pathParameters": ["id"],
+          "responseBody": "{ status, message, address }"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/addresses/{id}",
+          "methodName": "updateAddress",
+          "description": "Update an address",
+          "pathParameters": ["id"],
+          "requestBody": "Address",
+          "responseBody": "{ status, message, address }"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/addresses/{id}",
+          "methodName": "deleteAddress",
+          "description": "Delete an address",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/addresses/{id}/default",
+          "methodName": "setDefaultAddress",
+          "description": "Set an address as default for authenticated user",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "AdminAnalyticsController",
+      "basePath": "/api/v1/admin/analytics",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/analytics/dashboard",
+          "methodName": "getDashboardMetrics",
+          "description": "Get dashboard metrics (Admin only)",
+          "authorization": "ROLE_ADMIN",
+          "responseBody": "AnalyticsDashboardDto"
+        }
+      ]
+    },
+    {
+      "name": "AdminAuthController",
+      "basePath": "/api/v1/admin/auth",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/auth/register",
+          "methodName": "register",
+          "description": "Register a new admin (requires secret key)",
+          "requestBody": "AdminRegisterRequest",
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/auth/login",
+          "methodName": "login",
+          "description": "Admin login with email and password",
+          "requestBody": "LoginRequest",
+          "responseBody": "LoginResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/auth/logout",
+          "methodName": "logout",
+          "description": "Admin logout",
+          "headers": ["Authorization (optional)"],
+          "responseBody": "ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "AdminCategoryController",
+      "basePath": "/api/v1/admin/categories",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/categories",
+          "methodName": "getAllCategories",
+          "description": "Get all categories (admin view)",
+          "responseBody": "DataResponse<List<Category>>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/categories/{id}",
+          "methodName": "getCategoryById",
+          "description": "Get a specific category",
+          "pathParameters": ["id"],
+          "responseBody": "DataResponse<Category> or ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/categories",
+          "methodName": "createCategory",
+          "description": "Create a new category with image",
+          "requestBody": "multipart/form-data (category JSON + image file)",
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/categories/{id}",
+          "methodName": "updateCategory",
+          "description": "Update a category with optional image",
+          "pathParameters": ["id"],
+          "requestBody": "multipart/form-data (category JSON + image file)",
+          "responseBody": "DataResponse<Category> or ApiResponse"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/categories/{id}",
+          "methodName": "deleteCategory",
+          "description": "Delete a category",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "AdminCouponController",
+      "basePath": "/api/v1/admin/coupons",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/coupons",
+          "methodName": "createCoupon",
+          "description": "Create a new coupon",
+          "requestBody": "CouponRequest",
+          "responseBody": "{ status, message, coupon }"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/coupons",
+          "methodName": "getAllCoupons",
+          "description": "Get all coupons",
+          "responseBody": "{ status, message, coupons }"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/coupons/{id}",
+          "methodName": "getCouponById",
+          "description": "Get a specific coupon",
+          "pathParameters": ["id"],
+          "responseBody": "{ status, message, coupon }"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/coupons/{id}",
+          "methodName": "updateCoupon",
+          "description": "Update a coupon",
+          "pathParameters": ["id"],
+          "requestBody": "CouponRequest",
+          "responseBody": "{ status, message, coupon }"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/coupons/{id}",
+          "methodName": "deleteCoupon",
+          "description": "Delete a coupon",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "AdminMemberController",
+      "basePath": "/api/v1/admin/members",
+      "authorization": "ROLE_ADMIN",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/members",
+          "methodName": "getAllMembers",
+          "description": "Get all admin/manager/staff members",
+          "responseBody": "{ status, message, admins }"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/members/{id}",
+          "methodName": "deleteUser",
+          "description": "Deactivate a member (soft delete)",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/members/{id}/status",
+          "methodName": "updateMemberStatus",
+          "description": "Update member status (ACTIVE, PENDING, BLOCKED)",
+          "pathParameters": ["id"],
+          "requestBody": "{ status }",
+          "responseBody": "{ status, message, member }"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/members/{id}/activate",
+          "methodName": "activateUser",
+          "description": "Activate a member",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/members/{id}/deactivate",
+          "methodName": "deactivateUser",
+          "description": "Deactivate a member",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/members",
+          "methodName": "createMember",
+          "description": "Create a new admin/manager/staff member",
+          "requestBody": "AdminUserUpdateRequest",
+          "responseBody": "{ status, message, member }"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/members/{id}",
+          "methodName": "updateMember",
+          "description": "Update member details",
+          "pathParameters": ["id"],
+          "requestBody": "AdminUserUpdateRequest",
+          "responseBody": "{ status, message, member }"
+        }
+      ]
+    },
+    {
+      "name": "AdminOrderController",
+      "basePath": "/api/v1/admin/orders",
+      "authorization": "ROLE_ADMIN",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/orders",
+          "methodName": "getAllOrders",
+          "description": "Get all orders",
+          "responseBody": "{ status, message, orders }"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/orders/{id}/status",
+          "methodName": "updateOrderStatus",
+          "description": "Update order status (PROCESSING, PACKED, ON_THE_WAY, DELIVERED, CANCELLED)",
+          "pathParameters": ["id"],
+          "requestBody": "{ status }",
+          "responseBody": "{ status, message, order }"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/orders/{id}",
+          "methodName": "getOrderDetails",
+          "description": "Get detailed order information with items",
+          "pathParameters": ["id"],
+          "responseBody": "{ status, message, order, customer, shippingAddress, items }"
+        }
+      ]
+    },
+    {
+      "name": "AdminProductController",
+      "basePath": "/api/v1/admin/products",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/products",
+          "methodName": "getAllProducts",
+          "description": "Get all products (admin view)",
+          "responseBody": "DataResponse<List<ProductResponse>>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/products/{id}",
+          "methodName": "getProductById",
+          "description": "Get a specific product",
+          "pathParameters": ["id"],
+          "responseBody": "DataResponse<ProductResponse> or ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/products",
+          "methodName": "createProduct",
+          "description": "Create a new product with images and variants",
+          "requestBody": "multipart/form-data (product JSON + image files)",
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/products/{id}",
+          "methodName": "updateProduct",
+          "description": "Update a product with optional images",
+          "pathParameters": ["id"],
+          "requestBody": "multipart/form-data (product JSON + image files)",
+          "responseBody": "DataResponse<ProductResponse> or ApiResponse"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/admin/products/{id}/toggle",
+          "methodName": "toggleActive",
+          "description": "Toggle product active/inactive status",
+          "pathParameters": ["id"],
+          "responseBody": "DataResponse<ProductResponse> or ApiResponse"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/products/{id}",
+          "methodName": "deleteProduct",
+          "description": "Delete a product",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/products/{id}/upload-image",
+          "methodName": "uploadProductImage",
+          "description": "Upload an image for a product",
+          "pathParameters": ["id"],
+          "requestBody": "multipart/form-data (file)",
+          "responseBody": "DataResponse<imageUrl> or ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "AdminSupportController",
+      "basePath": "/api/v1/admin/support",
+      "authorization": "ROLE_ADMIN",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/support",
+          "methodName": "getAllSupportTickets",
+          "description": "Get all support tickets",
+          "responseBody": "DataResponse<List<SupportResponse>>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/support/{ticketId}",
+          "methodName": "getSupportTicket",
+          "description": "Get a specific support ticket",
+          "pathParameters": ["ticketId"],
+          "responseBody": "DataResponse<SupportResponse>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/support/{ticketId}/with-order",
+          "methodName": "getSupportWithOrderDetails",
+          "description": "Get support ticket with order details",
+          "pathParameters": ["ticketId"],
+          "responseBody": "DataResponse<AdminSupportOrderDetailsResponse>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/support/order/{orderId}",
+          "methodName": "getSupportTicketsByOrderId",
+          "description": "Get all support tickets for an order",
+          "pathParameters": ["orderId"],
+          "responseBody": "DataResponse<List<AdminSupportOrderDetailsResponse>>"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/admin/support/{ticketId}/status",
+          "methodName": "updateStatus",
+          "description": "Update support ticket status",
+          "pathParameters": ["ticketId"],
+          "requestBody": "UpdateTicketStatusRequest",
+          "responseBody": "DataResponse<SupportResponse>"
+        }
+      ]
+    },
+    {
+      "name": "AdminUserDataController",
+      "basePath": "/api/v1/admin/users",
+      "authorization": "ROLE_ADMIN",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/users/{userId}/cart",
+          "methodName": "getUserCart",
+          "description": "Get cart for a specific user",
+          "pathParameters": ["userId"],
+          "responseBody": "{ status, message, userId, cart }"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/users/{userId}/orders",
+          "methodName": "getUserOrders",
+          "description": "Get all orders for a specific user",
+          "pathParameters": ["userId"],
+          "responseBody": "{ status, message, userId, orders, count }"
+        }
+      ]
+    },
+    {
+      "name": "AuthController",
+      "basePath": "/api/v1/auth",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/register",
+          "methodName": "register",
+          "description": "Customer registration - send OTP to mobile",
+          "requestBody": "SendOtpRequest",
+          "responseBody": "OtpResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/send-otp",
+          "methodName": "sendOtp",
+          "description": "Send OTP to mobile (alias for register)",
+          "requestBody": "SendOtpRequest",
+          "responseBody": "OtpResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "methodName": "login",
+          "description": "Customer login - verify OTP and get JWT",
+          "requestBody": "VerifyOtpRequest",
+          "responseBody": "OtpResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/verify-otp",
+          "methodName": "verifyOtp",
+          "description": "Verify OTP (alias for login)",
+          "requestBody": "VerifyOtpRequest",
+          "responseBody": "OtpResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/logout",
+          "methodName": "logout",
+          "description": "Customer logout",
+          "headers": ["Authorization (optional)"],
+          "responseBody": "ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "BannerController",
+      "basePath": "/api/v1",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/banners/active",
+          "methodName": "getActiveBanners",
+          "description": "Get active banners with optional filters",
+          "queryParameters": ["platform (optional)", "gender (optional)"],
+          "responseBody": "List<BannerDto>"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/banners/{id}/view",
+          "methodName": "incrementViews",
+          "description": "Increment view count for a banner",
+          "pathParameters": ["id"],
+          "responseBody": "void"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/banners/{id}/click",
+          "methodName": "incrementClicks",
+          "description": "Increment click count for a banner",
+          "pathParameters": ["id"],
+          "responseBody": "void"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/banners",
+          "methodName": "getAllBanners",
+          "description": "Get all banners (Admin only)",
+          "authorization": "ROLE_ADMIN",
+          "responseBody": "List<BannerDto>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/banners/{id}",
+          "methodName": "getBannerById",
+          "description": "Get a specific banner (Admin only)",
+          "authorization": "ROLE_ADMIN",
+          "pathParameters": ["id"],
+          "responseBody": "BannerDto"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/banners",
+          "methodName": "createBanner",
+          "description": "Create a new banner (Admin only)",
+          "authorization": "ROLE_ADMIN",
+          "requestBody": "BannerCreateRequest",
+          "responseBody": "BannerDto"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/banners/{id}",
+          "methodName": "updateBanner",
+          "description": "Update a banner (Admin only)",
+          "authorization": "ROLE_ADMIN",
+          "pathParameters": ["id"],
+          "requestBody": "BannerUpdateRequest",
+          "responseBody": "BannerDto"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/banners/{id}",
+          "methodName": "deleteBanner",
+          "description": "Delete a banner (Admin only)",
+          "authorization": "ROLE_ADMIN",
+          "pathParameters": ["id"],
+          "responseBody": "void"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/banners/{id}/upload-image",
+          "methodName": "uploadBannerImage",
+          "description": "Upload image for a banner (Admin only)",
+          "authorization": "ROLE_ADMIN",
+          "pathParameters": ["id"],
+          "requestBody": "multipart/form-data (file)",
+          "responseBody": "DataResponse<imageUrl> or ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "CartController",
+      "basePath": "/api/v1/cart",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/cart",
+          "methodName": "getCart",
+          "description": "Get cart for authenticated user",
+          "responseBody": "{ status, message, cart }"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/cart/add",
+          "methodName": "addToCart",
+          "description": "Add item to cart (or update quantity if exists)",
+          "requestBody": "CartItemRequest",
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/cart/{variantId}",
+          "methodName": "removeFromCart",
+          "description": "Remove item from cart",
+          "pathParameters": ["variantId"],
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/cart/clear",
+          "methodName": "clearCart",
+          "description": "Clear entire cart",
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/cart/increment/{variantId}",
+          "methodName": "incrementQuantity",
+          "description": "Increment quantity of item in cart",
+          "pathParameters": ["variantId"],
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/cart/decrement/{variantId}",
+          "methodName": "decrementQuantity",
+          "description": "Decrement quantity of item in cart",
+          "pathParameters": ["variantId"],
+          "responseBody": "ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "CategoryController",
+      "basePath": "/api/v1/categories",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/categories",
+          "methodName": "getAllCategories",
+          "description": "Get all categories",
+          "responseBody": "DataResponse<List<Category>>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/categories/{id}",
+          "methodName": "getCategoryById",
+          "description": "Get a specific category",
+          "pathParameters": ["id"],
+          "responseBody": "DataResponse<Category> or ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/categories",
+          "methodName": "createCategory",
+          "description": "Create a new category",
+          "requestBody": "multipart/form-data (category JSON + image file)",
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/categories/{id}",
+          "methodName": "updateCategory",
+          "description": "Update a category",
+          "pathParameters": ["id"],
+          "requestBody": "multipart/form-data (category JSON + image file)",
+          "responseBody": "DataResponse<Category> or ApiResponse"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/categories/{id}",
+          "methodName": "deleteCategory",
+          "description": "Delete a category",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "CheckoutController",
+      "basePath": "/api/v1/checkout",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/checkout",
+          "methodName": "checkout",
+          "description": "Place an order from cart (authenticated user)",
+          "requestBody": "CheckoutRequest",
+          "responseBody": "{ status, message, order } or ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "CouponController",
+      "basePath": "/api/v1/coupons",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/coupons",
+          "methodName": "getAvailableCoupons",
+          "description": "Get available coupons with optional platform filter",
+          "queryParameters": ["platform (optional)"],
+          "responseBody": "{ status, message, coupons }"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/coupons/{code}",
+          "methodName": "getCouponByCode",
+          "description": "Get coupon details by code",
+          "pathParameters": ["code"],
+          "responseBody": "{ status, message, coupon } or ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/coupons/verify",
+          "methodName": "verifyCoupon",
+          "description": "Verify coupon validity for authenticated user",
+          "requestBody": "CouponVerificationRequest",
+          "responseBody": "{ status, message, coupon } or ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "GoogleAuthController",
+      "basePath": "/api/v1/auth",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/google",
+          "methodName": "googleLogin",
+          "description": "Google sign-in (mobile and web)",
+          "requestBody": "GoogleAuthRequest",
+          "responseBody": "OtpResponse"
+        }
+      ]
+    },
+    {
+      "name": "HealthCheckController",
+      "basePath": "/api/v1/health",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "methodName": "health",
+          "description": "Health check endpoint",
+          "responseBody": "String"
+        }
+      ]
+    },
+    {
+      "name": "OrderController",
+      "basePath": "/api/v1/orders",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/orders",
+          "methodName": "getUserOrders",
+          "description": "Get all orders for authenticated user",
+          "responseBody": "{ status, message, orders }"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/orders/{id}",
+          "methodName": "getOrderDetails",
+          "description": "Get detailed information for a specific order",
+          "pathParameters": ["id"],
+          "responseBody": "{ status, message, order, customer, shippingAddress, items } or ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "ProductController",
+      "basePath": "/api/v1/products",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/products",
+          "methodName": "getAllProducts",
+          "description": "Get all products (public view)",
+          "responseBody": "DataResponse<List<ProductResponse>>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/products/{id}",
+          "methodName": "getProductById",
+          "description": "Get a specific product",
+          "pathParameters": ["id"],
+          "responseBody": "DataResponse<ProductResponse> or ApiResponse"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/products",
+          "methodName": "createProduct",
+          "description": "Create a new product with images",
+          "requestBody": "multipart/form-data (product JSON + image files)",
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/products/{id}",
+          "methodName": "updateProduct",
+          "description": "Update a product",
+          "pathParameters": ["id"],
+          "requestBody": "multipart/form-data (product JSON + image files)",
+          "responseBody": "DataResponse<ProductResponse> or ApiResponse"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/products/{id}",
+          "methodName": "deleteProduct",
+          "description": "Delete a product",
+          "pathParameters": ["id"],
+          "responseBody": "ApiResponse"
+        }
+      ]
+    },
+    {
+      "name": "SupportController",
+      "basePath": "/api/v1/support",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/support",
+          "methodName": "createSupportTicket",
+          "description": "Create a support ticket with optional images",
+          "requestBody": "multipart/form-data (SupportRequest + images)",
+          "responseBody": "DataResponse<SupportResponse>"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/support/general",
+          "methodName": "createGeneralQuery",
+          "description": "Create a general query",
+          "requestBody": "GeneralQueryRequest",
+          "responseBody": "DataResponse<SupportResponse>"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/support/order-query",
+          "methodName": "createOrderQuery",
+          "description": "Create an order-related query with optional images",
+          "requestBody": "multipart/form-data (OrderQueryRequest + image)",
+          "responseBody": "DataResponse<SupportResponse>"
+        }
+      ]
+    },
+    {
+      "name": "UserController",
+      "basePath": "/api/v1/users",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/users",
+          "methodName": "getAllUsers",
+          "description": "Get all customer users (Admin only)",
+          "authorization": "ROLE_ADMIN",
+          "responseBody": "{ status, message, users }"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/users/{id}/status",
+          "methodName": "updateUserStatus",
+          "description": "Update user status (Admin only)",
+          "authorization": "ROLE_ADMIN",
+          "pathParameters": ["id"],
+          "requestBody": "{ status }",
+          "responseBody": "{ status, message, user } or ApiResponse"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/users/profile",
+          "methodName": "getMyProfile",
+          "description": "Get authenticated user's profile",
+          "responseBody": "{ status, message, user } or ApiResponse"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/users/profile",
+          "methodName": "updateProfile",
+          "description": "Update authenticated user's profile",
+          "requestBody": "UpdateProfileRequest",
+          "responseBody": "{ status, message }"
+        }
+      ]
+    },
+    {
+      "name": "WishlistController",
+      "basePath": "/api/v1/wishlist",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/wishlist",
+          "methodName": "getWishlist",
+          "description": "Get wishlist for authenticated user",
+          "responseBody": "{ status, message, wishlist, count }"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/wishlist/add/{productId}",
+          "methodName": "addToWishlist",
+          "description": "Add product to wishlist",
+          "pathParameters": ["productId"],
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/wishlist/{productId}",
+          "methodName": "removeFromWishlist",
+          "description": "Remove product from wishlist",
+          "pathParameters": ["productId"],
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/wishlist/clear",
+          "methodName": "clearWishlist",
+          "description": "Clear entire wishlist",
+          "responseBody": "ApiResponse"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/wishlist/check/{productId}",
+          "methodName": "checkWishlist",
+          "description": "Check if product is in wishlist",
+          "pathParameters": ["productId"],
+          "responseBody": "{ status, productId, wishlisted }"
+        }
+      ]
+    }
+  ]
+}

@@ -13,4 +13,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     java.util.List<User> findByRole(String role);
 
     java.util.List<User> findByRoleIn(java.util.List<String> roles);
+
+    java.util.List<User> findByCreatedAtAfter(java.time.LocalDateTime date);
 }

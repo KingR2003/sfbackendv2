@@ -10,4 +10,5 @@ import java.util.List;
 public interface SupportRepository extends JpaRepository<Support, Long> {
     List<Support> findByEmail(String email);
     Support findByTicketId(String ticketId);
+    List<Support> findByOrderId(String orderId);
 }

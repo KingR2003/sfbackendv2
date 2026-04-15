@@ -8,6 +8,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import java.util.Collections;
 
@@ -26,19 +29,29 @@ import java.util.Collections;
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
+    private static final Logger logger = LoggerFactory.getLogger(CustomUserDetailsService.class);
+
+
     @Autowired
     private UserRepository userRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        logger.info("Loading user details for username: {}", username);
         // 1. Try by email (Admin path)
         User user = userRepository.findByEmail(username)
-                .orElseGet(() ->
+                .orElseGet(() -> {
+                    logger.info("User not found by email, trying by mobile: {}", username);
                     // 2. Fall back to mobile number (Customer OTP path)
-                    userRepository.findByMobile(username)
-                            .orElseThrow(() ->
-                                new UsernameNotFoundException("User not found with email or mobile: " + username))
-                );
+                    return userRepository.findByMobile(username)
+                            .orElseThrow(() -> {
+                                logger.error("User not found with email or mobile: {}", username);
+                                return new UsernameNotFoundException("User not found with email or mobile: " + username);
+                            });
+                });
+
+        logger.info("Successfully loaded user: {} (Role: {})", user.getEmail() != null ? user.getEmail() : user.getMobile(), user.getRole());
+
 
         // OTP customers have no password hash; use empty string so DaoAuthenticationProvider
         // will never succeed — effectively disabling password-based auth for CUSTOMER role.
