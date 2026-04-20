@@ -54,4 +54,8 @@ public class Support {
 
     @OneToMany(mappedBy = "support", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SupportImage> images = new ArrayList<>();
+
+    @OneToMany(mappedBy = "support", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private List<SupportMessage> messages = new ArrayList<>();
 }

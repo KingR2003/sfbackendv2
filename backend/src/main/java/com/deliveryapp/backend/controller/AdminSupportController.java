@@ -44,4 +44,23 @@ public class AdminSupportController {
         return ResponseEntity.ok(
                 new com.deliveryapp.backend.dto.DataResponse<>(org.springframework.http.HttpStatus.OK.value(), "Ticket status updated successfully", updated));
     }
+
+    @PostMapping("/{ticketId}/reply")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<com.deliveryapp.backend.dto.DataResponse<com.deliveryapp.backend.dto.SupportMessageDto>> replyToTicket(
+            @PathVariable String ticketId,
+            @jakarta.validation.Valid @RequestBody com.deliveryapp.backend.dto.AdminSupportReplyRequest request) {
+        com.deliveryapp.backend.dto.SupportMessageDto saved = supportService.respondToTicket(ticketId, request);
+        return ResponseEntity.ok(
+                new com.deliveryapp.backend.dto.DataResponse<>(org.springframework.http.HttpStatus.OK.value(), "Reply sent successfully", saved));
+    }
+
+    @GetMapping("/{ticketId}/messages")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<com.deliveryapp.backend.dto.DataResponse<java.util.List<com.deliveryapp.backend.dto.SupportMessageDto>>> getMessages(
+            @PathVariable String ticketId) {
+        java.util.List<com.deliveryapp.backend.dto.SupportMessageDto> messages = supportService.getMessages(ticketId);
+        return ResponseEntity.ok(
+                new com.deliveryapp.backend.dto.DataResponse<>(org.springframework.http.HttpStatus.OK.value(), "Messages retrieved successfully", messages));
+    }
 }
