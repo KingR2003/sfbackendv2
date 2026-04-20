@@ -11,6 +11,7 @@ import com.deliveryapp.backend.exception.OtpRateLimitException;
 import com.deliveryapp.backend.exception.TooManyOtpAttemptsException;
 import com.deliveryapp.backend.service.OtpService;
 import com.deliveryapp.backend.service.TokenService;
+import com.deliveryapp.backend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,9 @@ public class AuthController {
 
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private UserService userService;
 
     @Autowired
     private com.deliveryapp.backend.repository.UserRepository userRepository;
@@ -144,5 +148,68 @@ public class AuthController {
         }
         SecurityContextHolder.clearContext();
         return ResponseEntity.ok(new ApiResponse(200, "Logged out successfully"));
+    }
+
+    /**
+     * Start phone linking process for an authenticated user.
+     */
+    @PostMapping("/link-phone/send-otp")
+    public ResponseEntity<OtpResponse> linkPhoneSendOtp(@Valid @RequestBody SendOtpRequest request) {
+        // Ensure user is authenticated
+        org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new OtpResponse(HttpStatus.UNAUTHORIZED.value(), "User must be logged in to link a phone number."));
+        }
+
+        // Check if phone number is already in use
+        if (userRepository.findByMobile(request.getMobileNumber()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new OtpResponse(HttpStatus.CONFLICT.value(), "This phone number is already linked to another account."));
+        }
+
+        return sendOtpInternal(request);
+    }
+
+    /**
+     * Verify and finalize phone linking for an authenticated user.
+     */
+    @PostMapping("/link-phone/verify")
+    public ResponseEntity<OtpResponse> linkPhoneVerify(@Valid @RequestBody VerifyOtpRequest request) {
+        // Ensure user is authenticated
+        org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new OtpResponse(HttpStatus.UNAUTHORIZED.value(), "User must be logged in to verify a phone number."));
+        }
+
+        String identifier = auth.getName(); // Usually email for Google users
+
+        try {
+            // 1. Verify OTP
+            otpService.verifyOtp(request.getMobileNumber(), request.getOtpCode());
+
+            // 2. Link phone number to user
+            userService.updateMobile(identifier, request.getMobileNumber());
+
+            return ResponseEntity.ok(
+                    new OtpResponse(HttpStatus.OK.value(), "Phone number linked successfully.", null, false, null));
+
+        } catch (OtpExpiredException e) {
+            return ResponseEntity.status(HttpStatus.GONE)
+                    .body(new OtpResponse(HttpStatus.GONE.value(), e.getMessage()));
+
+        } catch (TooManyOtpAttemptsException e) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(new OtpResponse(HttpStatus.TOO_MANY_REQUESTS.value(), e.getMessage()));
+
+        } catch (InvalidOtpException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new OtpResponse(HttpStatus.BAD_REQUEST.value(), e.getMessage()));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new OtpResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Linking failed: " + e.getMessage()));
+        }
     }
 }

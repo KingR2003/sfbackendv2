@@ -28,4 +28,13 @@ public interface OtpService {
      * @return LoginResult containing JWT token, isNewUser flag, and user's name
      */
     LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode, String clientType, String name, HttpServletRequest httpRequest);
+
+    /**
+     * Purely verify the OTP for a mobile number.
+     *
+     * @param mobileNumber E.164 formatted mobile number
+     * @param otpCode      6-digit OTP supplied by the user
+     * @throws RuntimeException if verification fails
+     */
+    void verifyOtp(String mobileNumber, String otpCode);
 }
