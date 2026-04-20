@@ -58,6 +58,15 @@ public class UserServiceImpl implements UserService {
             user.setEmail(request.getEmail());
         }
 
+        if (request.getMobile() != null && !request.getMobile().isBlank()) {
+            // Uniqueness check for mobile
+            if (!request.getMobile().equals(user.getMobile())) {
+                if (userRepository.findByMobile(request.getMobile()).isPresent()) {
+                    throw new RuntimeException("Mobile number already in use by another user");
+                }
+                user.setMobile(request.getMobile());
+            }
+        }
 
         if (request.getName() != null && !request.getName().isBlank()) {
             user.setName(request.getName());
@@ -71,6 +80,21 @@ public class UserServiceImpl implements UserService {
         }
         user.setUpdatedAt(java.time.LocalDateTime.now());
 
+        return userRepository.save(user);
+    }
+
+    @Override
+    public User updateMobile(String email, String mobile) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+
+        // Uniqueness check for mobile
+        if (userRepository.findByMobile(mobile).isPresent()) {
+            throw new RuntimeException("Mobile number already in use by another account. Please use a different number.");
+        }
+
+        user.setMobile(mobile);
+        user.setUpdatedAt(java.time.LocalDateTime.now());
         return userRepository.save(user);
     }
 

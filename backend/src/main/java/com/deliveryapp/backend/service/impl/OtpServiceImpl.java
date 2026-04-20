@@ -100,6 +100,44 @@ public class OtpServiceImpl implements OtpService {
     @Override
     @Transactional
     public LoginResult verifyOtpAndLogin(String mobileNumber, String otpCode, String clientType, String name, HttpServletRequest httpRequest) {
+        // Shared verification logic
+        MobileOtp otp = verifyOtpInternal(mobileNumber, otpCode);
+
+        // Resolve name: prefer verify-otp param > send-otp param > fallback 'Customer'
+        String resolvedName = (name != null && !name.isBlank()) ? name
+                : (otp.getName() != null && !otp.getName().isBlank()) ? otp.getName()
+                : "Customer";
+
+        // Find or create CUSTOMER user
+        Optional<User> existingUser = userRepository.findByMobile(mobileNumber);
+        boolean isNewUser = existingUser.isEmpty();
+
+        User user = existingUser.orElseGet(() -> {
+            User newUser = new User();
+            newUser.setMobile(mobileNumber);
+            newUser.setName(resolvedName);
+            newUser.setRole("CUSTOMER");
+            newUser.setActive(true);
+            newUser.setStatus("ACTIVE");
+            return userRepository.save(newUser);
+        });
+
+        // Generate JWT — subject is the mobile number for customer OTP logins
+        String jwtToken = jwtUtil.generateToken(mobileNumber, "CUSTOMER", clientType);
+
+        // Persist token records with the real client IP
+        tokenService.persistToken(user, jwtToken, clientType, httpRequest);
+
+        return new LoginResult(jwtToken, isNewUser, user.getName());
+    }
+
+    @Override
+    @Transactional
+    public void verifyOtp(String mobileNumber, String otpCode) {
+        verifyOtpInternal(mobileNumber, otpCode);
+    }
+
+    private MobileOtp verifyOtpInternal(String mobileNumber, String otpCode) {
         // Load the most recent OTP for this number
         MobileOtp otp = mobileOtpRepository
                 .findTopByMobileNumberOrderByCreatedAtDesc(mobileNumber)
@@ -137,34 +175,7 @@ public class OtpServiceImpl implements OtpService {
 
         // Mark as verified
         otp.setVerified(true);
-        mobileOtpRepository.save(otp);
-
-        // Resolve name: prefer verify-otp param > send-otp param > fallback 'Customer'
-        String resolvedName = (name != null && !name.isBlank()) ? name
-                : (otp.getName() != null && !otp.getName().isBlank()) ? otp.getName()
-                : "Customer";
-
-        // Find or create CUSTOMER user
-        Optional<User> existingUser = userRepository.findByMobile(mobileNumber);
-        boolean isNewUser = existingUser.isEmpty();
-
-        User user = existingUser.orElseGet(() -> {
-            User newUser = new User();
-            newUser.setMobile(mobileNumber);
-            newUser.setName(resolvedName);
-            newUser.setRole("CUSTOMER");
-            newUser.setActive(true);
-            newUser.setStatus("ACTIVE");
-            return userRepository.save(newUser);
-        });
-
-        // Generate JWT — subject is the mobile number for customer OTP logins
-        String jwtToken = jwtUtil.generateToken(mobileNumber, "CUSTOMER", clientType);
-
-        // Persist token records with the real client IP
-        tokenService.persistToken(user, jwtToken, clientType, httpRequest);
-
-        return new LoginResult(jwtToken, isNewUser, user.getName());
+        return mobileOtpRepository.save(otp);
     }
 
 }

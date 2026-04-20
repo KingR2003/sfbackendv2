@@ -17,6 +17,8 @@ public interface UserService {
 
     User updateProfile(String identifier, com.deliveryapp.backend.dto.UpdateProfileRequest request);
 
+    Object updateMobile(String email, String mobile);
+
     User adminUpdateUser(Long id, com.deliveryapp.backend.dto.AdminUserUpdateRequest request);
 
     Optional<User> getUserByIdentifier(String identifier);
