@@ -29,6 +29,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final CategoryRepository categoryRepository;
     private final BannerRepository bannerRepository;
     private final CartRepository cartRepository;
+    private final AddressRepository addressRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -241,6 +242,90 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             ageDist.put(ageGroup, ageDist.getOrDefault(ageGroup, 0L) + 1);
         }
 
+        // Calculate revenue by gender and age group, and find Top Customers
+        Map<String, BigDecimal> revByGender = new HashMap<>();
+        Map<String, BigDecimal> revByAge = new HashMap<>();
+        
+        // Find top customers by revenue
+        List<OrderEntity> orders = orderRepository.findByCreatedAtAfter(startDate);
+        Map<Long, BigDecimal> userRevenueMap = new HashMap<>();
+        Map<Long, Long> userOrdersMap = new HashMap<>();
+        
+        for (OrderEntity order : orders) {
+            if (!"DELIVERED".equals(order.getOrderStatus())) continue;
+            
+            Long uId = order.getUserId();
+            userRevenueMap.put(uId, userRevenueMap.getOrDefault(uId, BigDecimal.ZERO).add(order.getFinalAmount()));
+            userOrdersMap.put(uId, userOrdersMap.getOrDefault(uId, 0L) + 1);
+            
+            User u = userRepository.findById(uId).orElse(null);
+            if (u != null) {
+                String gender = u.getGender() != null ? u.getGender() : "Unknown";
+                revByGender.put(gender, revByGender.getOrDefault(gender, BigDecimal.ZERO).add(order.getFinalAmount()));
+                
+                String ageGroup = "Unknown";
+                if (u.getDateOfBirth() != null) {
+                    int age = Period.between(u.getDateOfBirth(), LocalDate.now()).getYears();
+                    if (age < 18) ageGroup = "<18";
+                    else if (age <= 24) ageGroup = "18-24";
+                    else if (age <= 34) ageGroup = "25-34";
+                    else if (age <= 44) ageGroup = "35-44";
+                    else if (age <= 54) ageGroup = "45-54";
+                    else ageGroup = "55+";
+                }
+                revByAge.put(ageGroup, revByAge.getOrDefault(ageGroup, BigDecimal.ZERO).add(order.getFinalAmount()));
+            }
+        }
+        
+        List<Map.Entry<Long, BigDecimal>> topUserEntries = userRevenueMap.entrySet().stream()
+                .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+                .limit(5)
+                .collect(Collectors.toList());
+                
+        List<DemographicReportDto.TopCustomerItem> topCustomersTable = new ArrayList<>();
+        for (Map.Entry<Long, BigDecimal> entry : topUserEntries) {
+            Long userId = entry.getKey();
+            User user = userRepository.findById(userId).orElse(null);
+            if (user != null) {
+                String location = "Unknown";
+                List<Address> addresses = addressRepository.findByUserIdAndStatus(userId, "active");
+                if (addresses != null && !addresses.isEmpty()) {
+                    Address addr = addresses.get(0);
+                    for (Address a : addresses) {
+                        if (a.getIsDefault() != null && a.getIsDefault() == 1) {
+                            addr = a;
+                            break;
+                        }
+                    }
+                    if (addr.getAreaName() != null && !addr.getAreaName().isEmpty()) {
+                        location = addr.getAreaName();
+                    } else if (addr.getStreetNo() != null && !addr.getStreetNo().isEmpty()) {
+                        location = addr.getStreetNo();
+                    }
+                }
+                
+                String ageGroup = "Unknown";
+                if (user.getDateOfBirth() != null) {
+                    int age = Period.between(user.getDateOfBirth(), LocalDate.now()).getYears();
+                    if (age < 18) ageGroup = "<18";
+                    else if (age <= 24) ageGroup = "18-24";
+                    else if (age <= 34) ageGroup = "25-34";
+                    else if (age <= 44) ageGroup = "35-44";
+                    else if (age <= 54) ageGroup = "45-54";
+                    else ageGroup = "55+";
+                }
+                
+                topCustomersTable.add(DemographicReportDto.TopCustomerItem.builder()
+                        .customer(user.getName() != null ? user.getName() : "Unknown")
+                        .gender(user.getGender() != null ? user.getGender() : "Unknown")
+                        .age(ageGroup)
+                        .location(location)
+                        .orders(userOrdersMap.get(userId))
+                        .revenue(entry.getValue())
+                        .build());
+            }
+        }
+
         // Just use empty maps for revenue by gender/age here, client can derive or we can reuse logic
         return DemographicReportDto.builder()
                 .totalCustomers(totalCustomers)
@@ -250,9 +335,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .newVsReturning(newVsRet)
                 .genderDistribution(genderDist)
                 .ageDistribution(ageDist)
-                .revenueByGender(new HashMap<>())
-                .revenueByAgeGroup(new HashMap<>())
-                .topCustomersTable(new ArrayList<>()) // Simplified
+                .revenueByGender(revByGender)
+                .revenueByAgeGroup(revByAge)
+                .topCustomersTable(topCustomersTable)
                 .build();
     }
 

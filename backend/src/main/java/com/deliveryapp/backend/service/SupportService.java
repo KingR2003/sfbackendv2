@@ -2,17 +2,22 @@ package com.deliveryapp.backend.service;
 
 import com.deliveryapp.backend.dto.SupportRequest;
 import com.deliveryapp.backend.dto.SupportResponse;
+import com.deliveryapp.backend.dto.AdminSupportReplyRequest;
+import com.deliveryapp.backend.dto.SupportMessageDto;
 import com.deliveryapp.backend.dto.GeneralQueryRequest;
 import com.deliveryapp.backend.dto.OrderQueryRequest;
 import com.deliveryapp.backend.dto.AdminSupportOrderDetailsResponse;
 import com.deliveryapp.backend.entity.Support;
 import com.deliveryapp.backend.entity.SupportImage;
+import com.deliveryapp.backend.entity.SupportMessage;
 import com.deliveryapp.backend.entity.StatusLogSupport;
 import com.deliveryapp.backend.entity.TicketStatus;
 import com.deliveryapp.backend.entity.User;
+import com.deliveryapp.backend.repository.SupportMessageRepository;
 import com.deliveryapp.backend.repository.SupportRepository;
 import com.deliveryapp.backend.repository.StatusLogSupportRepository;
 import com.deliveryapp.backend.repository.UserRepository;
+import com.deliveryapp.backend.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,6 +52,12 @@ public class SupportService {
 
     @Autowired
     private OrderService orderService;
+
+    @Autowired
+    private SupportMessageRepository supportMessageRepository;
+
+    @Autowired
+    private EmailService emailService;
 
     private void logStatusChange(Support support, TicketStatus newStatus) {
         StatusLogSupport log = new StatusLogSupport();
@@ -218,6 +229,49 @@ public class SupportService {
         Support savedSupport = supportRepository.save(support);
         logStatusChange(savedSupport, request.getStatus());
         return mapToResponse(savedSupport);
+    }
+
+    @Transactional
+    public SupportMessageDto respondToTicket(String ticketId, AdminSupportReplyRequest request) {
+        Support support = supportRepository.findByTicketId(ticketId);
+        if (support == null) {
+            throw new RuntimeException("Support ticket not found with ticketId: " + ticketId);
+        }
+
+        // 1. Save the reply to DB
+        SupportMessage msg = new SupportMessage();
+        msg.setSupport(support);
+        msg.setSenderName(request.getAdminName() != null ? request.getAdminName() : "Support Team");
+        msg.setMessage(request.getMessage());
+        msg.setFromAdmin(true);
+        SupportMessage saved = supportMessageRepository.save(msg);
+
+        // 2. Send email to customer
+        try {
+            emailService.sendSupportReply(
+                    support.getEmail(),
+                    support.getTicketId(),
+                    support.getSubject(),
+                    request.getAdminName(),
+                    request.getMessage()
+            );
+        } catch (Exception e) {
+            logger.error("Failed to send email for ticket {}: {}", ticketId, e.getMessage());
+            // Don't fail the whole request if only email fails
+        }
+
+        return SupportMessageDto.from(saved);
+    }
+
+    public List<SupportMessageDto> getMessages(String ticketId) {
+        Support support = supportRepository.findByTicketId(ticketId);
+        if (support == null) {
+            throw new RuntimeException("Support ticket not found with ticketId: " + ticketId);
+        }
+        return supportMessageRepository.findBySupportIdOrderByCreatedAtAsc(support.getId())
+                .stream()
+                .map(SupportMessageDto::from)
+                .collect(Collectors.toList());
     }
 
     private SupportResponse mapToResponse(Support support) {
