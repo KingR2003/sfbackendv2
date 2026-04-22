@@ -11,7 +11,7 @@ import com.deliveryapp.backend.dto.PaymentRefundReportDto;
 import com.deliveryapp.backend.dto.InventoryReportDto;
 
 public interface AnalyticsService {
-    AnalyticsDashboardDto getDashboardMetrics();
+    AnalyticsDashboardDto getDashboardMetrics(int days);
     RevenueReportDto getRevenueReport(int days);
     ProductPerformanceDto getProductPerformance(int days);
     DemographicReportDto getDemographicReport(int days);

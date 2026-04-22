@@ -20,11 +20,12 @@ public class AdminAnalyticsController {
 
     private final AnalyticsService analyticsService;
 
-    @Operation(summary = "Get Dashboard Metrics", description = "Retrieves total revenue, orders, users, and active products.")
+    @Operation(summary = "Get Dashboard Metrics", description = "Retrieves comprehensive dashboard data including revenue, overview, product performance, metrics, alerts, etc.")
     @GetMapping("/dashboard")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<AnalyticsDashboardDto> getDashboardMetrics() {
-        return ResponseEntity.ok(analyticsService.getDashboardMetrics());
+    public ResponseEntity<AnalyticsDashboardDto> getDashboardMetrics(
+            @RequestParam(value = "days", defaultValue = "30") int days) {
+        return ResponseEntity.ok(analyticsService.getDashboardMetrics(days));
     }
 
     @Operation(summary = "Get Revenue Report", description = "Retrieves revenue metrics, trends, and breakdown.")
