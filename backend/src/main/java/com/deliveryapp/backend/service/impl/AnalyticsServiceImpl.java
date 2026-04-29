@@ -58,57 +58,72 @@ public class AnalyticsServiceImpl implements AnalyticsService {
              }
         }
         
+        OrderStatusReportDto statusDto = getOrderStatusReport(days);
+        
         AnalyticsDashboardDto.AlertsData alerts = AnalyticsDashboardDto.AlertsData.builder()
-            .lowStockCount(15L) // Mock values matching the UI wireframe
-            .expiryAlertCount(8L) 
-            .highCancellationRateStr(2.3) 
-            .highRefundsMsg("Refund requests increased this week")
+            .lowStockCount(invDto.getReorderNeededCount()) 
+            .expiryAlertCount(invDto.getExpirySoonCount()) 
+            .highCancellationRateStr(statusDto.getCancelledPercentage()) 
+            .highRefundsMsg(statusDto.getCancelledPercentage() > 10.0 ? "High cancellation rate detected" : "Cancellation rate is normal")
             .build();
             
         Map<String, String> specificProducts = new HashMap<>();
-        specificProducts.put("Organic Honey", "300 / 850");
-        specificProducts.put("Pure Desi Ghee", "500 / 850");
-        specificProducts.put("Chikki", "50 / 850");
+        for (Map.Entry<String, Map<String, Long>> entry : invDto.getStockVsSoldTopProducts().entrySet()) {
+             if (specificProducts.size() < 3) {
+                 specificProducts.put(entry.getKey(), entry.getValue().get("Stock") + " / " + invDto.getTotalStockUnits());
+             }
+        }
             
         AnalyticsDashboardDto.InventoryHealthData invHealth = AnalyticsDashboardDto.InventoryHealthData.builder()
-            .totalStock(850L) // Hardcoded 850 as per wireframe UI to match
-            .outOfStock(0L)
-            .expirySoon(0L)
-            .reorderNeeded(0L)
+            .totalStock(invDto.getTotalStockUnits())
+            .outOfStock(invDto.getOutOfStockCount())
+            .expirySoon(invDto.getExpirySoonCount())
+            .reorderNeeded(invDto.getReorderNeededCount())
             .specificProducts(specificProducts)
             .build();
             
+        List<OrderEntity> recentOrderEntities = orderRepository.findAll().stream()
+                .sorted(Comparator.comparing(OrderEntity::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .limit(5)
+                .collect(Collectors.toList());
+
         List<AnalyticsDashboardDto.RecentOrderItem> recentOrders = new ArrayList<>();
-        recentOrders.add(new AnalyticsDashboardDto.RecentOrderItem("#ORD-2847", "Rahul Sharma", BigDecimal.valueOf(2450), "Delivered"));
-        recentOrders.add(new AnalyticsDashboardDto.RecentOrderItem("#ORD-2846", "Priya Patel", BigDecimal.valueOf(1890), "Processing"));
-        recentOrders.add(new AnalyticsDashboardDto.RecentOrderItem("#ORD-2845", "Amit Kumar", BigDecimal.valueOf(3200), "Paid"));
-        recentOrders.add(new AnalyticsDashboardDto.RecentOrderItem("#ORD-2844", "Sneha Reddy", BigDecimal.valueOf(980), "Pending"));
-        recentOrders.add(new AnalyticsDashboardDto.RecentOrderItem("#ORD-2843", "Vikram Singh", BigDecimal.valueOf(4100), "Out for Delivery"));
+        for (OrderEntity order : recentOrderEntities) {
+            String userName = userRepository.findById(order.getUserId()).map(User::getName).orElse("Unknown User");
+            recentOrders.add(new AnalyticsDashboardDto.RecentOrderItem(
+                "#ORD-" + order.getId(), 
+                userName, 
+                order.getFinalAmount() != null ? order.getFinalAmount() : BigDecimal.ZERO, 
+                order.getOrderStatus()));
+        }
         
         Map<String, BigDecimal> revenueOverview = new HashMap<>();
-        revenueOverview.put("Jan", BigDecimal.valueOf(150000));
-        revenueOverview.put("Feb", BigDecimal.valueOf(300000));
-        revenueOverview.put("Mar", BigDecimal.valueOf(450000));
-        revenueOverview.put("Apr", BigDecimal.valueOf(600000));
-
         Map<String, Long> ordersOverview = new HashMap<>();
-        ordersOverview.put("Jan", 1500L);
-        ordersOverview.put("Feb", 3000L);
-        ordersOverview.put("Mar", 4500L);
-        ordersOverview.put("Apr", 6000L);
+        DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM");
+        
+        List<OrderEntity> allOrders = orderRepository.findAll();
+        for (OrderEntity order : allOrders) {
+            if (order.getCreatedAt() != null) {
+                String month = order.getCreatedAt().format(monthFormatter);
+                ordersOverview.put(month, ordersOverview.getOrDefault(month, 0L) + 1);
+                if ("DELIVERED".equals(order.getOrderStatus()) && order.getFinalAmount() != null) {
+                    revenueOverview.put(month, revenueOverview.getOrDefault(month, BigDecimal.ZERO).add(order.getFinalAmount()));
+                }
+            }
+        }
 
         long orderCount = orderRepository.count();
         BigDecimal avgOrderValue = orderCount > 0 ? revDto.getTotalRevenue().divide(BigDecimal.valueOf(orderCount), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
         return AnalyticsDashboardDto.builder()
-            .totalRevenue(revDto.getTotalRevenue().compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.valueOf(1245200) : revDto.getTotalRevenue()) // Mock to match wireframe if 0
-            .totalRevenueChange(14.5)
-            .totalOrders(orderCount == 0 ? 200L : orderCount)
-            .totalOrdersChange(12.0)
-            .overallConversion(8.92)
-            .overallConversionChange(2.1)
-            .avgOrderValue(avgOrderValue.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.valueOf(3241) : avgOrderValue)
-            .avgOrderValueChange(8.2)
+            .totalRevenue(revDto.getTotalRevenue())
+            .totalRevenueChange(0.0)
+            .totalOrders(orderCount)
+            .totalOrdersChange(0.0)
+            .overallConversion(funnelDto.getOverallConversion())
+            .overallConversionChange(0.0)
+            .avgOrderValue(avgOrderValue)
+            .avgOrderValueChange(0.0)
             .revenueOverview(revenueOverview)
             .ordersOverview(ordersOverview)
             .productPerformance(productPerformance)
@@ -245,8 +260,10 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 
             categoryUnits.put(catName, categoryUnits.getOrDefault(catName, 0L) + units);
             
+            String productName = v.getProduct() != null && v.getProduct().getName() != null ? v.getProduct().getName() + " " + v.getVariantName() : v.getVariantName();
+            
             table.add(ProductPerformanceDto.ProductPerformanceItem.builder()
-                    .product(v.getVariantName())
+                    .product(productName)
                     .category(catName)
                     .unitsSold(units)
                     .revenue(rev)
@@ -265,7 +282,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .sorted((a,b)-> b.getValue().compareTo(a.getValue()))
                 .limit(5)
                 .collect(Collectors.toMap(
-                    e -> productVariantRepository.findById(e.getKey()).map(ProductVariant::getVariantName).orElse("Unknown"),
+                    e -> productVariantRepository.findById(e.getKey())
+                            .map(v -> v.getProduct() != null && v.getProduct().getName() != null ? v.getProduct().getName() + " " + v.getVariantName() : v.getVariantName())
+                            .orElse("Unknown"),
                     Map.Entry::getValue,
                     (a, b) -> a,
                     LinkedHashMap::new
