@@ -214,14 +214,18 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             }
         }
 
-        // Mock monthly trend
         Map<String, BigDecimal> trend = new HashMap<>();
-        trend.put("Jan", BigDecimal.valueOf(1000));
-        trend.put("Feb", totalRev);
+        DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM");
+        for (OrderEntity order : orders) {
+            if ("DELIVERED".equals(order.getOrderStatus()) && order.getCreatedAt() != null && order.getFinalAmount() != null) {
+                String month = order.getCreatedAt().format(monthFormatter);
+                trend.put(month, trend.getOrDefault(month, BigDecimal.ZERO).add(order.getFinalAmount()));
+            }
+        }
 
         return RevenueReportDto.builder()
                 .totalRevenue(totalRev)
-                .revenueChangePercentage(15.0) // Mock
+                .revenueChangePercentage(0.0) // Change tracking requires historical table comparison
                 .monthlyRevenueTrend(trend)
                 .revenueByProduct(revByProduct)
                 .revenueByGender(revByGender)
@@ -279,10 +283,14 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                     .build());
         }
 
-        // Mock growth
         Map<String, BigDecimal> growth = new HashMap<>();
-        growth.put("Jan", BigDecimal.valueOf(5000));
-        growth.put("Feb", BigDecimal.valueOf(5500));
+        DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM");
+        for (OrderEntity order : orders) {
+            if ("DELIVERED".equals(order.getOrderStatus()) && order.getCreatedAt() != null && order.getFinalAmount() != null) {
+                String month = order.getCreatedAt().format(monthFormatter);
+                growth.put(month, growth.getOrDefault(month, BigDecimal.ZERO).add(order.getFinalAmount()));
+            }
+        }
         
         Map<String, BigDecimal> top5 = revMap.entrySet().stream()
                 .sorted((a,b)-> b.getValue().compareTo(a.getValue()))
@@ -624,30 +632,44 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         
         for (OrderEntity o : orders) {
             Payment p = o.getPaymentId() != null ? paymentMap.get(o.getPaymentId()) : null;
+            
+            String method = "Unknown";
+            String status = "PENDING";
+            
             if (p != null) {
-                String method = p.getPaymentMethod() != null ? p.getPaymentMethod() : "Unknown";
-                String status = p.getPaymentStatus() != null ? p.getPaymentStatus() : "PENDING";
-                
-                paymentDist.put(method, paymentDist.getOrDefault(method, 0L) + 1);
-                
-                if ("PAID".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status)) {
-                    paidCount++;
-                    totalRev = totalRev.add(o.getFinalAmount());
-                    revenueByMethod.put(method, revenueByMethod.getOrDefault(method, BigDecimal.ZERO).add(o.getFinalAmount()));
-                } else if ("REFUNDED".equalsIgnoreCase(status)) {
-                    refundedCount++;
-                    totalRefund = totalRefund.add(o.getFinalAmount());
-                    
-                    if (p.getCreatedAt() != null) {
-                        String month = p.getCreatedAt().format(monthFormatter);
-                        refundTrend.put(month, refundTrend.getOrDefault(month, 0L) + 1);
-                        refundAmountTrend.put(month, refundAmountTrend.getOrDefault(month, BigDecimal.ZERO).add(o.getFinalAmount()));
-                    }
-                } else if ("FAILED".equalsIgnoreCase(status)) {
-                    failedCount++;
-                } else {
-                    pendingCount++;
+                method = p.getPaymentMethod() != null ? p.getPaymentMethod() : "Unknown";
+                status = p.getPaymentStatus() != null ? p.getPaymentStatus() : "PENDING";
+            } else {
+                if ("DELIVERED".equalsIgnoreCase(o.getOrderStatus()) || "SHIPPED".equalsIgnoreCase(o.getOrderStatus())) {
+                    status = "PAID";
+                    method = "Unknown"; 
+                } else if ("CANCELLED".equalsIgnoreCase(o.getOrderStatus())) {
+                    status = "FAILED";
+                } else if ("RETURNED".equalsIgnoreCase(o.getOrderStatus())) {
+                    status = "REFUNDED";
                 }
+            }
+            
+            paymentDist.put(method, paymentDist.getOrDefault(method, 0L) + 1);
+            
+            if ("PAID".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status)) {
+                paidCount++;
+                totalRev = totalRev.add(o.getFinalAmount() != null ? o.getFinalAmount() : BigDecimal.ZERO);
+                revenueByMethod.put(method, revenueByMethod.getOrDefault(method, BigDecimal.ZERO).add(o.getFinalAmount() != null ? o.getFinalAmount() : BigDecimal.ZERO));
+            } else if ("REFUNDED".equalsIgnoreCase(status)) {
+                refundedCount++;
+                totalRefund = totalRefund.add(o.getFinalAmount() != null ? o.getFinalAmount() : BigDecimal.ZERO);
+                
+                LocalDateTime date = p != null ? p.getCreatedAt() : o.getCreatedAt();
+                if (date != null) {
+                    String month = date.format(monthFormatter);
+                    refundTrend.put(month, refundTrend.getOrDefault(month, 0L) + 1);
+                    refundAmountTrend.put(month, refundAmountTrend.getOrDefault(month, BigDecimal.ZERO).add(o.getFinalAmount() != null ? o.getFinalAmount() : BigDecimal.ZERO));
+                }
+            } else if ("FAILED".equalsIgnoreCase(status)) {
+                failedCount++;
+            } else {
+                pendingCount++;
             }
         }
         
@@ -689,40 +711,57 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     public InventoryReportDto getInventoryReport(int days) {
         List<ProductVariant> allVariants = productVariantRepository.findAll();
         
+        LocalDateTime startDate = LocalDateTime.now().minusDays(days);
+        List<OrderEntity> recentOrders = orderRepository.findByCreatedAtAfter(startDate);
+        
+        Map<Long, Long> variantSoldMap = new HashMap<>();
+        for (OrderEntity o : recentOrders) {
+            if ("DELIVERED".equals(o.getOrderStatus())) {
+                List<OrderItem> items = orderItemRepository.findByOrderId(o.getId());
+                for (OrderItem item : items) {
+                    variantSoldMap.put(item.getVariantId(), variantSoldMap.getOrDefault(item.getVariantId(), 0L) + item.getQuantity());
+                }
+            }
+        }
+        
         long totalStock = allVariants.stream()
                 .mapToLong(v -> v.getStockQuantity() != null ? v.getStockQuantity().longValue() : 0)
                 .sum();
         
         long outOfStock = allVariants.stream().filter(v -> v.getStockQuantity() == null || v.getStockQuantity() <= 0).count();
-        long expirySoon = (long) (allVariants.size() * 0.05); // Mock: 5% expiry soon
-        long reorderNeeded = (long) (allVariants.size() * 0.10); // Mock: 10% reorder needed
+        long expirySoon = 0;
+        long reorderNeeded = allVariants.stream().filter(v -> v.getStockQuantity() != null && v.getStockQuantity() > 0 && v.getStockQuantity() < 20).count(); 
         
         Map<String, Long> healthOverview = new HashMap<>();
-        healthOverview.put("In Stock", allVariants.size() - outOfStock - expirySoon);
-        healthOverview.put("Low Stock", expirySoon);
+        healthOverview.put("In Stock", allVariants.size() - outOfStock - reorderNeeded);
+        healthOverview.put("Low Stock", reorderNeeded);
         healthOverview.put("Out of Stock", outOfStock);
         
-        // Stock vs Sold for top 8
+        // Stock vs Sold for top 8 sold products
         Map<String, Map<String, Long>> stockVsSold = new HashMap<>();
-        for (int i = 0; i < Math.min(8, allVariants.size()); i++) {
-            ProductVariant v = allVariants.get(i);
+        List<ProductVariant> sortedVariants = new ArrayList<>(allVariants);
+        sortedVariants.sort((v1, v2) -> Long.compare(variantSoldMap.getOrDefault(v2.getId(), 0L), variantSoldMap.getOrDefault(v1.getId(), 0L)));
+        
+        for (int i = 0; i < Math.min(8, sortedVariants.size()); i++) {
+            ProductVariant v = sortedVariants.get(i);
             Map<String, Long> data = new HashMap<>();
             data.put("Stock", v.getStockQuantity() != null ? v.getStockQuantity().longValue() : 0);
-            data.put("Sold", (long) (Math.random() * 100));
+            data.put("Sold", variantSoldMap.getOrDefault(v.getId(), 0L));
             String name = v.getProduct() != null && v.getProduct().getName() != null ? v.getProduct().getName() + " " + v.getVariantName() : v.getVariantName();
             stockVsSold.put(name, data);
         }
         
         Map<String, Long> monthlyMovement = new HashMap<>();
-        monthlyMovement.put("Mar", totalStock - 50);
-        monthlyMovement.put("Apr", totalStock);
+        DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM");
+        String currentMonth = LocalDateTime.now().format(monthFormatter);
+        monthlyMovement.put(currentMonth, totalStock);
         
         List<InventoryReportDto.InventoryDetailItem> table = new ArrayList<>();
         for (ProductVariant v : allVariants) {
             long stock = v.getStockQuantity() != null ? v.getStockQuantity().longValue() : 0;
-            String status = stock == 0 ? "Out of Stock" : (stock < 50 ? "Low Stock" : "In Stock");
-            String expiryRisk = stock < 20 ? "Critical" : (stock < 50 ? "Soon" : "—");
-            String reorder = stock < 30 ? "Yes" : "—";
+            String status = stock == 0 ? "Out of Stock" : (stock < 20 ? "Low Stock" : "In Stock");
+            String expiryRisk = "";
+            String reorder = stock < 20 ? "Yes" : "—";
             
             String catName = v.getProduct() != null && v.getProduct().getCategoryId() != null ?
                     categoryRepository.findById(v.getProduct().getCategoryId()).map(Category::getName).orElse("Unknown") : "Unknown";
@@ -732,7 +771,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                     .product(name)
                     .category(catName)
                     .stock(stock)
-                    .sold((long) (Math.random() * 100))
+                    .sold(variantSoldMap.getOrDefault(v.getId(), 0L))
                     .status(status)
                     .expiryRisk(expiryRisk)
                     .reorderNeeded(reorder)
