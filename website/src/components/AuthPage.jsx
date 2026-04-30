@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
-import { sendOtp, verifyOtp } from "../api";
+import { sendOtp, sendOtpLogin, verifyOtp, getUserProfile } from "../api";
 import GoogleAuthButton from "./GoogleAuthButton";
+import GoogleCompleteProfileModal from "./GoogleCompleteProfileModal";
 
 const OTP_RESEND_ATTEMPTS_KEY = "otp_resend_attempts"; // stores resend clicks by phone for the last hour
 
@@ -12,6 +13,8 @@ const AuthPage = ({ isSignIn, setIsSignIn, handleAuth, isLoggingIn, showPassword
     const [phone, setPhone] = useState("");
     const [otp, setOtp] = useState("");
     const [timer, setTimer] = useState(90);
+    const [showGoogleCompleteProfile, setShowGoogleCompleteProfile] = useState(false);
+    const [googleAuthData, setGoogleAuthData] = useState(null);
     const [resendDisabled, setResendDisabled] = useState(true);
     const [error, setError] = useState("");
     const [attemptsExceeded, setAttemptsExceeded] = useState(false);
@@ -95,10 +98,19 @@ const AuthPage = ({ isSignIn, setIsSignIn, handleAuth, isLoggingIn, showPassword
         const phoneKey = `+91${normalized}`;
         setIsLoading(true);
         try {
-            await sendOtp({
-                mobileNumber: phoneKey,
-                name: !isSignIn ? name.trim() : undefined
-            });
+            // Use the correct endpoint based on whether user is signing in or signing up
+            if (isSignIn) {
+                // For LOGIN: Use login-specific endpoint (checks if user exists)
+                await sendOtpLogin({
+                    mobileNumber: phoneKey
+                });
+            } else {
+                // For SIGNUP: Use register endpoint (checks if user is new)
+                await sendOtp({
+                    mobileNumber: phoneKey,
+                    name: name.trim()
+                });
+            }
             setAttemptsExceeded(false);
             setStage("otp");
             setOtp("");
@@ -123,9 +135,19 @@ const AuthPage = ({ isSignIn, setIsSignIn, handleAuth, isLoggingIn, showPassword
 
         setIsLoading(true);
         try {
-            await sendOtp({
-                mobileNumber: phoneKey
-            });
+            // Use the correct endpoint based on whether user is signing in or signing up
+            if (isSignIn) {
+                // For LOGIN: Use login-specific endpoint
+                await sendOtpLogin({
+                    mobileNumber: phoneKey
+                });
+            } else {
+                // For SIGNUP: Use register endpoint
+                await sendOtp({
+                    mobileNumber: phoneKey,
+                    name: name.trim()
+                });
+            }
             recordResendAttempt(phoneKey);
             setAttemptsExceeded(false);
             setError("");
@@ -276,6 +298,7 @@ const AuthPage = ({ isSignIn, setIsSignIn, handleAuth, isLoggingIn, showPassword
                                                 placeholder="6-digit OTP"
                                                 value={otp}
                                                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleVerifyOtp(e)}
                                                 inputMode="numeric"
                                                 pattern="\d*"
                                                 maxLength={6}
@@ -315,15 +338,46 @@ const AuthPage = ({ isSignIn, setIsSignIn, handleAuth, isLoggingIn, showPassword
 
                                 <div className="auth-social">
                                     <GoogleAuthButton
-                                        onSuccess={(result) => {
+                                        onSuccess={async (result) => {
                                             console.log("[AuthPage] Google auth success:", result);
-                                            // Call parent handler with Google auth result
-                                            const email = result.user.email || "";
-                                            const name = result.user.name || "";
                                             const token = result.token;
                                             const isSignUp = result.isNew;
                                             
-                                            onOTPVerified && onOTPVerified(email, name, token, !isSignUp, result.fullResponse);
+                                            let phone = result.user?.phone || "";
+                                            let gender = result.user?.gender || "";
+                                            let dob = result.user?.dob || "";
+                                            let email = result.user?.email || "";
+                                            let name = result.user?.name || "";
+                                            
+                                            if (token) {
+                                                try {
+                                                    const res = await getUserProfile(token);
+                                                    if (res.ok) {
+                                                        const profData = await res.json();
+                                                        const dbUser = profData?.data || profData?.user || profData || {};
+                                                        
+                                                        phone = dbUser.phone || dbUser.mobile || dbUser.mobileNumber || dbUser.phoneNumber || dbUser.mobile_number || dbUser.phone_number || phone || "";
+                                                        gender = dbUser.gender || dbUser.sex || gender || "";
+                                                        dob = dbUser.dob || dbUser.dateOfBirth || dbUser.birthDate || dbUser.date_of_birth || dob || "";
+                                                        email = dbUser.email || dbUser.emailAddress || dbUser.email_address || email || "";
+                                                        name = dbUser.name || dbUser.fullName || dbUser.full_name || name || "";
+                                                        
+                                                        result.user = { ...result.user, ...dbUser, email, name, phone, gender, dob };
+                                                    }
+                                                } catch (err) {
+                                                    console.warn("Failed to fetch full user profile", err);
+                                                }
+                                            }
+                                            
+                                            if (!phone || !gender || !dob) {
+                                                setGoogleAuthData(result);
+                                                setShowGoogleCompleteProfile(true);
+                                            } else {
+                                                onOTPVerified && onOTPVerified(phone || email, name, token, !isSignUp, {
+                                                    ...result.fullResponse,
+                                                    user: result.user
+                                                });
+                                            }
                                         }}
                                         onError={(error) => {
                                             console.error("[AuthPage] Google auth error:", error);
@@ -337,6 +391,25 @@ const AuthPage = ({ isSignIn, setIsSignIn, handleAuth, isLoggingIn, showPassword
                     </div>
                 </div>
             </div>
+            {showGoogleCompleteProfile && googleAuthData && (
+                <GoogleCompleteProfileModal
+                    initialProfile={googleAuthData.user}
+                    token={googleAuthData.token}
+                    onComplete={(updatedProfile) => {
+                        setShowGoogleCompleteProfile(false);
+                        onOTPVerified && onOTPVerified(
+                            updatedProfile.phone || googleAuthData.user?.phone || googleAuthData.user?.email,
+                            updatedProfile.name || googleAuthData.user?.name,
+                            googleAuthData.token, // Strictly retain standard Google Session
+                            !googleAuthData.isNew,
+                            { 
+                                ...googleAuthData.fullResponse, 
+                                user: { ...googleAuthData.fullResponse?.user, ...googleAuthData.user, ...updatedProfile } 
+                            }
+                        );
+                    }}
+                />
+            )}
         </div>
     );
 };

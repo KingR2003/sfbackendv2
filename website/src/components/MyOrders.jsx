@@ -1,8 +1,189 @@
 import React, { useState } from "react";
 import { Package, Truck, ShoppingBag, MapPin, ChevronDown, X } from "lucide-react";
 
-const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrder, onContactSupport }) => {
+const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrder, onContactSupport, onBuyAgain }) => {
     const [expandedAddress, setExpandedAddress] = useState(null);
+
+    const PLACEHOLDER_IMG = '/wild_honey.png';
+    const isPlaceholderImg = (value) => !value || value === PLACEHOLDER_IMG;
+    const norm = (v) => (v === undefined || v === null ? '' : String(v)).trim();
+
+    const resolveItemImage = (item) => (
+        item?.variantImage ||
+        item?.selectedVariant?.image ||
+        item?.selectedVariant?.img ||
+        item?.variant?.images?.[0]?.imageUrl ||
+        item?.variant?.images?.[0]?.url ||
+        item?.variant?.imageUrl ||
+        item?.variant?.image ||
+        item?.variant?.img ||
+        item?.product?.images?.[0]?.imageUrl ||
+        item?.product?.images?.[0]?.url ||
+        item?.product?.imageUrl ||
+        item?.product?.image ||
+        item?.product?.img ||
+        item?.img ||
+        item?.imageUrl ||
+        item?.image ||
+        (item?.images && item.images[0]) ||
+        (Array.isArray(item?.variantImages) && item.variantImages[0]) ||
+        PLACEHOLDER_IMG
+    );
+
+    const dedupeOrderItemsForThumbnails = (items) => {
+        const arr = Array.isArray(items) ? items : [];
+        if (arr.length <= 1) return arr;
+
+        const byKey = new Map();
+
+        for (const it of arr) {
+            const productId = norm(it?.productId ?? it?.product_id ?? it?.product?.id ?? it?.product?.productId ?? it?.product?.product_id);
+            const variantId = norm(it?.variantId ?? it?.variant_id ?? it?.variant?.id ?? it?.variant?.variantId ?? it?.variant?.variant_id);
+            const key = (productId || variantId) ? `${productId}::${variantId}` : `fallback:${norm(it?.name).toLowerCase()}:${resolveItemImage(it)}`;
+
+            const existing = byKey.get(key);
+            if (!existing) {
+                const qty = Number(it?.quantity || it?.qty || 1);
+                byKey.set(key, { ...it, quantity: Number.isFinite(qty) && qty > 0 ? qty : 1, _thumbKey: key });
+                continue;
+            }
+
+            const addQty = Number(it?.quantity || it?.qty || 1);
+            existing.quantity += (Number.isFinite(addQty) && addQty > 0 ? addQty : 1);
+
+            // Prefer a non-placeholder image when merging duplicates
+            const existingImg = resolveItemImage(existing);
+            const nextImg = resolveItemImage(it);
+            if (isPlaceholderImg(existingImg) && !isPlaceholderImg(nextImg)) {
+                existing.variantImage = it?.variantImage || existing.variantImage;
+                existing.img = it?.img || existing.img;
+                existing.imageUrl = it?.imageUrl || existing.imageUrl;
+                existing.image = it?.image || existing.image;
+            }
+        }
+
+        return Array.from(byKey.values());
+    };
+
+    const normalizePaymentMethod = (value) => {
+        if (value === null || value === undefined) return null;
+
+        let candidate = value;
+        if (typeof candidate === 'object') {
+            candidate =
+                candidate.method ||
+                candidate.type ||
+                candidate.mode ||
+                candidate.name ||
+                candidate.label ||
+                candidate.value ||
+                candidate.paymentMethod ||
+                candidate.paymentType ||
+                null;
+        }
+
+        if (candidate === null || candidate === undefined) return null;
+
+        const text = String(candidate).trim();
+        if (!text) return null;
+
+        const lowered = text.toLowerCase();
+        if (lowered === 'null' || lowered === 'undefined' || lowered === 'not specified' || lowered === 'n/a' || lowered === 'na') {
+            return null;
+        }
+
+        if (lowered === 'cod' || lowered.includes('cash') || lowered.includes('delivery')) return 'Cash on Delivery';
+        if (lowered === 'upi' || lowered.includes('upi') || lowered.includes('netbank') || lowered.includes('net bank')) return 'UPI / Netbanking';
+        if (lowered === 'card' || lowered.includes('card') || lowered.includes('credit') || lowered.includes('debit')) return 'Card Payment';
+
+        return text;
+    };
+
+    const getDisplayPaymentMethod = (order) => {
+        const candidates = [
+            order?.paymentMethod,
+            order?.paymentType,
+            order?.payment_method,
+            order?.payment_mode,
+            order?.payment_type,
+            order?.method,
+            order?.paymentMethodName,
+            order?.payment,
+            order?.paymentDetails,
+            order?.payment_details,
+            order?.paymentInfo,
+            order?.payment_info,
+            order?.transaction?.paymentMethod,
+            order?.transaction?.payment_method,
+            order?.transaction?.method,
+            order?.data?.paymentMethod,
+            order?.data?.paymentType,
+            order?.data?.payment_method,
+            order?.data?.payment_mode,
+            order?.data?.payment_type,
+        ];
+
+        for (const candidate of candidates) {
+            const normalized = normalizePaymentMethod(candidate);
+            if (normalized) return normalized;
+        }
+
+        return 'Not Specified';
+    };
+
+    const toMillis = (value) => {
+        if (value === null || value === undefined || value === '') return 0;
+        if (typeof value === 'number') {
+            if (value > 1e12) return value;
+            if (value > 1e9) return value * 1000;
+            return 0;
+        }
+        const text = String(value).trim();
+        if (!text) return 0;
+        if (/^\d+$/.test(text)) {
+            const n = Number(text);
+            if (Number.isFinite(n)) {
+                if (n > 1e12) return n;
+                if (n > 1e9) return n * 1000;
+            }
+        }
+        const d = new Date(text);
+        if (!isNaN(d.getTime())) return d.getTime();
+        const m = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (m) {
+            const day = Number(m[1]);
+            const month = Number(m[2]) - 1;
+            const year = Number(m[3]);
+            const hour = Number(m[4] || 0);
+            const min = Number(m[5] || 0);
+            const sec = Number(m[6] || 0);
+            const dd = new Date(year, month, day, hour, min, sec);
+            if (!isNaN(dd.getTime())) return dd.getTime();
+        }
+        return 0;
+    };
+
+    const getOrderTime = (order) => {
+        if (!order) return 0;
+        const candidates = [
+            order.createdAt,
+            order.created_at,
+            order.orderDate,
+            order.order_date,
+            order.date,
+            order.updatedAt,
+            order.updated_at,
+            order.completedAt,
+            order.completed_at,
+            order.deliveredAt,
+            order.delivered_at,
+        ];
+        for (const c of candidates) {
+            const t = toMillis(c);
+            if (t > 0) return t;
+        }
+        return 0;
+    };
     
     if (orders.length === 0) {
         return (
@@ -31,7 +212,12 @@ const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrde
             <p style={{ color: '#868889', marginBottom: '40px' }}>Track and manage your recent orders.</p>
 
             <div className="orders-list" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                {orders.map((order) => {
+                {[...orders].sort((a, b) => {
+                    const ta = getOrderTime(a);
+                    const tb = getOrderTime(b);
+                    if (ta !== tb) return tb - ta;
+                    return String(b?.id || '').localeCompare(String(a?.id || ''));
+                }).map((order) => {
                     const totalValue = order.total ?? order.finalAmount ?? order.totalAmount ?? order.grandTotal ?? order.amount ?? order.total_amount ?? order.total_price;
                     const discountValue = Number(order.discountAmount ?? order.discount_amount ?? order.discount ?? order.couponDiscount ?? order.coupon_discount ?? 0);
                     const rawCouponCode = order.couponCode ?? order.coupon_code ?? order.coupon?.code ?? order.appliedCoupon?.code;
@@ -43,9 +229,7 @@ const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrde
                         : (user?.name || 'Valued Member');
 
                     // Format payment method nicely
-                    const displayPayment = order.paymentMethod && order.paymentMethod !== 'Not Specified'
-                        ? order.paymentMethod
-                        : 'Not Specified';
+                    const displayPayment = getDisplayPaymentMethod(order);
 
                     const hasItems = Array.isArray(order.items) && order.items.length > 0;
 
@@ -293,44 +477,53 @@ const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrde
 
                                 {/* Products */}
                                 {hasItems ? (
-                                    <div className="order-items" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                        {order.items.map((item, idx) => (
-                                            <div key={idx} className="order-item" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                    <div className="order-items" style={{ display: 'flex', flexDirection: 'row', gap: '15px', overflowX: 'auto', paddingBottom: '10px' }}>
+                                        {dedupeOrderItemsForThumbnails(order.items).map((item, idx) => {
+                                            const variantImage = resolveItemImage(item);
+                                            
+                                            return (
+                                            <div key={item._thumbKey || idx} className="order-item-grid" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                                                 <div style={{
-                                                    width: '80px',
-                                                    height: '80px',
+                                                    width: '90px',
+                                                    height: '90px',
                                                     borderRadius: '8px',
-                                                    overflow: 'hidden',
+                                                    overflow: 'visible',
                                                     background: '#FEF8F0',
-                                                    flexShrink: 0,
-                                                    cursor: 'pointer'
+                                                    cursor: 'pointer',
+                                                    position: 'relative',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
                                                 }} onClick={() => onViewProduct && onViewProduct(item)}>
                                                     <img
-                                                        src={item.img || '/wild_honey.png'}
+                                                        src={variantImage}
                                                         alt={item.name}
-                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
                                                         onError={e => { e.target.src = '/wild_honey.png'; }}
                                                     />
-                                                </div>
-                                                <div style={{ flex: 1 }}>
-                                                    <h4
-                                                        style={{ margin: '0 0 5px 0', color: '#4A4A4A', fontSize: '1.1rem', cursor: 'pointer' }}
-                                                        onClick={() => onViewProduct && onViewProduct(item)}
-                                                    >
-                                                        {item.name || 'Product'}
-                                                    </h4>
-                                                    <div style={{ display: 'flex', gap: '15px', color: '#868889', fontSize: '0.9rem' }}>
-                                                        {item.variant && <span>Variant: {item.variant}</span>}
-                                                        <span>Qty: {item.quantity}</span>
-                                                    </div>
-                                                </div>
-                                                <div style={{ textAlign: 'right' }}>
-                                                    <span style={{ fontWeight: '700', color: '#7C3225', fontSize: '1.1rem' }}>
-                                                        ₹{item.price > 0 ? item.price : (order.total && order.items.length > 0 ? Math.round(order.total / order.items.length) : 0)}
-                                                    </span>
+                                                    {item.quantity > 1 && (
+                                                        <span style={{
+                                                            position: 'absolute',
+                                                            top: '-6px',
+                                                            right: '-6px',
+                                                            background: 'rgba(124, 50, 37, 0.95)',
+                                                            color: 'white',
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: '700',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '10px',
+                                                            border: '2px solid white',
+                                                            zIndex: 10,
+                                                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                                                            whiteSpace: 'nowrap'
+                                                        }}>
+                                                            Qty {item.quantity}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div style={{
@@ -369,7 +562,7 @@ const MyOrders = ({ orders, user, onContinueShopping, onViewProduct, onTrackOrde
                                     <button
                                         className="btn-secondary"
                                         style={{ padding: '8px 18px', fontSize: '0.85rem' }}
-                                        onClick={() => onViewProduct && onViewProduct(order.items[0])}
+                                        onClick={() => onBuyAgain && onBuyAgain(order)}
                                     >
                                         Buy it again
                                     </button>

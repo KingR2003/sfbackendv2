@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./styles.css";
 import "./products.css";
 import "./cart.css";
@@ -171,7 +171,7 @@ function normaliseProfile(data, fallback = {}) {
     email: data.email || data.emailAddress || data.email_address || fallback.email || "",
     gender: data.gender || data.sex || fallback.gender || "",
     dob: data.dateOfBirth || data.dob || data.birthDate || data.date_of_birth || data.birth_date || fallback.dob || "",
-    phone: data.mobileNumber || data.phone || data.mobile || data.mobile_number || data.phoneNumber || data.phone_number || fallback.phone || "",
+    phone: data.mobileNumber || data.phone || data.mobile || data.mobile_number || data.phoneNumber || data.phone_number || data.phoneNo || data.mobileNo || fallback.phone || "",
   };
 }
 
@@ -250,14 +250,57 @@ function mapApiCartToLocal(apiCart) {
   console.log(`✅ Found ${items.length} items to map`);
   
   return items.map((item) => {
-    const id = item.productId || item.product_id || item.id || item.variantId || item.variant_id;
-    const variantId = item.variantId || item.variant_id || id;
-    const cartItemId = String(variantId);
+    // Important: backend often uses `id` for the cart-item id, not the product id.
+    // Always map explicit `productId` and `variantId` for stable cart detection across refresh.
+    const productIdRaw =
+      item.productId ||
+      item.productID ||
+      item.product_id ||
+      item.product ||
+      item.product?.id ||
+      item.product?.productId ||
+      item.product?.product_id ||
+      item.product_details?.productId ||
+      item.product_details?.product_id ||
+      item.productDetails?.id ||
+      item.productDetails?.productId ||
+      item.productDetails?.product_id ||
+      item.product_details?.id;
+
+    const variantIdRaw =
+      item.variantId ||
+      item.variantID ||
+      item.variant_id ||
+      item.selectedVariantId ||
+      item.selected_variant_id ||
+      item.variant ||
+      item.variant?.id ||
+      item.variant?.variantId ||
+      item.variant?.variant_id;
+
+    const serverCartItemIdRaw =
+      item.cartItemId ||
+      item.cart_item_id ||
+      item.cartItemID ||
+      item.cart_itemId ||
+      item.id;
+
+    const productId = productIdRaw != null ? String(productIdRaw) : "";
+    // Some APIs only return `id` for the variant/cart-line. If we have a product id but no variant id,
+    // use `item.id` as a best-effort variant key.
+    const variantId = (variantIdRaw != null ? String(variantIdRaw) : (productId ? String(item.id || "") : ""));
+    // IMPORTANT: throughout the UI we use `cartItemId` as the stable key for a cart line item.
+    // This app treats variantId as that stable key (update/remove calls derive variantId from the item).
+    const cartItemId = variantId || productId;
+    const serverCartItemId = serverCartItemIdRaw != null ? String(serverCartItemIdRaw) : undefined;
     
     const mapped = {
-      id,
+      // Keep `id` as product id for UI components that expect product-like objects
+      id: productId || String(item.productId || item.product_id || item.product?.id || ""),
+      productId,
       variantId,
       cartItemId,
+      serverCartItemId,
       name: item.productName || item.name || "Product",
       category: item.category || item.categoryName || "",
       img: item.imageUrl || item.image || item.img || "",
@@ -615,16 +658,401 @@ function getDiscountFromCoupon(coupon, subtotal) {
 
 function mapApiOrderItemToLocal(item) {
   const productObj = item?.product || item?.productDetails || item?.product_detail || item?.data || {};
-  const image = item?.imageUrl || item?.image || item?.img || item?.product_image || productObj?.imageUrl || productObj?.image || productObj?.img || "/wild_honey.png";
+  const variantObj = item?.variant || item?.productVariant || item?.product_variant || item?.variantDetails || {};
+  const image =
+    item?.imageUrl ||
+    item?.image ||
+    item?.img ||
+    item?.product_image ||
+    variantObj?.images?.[0]?.imageUrl ||
+    variantObj?.images?.[0]?.url ||
+    variantObj?.imageUrl ||
+    variantObj?.image ||
+    productObj?.images?.[0]?.imageUrl ||
+    productObj?.images?.[0]?.url ||
+    productObj?.imageUrl ||
+    productObj?.image ||
+    productObj?.img ||
+    "/wild_honey.png";
+
+  const productId = item?.productId || item?.product_id || productObj?.id || productObj?.productId || productObj?.product_id || "";
+  const variantId =
+    item?.variantId ||
+    item?.variant_id ||
+    item?.productVariantId ||
+    item?.product_variant_id ||
+    variantObj?.id ||
+    variantObj?.variantId ||
+    variantObj?.variant_id ||
+    "";
 
   return {
     id: item?.id || item?.productId || item?.product_id || item?.variantId || item?.variant_id || item?.variant_id || productObj?.id || "",
+    productId,
+    variantId,
     name: item?.productName || item?.name || item?.title || item?.product_title || productObj?.name || productObj?.productName || productObj?.title || "Product",
     img: image,
     variant: item?.variantName || item?.variant || item?.size || item?.variant_name || productObj?.variantName || "",
     quantity: Number(item?.quantity || item?.qty || item?.item_quantity || 1),
     price: Number(item?.unitPrice || item?.price || item?.amount || item?.unit_price || item?.price_per_unit || 0),
   };
+}
+
+function toDateMillis(value) {
+  if (value === null || value === undefined || value === "") return 0;
+
+  if (typeof value === "number") {
+    // Heuristic: seconds vs ms
+    if (value > 1e12) return value;
+    if (value > 1e9) return value * 1000;
+    return 0;
+  }
+
+  const text = String(value).trim();
+  if (!text) return 0;
+
+  // Numeric string
+  if (/^\d+$/.test(text)) {
+    const n = Number(text);
+    if (!Number.isFinite(n)) return 0;
+    if (n > 1e12) return n;
+    if (n > 1e9) return n * 1000;
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) return parsed.getTime();
+
+  // Try DD/MM/YYYY or DD-MM-YYYY
+  const m = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (m) {
+    const day = Number(m[1]);
+    const month = Number(m[2]) - 1;
+    const year = Number(m[3]);
+    const hour = Number(m[4] || 0);
+    const min = Number(m[5] || 0);
+    const sec = Number(m[6] || 0);
+    const d = new Date(year, month, day, hour, min, sec);
+    if (!Number.isNaN(d.getTime())) return d.getTime();
+  }
+
+  return 0;
+}
+
+function getOrderSortTime(order) {
+  if (!order || typeof order !== "object") return 0;
+  const candidates = [
+    order.createdAt,
+    order.created_at,
+    order.orderDate,
+    order.order_date,
+    order.date,
+    order.updatedAt,
+    order.updated_at,
+    order.completedAt,
+    order.completed_at,
+    order.deliveredAt,
+    order.delivered_at,
+  ];
+  for (const c of candidates) {
+    const ms = toDateMillis(c);
+    if (ms > 0) return ms;
+  }
+  return 0;
+}
+
+function sortOrdersNewestFirst(list) {
+  const arr = Array.isArray(list) ? [...list] : [];
+  arr.sort((a, b) => {
+    const ta = getOrderSortTime(a);
+    const tb = getOrderSortTime(b);
+    if (ta !== tb) return tb - ta;
+    // Stable-ish fallback
+    return String(b?.id || "").localeCompare(String(a?.id || ""));
+  });
+  return arr;
+}
+
+function mergeOrderItemsPreferApiImages(localItems, apiItems) {
+  const PLACEHOLDER_IMG = "/wild_honey.png";
+  const isPlaceholderImg = (value) => !value || value === PLACEHOLDER_IMG;
+  const norm = (v) => (v === undefined || v === null ? "" : String(v));
+  const keyVP = (variantId, productId) => {
+    const v = norm(variantId).trim();
+    const p = norm(productId).trim();
+    if (!v && !p) return "";
+    return `${p}::${v}`;
+  };
+
+  const localArr = Array.isArray(localItems) ? localItems : [];
+  const apiArr = Array.isArray(apiItems) ? apiItems : [];
+  if (localArr.length === 0) return apiArr;
+  if (apiArr.length === 0) return localArr;
+
+  // Prefer matching by (productId + variantId) when available.
+  // Falling back to productId alone is ambiguous when an order contains multiple variants of the same product.
+  const apiByVariantProduct = new Map(
+    apiArr
+      .map((x) => {
+        const k = keyVP(x?.variantId || x?.variant_id, x?.productId || x?.product_id);
+        return [k, x];
+      })
+      .filter(([k]) => !!k)
+  );
+
+  const apiByVariant = new Map(
+    apiArr
+      .map((x) => [norm(x?.variantId || x?.variant_id).trim(), x])
+      .filter(([k]) => !!k)
+  );
+
+  const apiByName = new Map(
+    apiArr
+      .map((x) => [norm(x?.name).trim().toLowerCase(), x])
+      .filter(([k]) => !!k)
+  );
+
+  const apiByProductList = new Map();
+  apiArr.forEach((x) => {
+    const pid = norm(x?.productId || x?.product_id).trim();
+    if (!pid) return;
+    const list = apiByProductList.get(pid) || [];
+    list.push(x);
+    apiByProductList.set(pid, list);
+  });
+
+  return localArr.map((local) => {
+    const localImg = local?.img || local?.imageUrl || local?.image;
+    const needsImg = isPlaceholderImg(localImg);
+
+    const keyVariant = norm(local?.variantId || local?.variant_id).trim();
+    const keyProduct = norm(local?.productId || local?.product_id).trim();
+    const keyName = norm(local?.name).trim().toLowerCase();
+    const vpKey = keyVP(keyVariant, keyProduct);
+
+    let match = null;
+    if (vpKey) {
+      match = apiByVariantProduct.get(vpKey) || null;
+    }
+    if (!match && keyVariant) {
+      match = apiByVariant.get(keyVariant) || null;
+    }
+    if (!match && keyProduct) {
+      const list = apiByProductList.get(keyProduct);
+      if (Array.isArray(list) && list.length === 1) {
+        match = list[0];
+      } else if (Array.isArray(list) && list.length > 1 && keyName) {
+        match = list.find((x) => norm(x?.name).trim().toLowerCase() === keyName) || null;
+      }
+    }
+    if (!match && keyName) {
+      match = apiByName.get(keyName) || null;
+    }
+
+    if (!match) return local;
+
+    const apiImg = match?.img || match?.imageUrl || match?.image;
+    const merged = { ...local };
+
+    if (!merged.productId && (match?.productId || match?.product_id)) merged.productId = match.productId || match.product_id;
+    if (!merged.variantId && (match?.variantId || match?.variant_id)) merged.variantId = match.variantId || match.variant_id;
+
+    if (needsImg && apiImg && !isPlaceholderImg(apiImg)) merged.img = apiImg;
+    return merged;
+  });
+}
+
+function resolveCatalogImageByVariantProduct(products, productIdRaw, variantIdRaw) {
+  const productsArr = Array.isArray(products) ? products : [];
+  if (productsArr.length === 0) return null;
+
+  const norm = (v) => (v === undefined || v === null ? "" : String(v)).trim();
+  const productId = norm(productIdRaw);
+  const variantId = norm(variantIdRaw);
+
+  if (!productId && !variantId) return null;
+
+  const getVariantId = (v) => norm(v?.id || v?.variantId || v?.variant_id);
+  const getProductId = (p) => norm(p?.id || p?.productId || p?.product_id);
+
+  let product = null;
+  if (productId) {
+    product = productsArr.find((p) => getProductId(p) === productId) || null;
+  }
+  if (!product && variantId) {
+    product = productsArr.find((p) => Array.isArray(p?.variants) && p.variants.some((v) => getVariantId(v) === variantId)) || null;
+  }
+  if (!product) return null;
+
+  let variant = null;
+  if (variantId && Array.isArray(product?.variants)) {
+    variant = product.variants.find((v) => getVariantId(v) === variantId) || null;
+  }
+
+  const variantImg =
+    variant?.images?.[0]?.imageUrl ||
+    variant?.images?.[0]?.url ||
+    variant?.imageUrl ||
+    variant?.image ||
+    null;
+
+  const productImg =
+    product?.images?.[0]?.imageUrl ||
+    product?.images?.[0]?.url ||
+    product?.imageUrl ||
+    product?.image ||
+    product?.img ||
+    null;
+
+  return variantImg || productImg || null;
+}
+
+function enrichOrderItemsWithCatalogImages(items, products, cacheMap) {
+  const PLACEHOLDER_IMG = "/wild_honey.png";
+  const isPlaceholderImg = (value) => !value || value === PLACEHOLDER_IMG;
+  const norm = (v) => (v === undefined || v === null ? "" : String(v)).trim();
+
+  const arr = Array.isArray(items) ? items : [];
+  if (arr.length === 0) return { items: arr, changed: false };
+
+  const cache = cacheMap && typeof cacheMap.get === "function" ? cacheMap : null;
+
+  let changed = false;
+  const next = arr.map((it) => {
+    const productId = norm(
+      it?.productId ??
+      it?.product_id ??
+      it?.product?.id ??
+      it?.product?.productId ??
+      it?.product?.product_id
+    );
+    const variantId = norm(
+      it?.variantId ??
+      it?.variant_id ??
+      it?.variant?.id ??
+      it?.variant?.variantId ??
+      it?.variant?.variant_id
+    );
+
+    if (!productId && !variantId) return it;
+
+    const cacheKey = `${productId}::${variantId}`;
+    let resolved = null;
+    if (cache) {
+      if (cache.has(cacheKey)) {
+        resolved = cache.get(cacheKey);
+      } else {
+        resolved = resolveCatalogImageByVariantProduct(products, productId, variantId);
+        cache.set(cacheKey, resolved);
+      }
+    } else {
+      resolved = resolveCatalogImageByVariantProduct(products, productId, variantId);
+    }
+
+    if (!resolved) return it;
+
+    const currentImg = it?.variantImage || it?.img || it?.imageUrl || it?.image;
+
+    // Always attach variantImage when we can (helps MyOrders prefer variant imagery)
+    // Only overwrite the primary img when it's missing/placeholder.
+    if (it?.variantImage !== resolved) {
+      changed = true;
+    }
+
+    const shouldOverwritePrimary = isPlaceholderImg(currentImg);
+    if (shouldOverwritePrimary) {
+      changed = true;
+      return { ...it, img: resolved, variantImage: resolved };
+    }
+
+    return it?.variantImage ? it : { ...it, variantImage: resolved };
+  });
+
+  return { items: next, changed };
+}
+
+function normalizePaymentMethod(value) {
+  if (value === null || value === undefined) return null;
+
+  let candidate = value;
+  if (typeof candidate === "object") {
+    candidate =
+      candidate.method ||
+      candidate.type ||
+      candidate.mode ||
+      candidate.name ||
+      candidate.label ||
+      candidate.value ||
+      candidate.paymentMethod ||
+      candidate.paymentType ||
+      null;
+  }
+
+  if (candidate === null || candidate === undefined) return null;
+
+  const text = String(candidate).trim();
+  if (!text) return null;
+
+  const lowered = text.toLowerCase();
+  if (
+    lowered === "null" ||
+    lowered === "undefined" ||
+    lowered === "n/a" ||
+    lowered === "na" ||
+    lowered === "not specified"
+  ) {
+    return null;
+  }
+
+  if (lowered === "cod" || lowered.includes("cash") || lowered.includes("delivery")) {
+    return "Cash on Delivery";
+  }
+
+  if (lowered === "upi" || lowered.includes("upi") || lowered.includes("netbank") || lowered.includes("net bank")) {
+    return "UPI / Netbanking";
+  }
+
+  if (lowered === "card" || lowered.includes("credit") || lowered.includes("debit") || lowered.includes("card")) {
+    return "Card Payment";
+  }
+
+  return text;
+}
+
+function resolveOrderPaymentMethod(order, fallbackPaymentMethod) {
+  const candidates = [
+    order?.paymentMethod,
+    order?.paymentType,
+    order?.payment_method,
+    order?.payment_mode,
+    order?.payment_type,
+    order?.method,
+    order?.paymentMethodName,
+    order?.payment,
+    order?.paymentDetails,
+    order?.payment_details,
+    order?.paymentInfo,
+    order?.payment_info,
+    order?.transaction?.paymentMethod,
+    order?.transaction?.payment_method,
+    order?.transaction?.method,
+    order?.data?.paymentMethod,
+    order?.data?.paymentType,
+    order?.data?.payment_method,
+    order?.data?.payment_mode,
+    order?.data?.payment_type,
+    order?.data?.method,
+    order?.data?.paymentMethodName,
+    order?.data?.payment,
+    order?.data?.paymentDetails,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizePaymentMethod(candidate);
+    if (normalized) return normalized;
+  }
+
+  const fallback = normalizePaymentMethod(fallbackPaymentMethod);
+  return fallback || "Not Specified";
 }
 
 function normalizeOrderStatus(rawStatus) {
@@ -722,7 +1150,7 @@ function mapApiOrderToLocal(order, fallback = {}) {
     // Keep both keys since UI has used both historically
     deliveryDate: deliveredDateFormatted || (fallback.deliveryDate ?? null),
     deliveredDate: deliveredDateFormatted || (fallback.deliveredDate ?? null),
-    paymentMethod: order?.paymentMethod || order?.paymentType || order?.payment_method || order?.payment_mode || order?.payment_type || order?.method || order?.paymentMethodName || fallback.paymentMethod || "Not Specified",
+    paymentMethod: resolveOrderPaymentMethod(order, fallback.paymentMethod),
     customerName: order?.customerName || order?.customer?.name || order?.user?.name || order?.user?.full_name || order?.full_name || order?.name || order?.shippingAddress?.name || order?.customer_name || order?.user_name || order?.billingAddress?.name || fallback.customerName || "Valued Member",
     address: order?.deliveryAddress || order?.shippingAddress?.addressLine || order?.shippingAddress?.fullAddress || order?.address || order?.location || fallback.address,
     phone: order?.phone || order?.shippingAddress?.phone || order?.customer?.phone || order?.user?.phone || order?.contact || fallback.phone,
@@ -751,7 +1179,132 @@ function normalizeAuthToken(token) {
   return (token || "").replace(/^(Bearer|Token|JWT)\s+/i, "").trim();
 }
 
+const USER_ORDERS_CACHE_KEY = "sf_orders_by_user_cache_v1";
+
+function toUserCacheToken(value) {
+  if (value === null || value === undefined) return "";
+  const text = String(value).trim().toLowerCase();
+  if (!text || text === "null" || text === "undefined") return "";
+  return text;
+}
+
+function buildOrderCacheUserKeys(user, profile = {}) {
+  const keys = [];
+  const pushKey = (prefix, value) => {
+    const token = toUserCacheToken(value);
+    if (!token) return;
+    const key = `${prefix}:${token}`;
+    if (!keys.includes(key)) keys.push(key);
+  };
+
+  pushKey("id", user?.userId || user?.id || user?._id || profile?.userId || profile?.id || profile?._id);
+  pushKey("phone", user?.phone || profile?.phone);
+  pushKey("email", user?.email || profile?.email);
+
+  // Use name only as a last resort to minimize accidental collisions across users.
+  if (keys.length === 0) {
+    pushKey("name", user?.name || profile?.name);
+  }
+
+  return keys;
+}
+
+function readOrdersCacheByUser() {
+  try {
+    const raw = localStorage.getItem(USER_ORDERS_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function writeOrdersCacheByUser(cacheMap) {
+  try {
+    localStorage.setItem(USER_ORDERS_CACHE_KEY, JSON.stringify(cacheMap));
+  } catch {
+    // ignore storage errors in private mode/quota edge cases
+  }
+}
+
+function collectCachedOrdersForUser(cacheMap, userKeys) {
+  const map = (cacheMap && typeof cacheMap === "object") ? cacheMap : {};
+  const keys = Array.isArray(userKeys) ? userKeys : [];
+  const byId = {};
+
+  keys.forEach((key) => {
+    const list = Array.isArray(map[key]) ? map[key] : [];
+    list.forEach((order) => {
+      const id = String(order?.id || "");
+      if (!id) return;
+      const existing = byId[id];
+      if (!existing) {
+        byId[id] = order;
+        return;
+      }
+      const existingPayment = normalizePaymentMethod(existing?.paymentMethod);
+      const currentPayment = normalizePaymentMethod(order?.paymentMethod);
+      byId[id] = {
+        ...existing,
+        ...order,
+        items: (Array.isArray(order?.items) && order.items.length > 0)
+          ? order.items
+          : (Array.isArray(existing?.items) ? existing.items : []),
+        paymentMethod: currentPayment || existingPayment || "Not Specified",
+      };
+    });
+  });
+
+  return sortOrdersNewestFirst(Object.values(byId));
+}
+
+function mergeOrdersByIdPreferExistingOrders(primaryOrders, fallbackOrders) {
+  const primary = Array.isArray(primaryOrders) ? primaryOrders : [];
+  const fallback = Array.isArray(fallbackOrders) ? fallbackOrders : [];
+  if (fallback.length === 0) return sortOrdersNewestFirst(primary);
+
+  const byId = {};
+
+  fallback.forEach((order) => {
+    const id = String(order?.id || "");
+    if (!id) return;
+    byId[id] = order;
+  });
+
+  primary.forEach((order) => {
+    const id = String(order?.id || "");
+    if (!id) return;
+
+    const existing = byId[id];
+    if (!existing) {
+      byId[id] = order;
+      return;
+    }
+
+    const primaryPayment = normalizePaymentMethod(order?.paymentMethod);
+    const existingPayment = normalizePaymentMethod(existing?.paymentMethod);
+
+    byId[id] = {
+      ...existing,
+      ...order,
+      items: (Array.isArray(order?.items) && order.items.length > 0)
+        ? order.items
+        : (Array.isArray(existing?.items) ? existing.items : []),
+      paymentMethod: primaryPayment || existingPayment || "Not Specified",
+    };
+  });
+
+  return sortOrdersNewestFirst(Object.values(byId));
+}
+
 function App() {
+    // Landing banner availability (default false so layout starts correctly if no banners)
+    const [landingHasBanners, setLandingHasBanners] = useState(false);
+    const handleBannerAvailabilityChange = useCallback((hasBanners) => {
+      setLandingHasBanners(!!hasBanners);
+    }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [isSignIn, setIsSignIn] = useState(true);
   const [currentPage, setCurrentPage] = useState(() => {
@@ -769,7 +1322,15 @@ function App() {
   });
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem("svasthya_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load cart from localStorage:", e);
+      return [];
+    }
+  });
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [showCart, setShowCart] = useState(false);
   const [checkoutDetails, setCheckoutDetails] = useState({
@@ -826,9 +1387,17 @@ function App() {
   const [wishlist, setWishlist] = useState(() => readWishlistFromStorage());
   const [orders, setOrders] = useState(() => {
     const savedOrders = localStorage.getItem("svasthya_orders");
-    return savedOrders ? JSON.parse(savedOrders) : [];
+    try {
+      const parsed = savedOrders ? JSON.parse(savedOrders) : [];
+      return sortOrdersNewestFirst(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      return [];
+    }
   });
   const [supportInitialOrder, setSupportInitialOrder] = useState(null);
+  const fetchedOrderImageIdsRef = useRef(new Set());
+  const variantProductImageCacheRef = useRef(new Map());
+  const hydratedOrderCacheKeysRef = useRef(new Set());
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState(() => {
     try {
       const raw = localStorage.getItem("svasthya_selected_order");
@@ -850,6 +1419,93 @@ function App() {
   };
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
+  const [preferredVariantId, setPreferredVariantId] = useState(null);
+
+  const refreshCatalog = useCallback(async () => {
+    try {
+      const [prodRes, catRes] = await Promise.all([getProducts(), getCategories()]);
+
+      if (prodRes.data && prodRes.data.data) {
+        // Get categories data for mapping
+        const categoriesData = catRes.data?.data || [];
+
+        // Normalize products if needed
+        const normalizedProducts = (prodRes.data.data || []).map(p => {
+          // Find category name by categoryId
+          const categoryObj = categoriesData.find(c => c.id === p.categoryId);
+          const categoryName = categoryObj?.name || "Uncategorized";
+
+          // Get active variants with images and update stock
+          const activeVariants = (p.variants || []).filter(v => v.isActive).map(v => {
+            // Update Chikki 50g to be in stock
+            if (p.name === "Chikki" && v.variantName === "Chikki (50g)") {
+              return {
+                ...v,
+                stockQuantity: 25,
+                availabilityStatus: "IN_STOCK"
+              };
+            }
+            return v;
+          });
+
+          // Find first in-stock variant for display
+          const firstInStockVariant = activeVariants.find(v => {
+            const qty = typeof v.stockQuantity === "number" ? v.stockQuantity : null;
+            if (v.availabilityStatus === "OUT_OF_STOCK") return false;
+            if (qty !== null && qty <= 0) return false;
+            return true;
+          }) || activeVariants[0];
+
+          return {
+            ...p,
+            id: p.id || p.productId || p._id,
+            name: p.name || p.productName || "Product",
+            price: firstInStockVariant?.price || p.price || p.unitPrice || 0,
+            mrp: firstInStockVariant?.mrp || p.mrp || 0,
+            category: categoryName,
+            img: firstInStockVariant?.images?.[0]?.imageUrl || p.images?.[0]?.imageUrl || p.imageUrl || p.image || p.img || "/wild_honey.png",
+            desc: p.description || p.desc || "",
+            variants: activeVariants,
+            selectedVariant: firstInStockVariant || null,
+            isActive: p.isActive !== false, // Preserve the isActive status from API
+          };
+        });
+        setProducts(normalizedProducts);
+
+        // If we were on a product details page before reload, restore that product
+        try {
+          const savedPage = localStorage.getItem("svasthya_current_page");
+          if (savedPage === "details") {
+            const raw = localStorage.getItem("svasthya_selected_product");
+            if (raw) {
+              const savedProduct = JSON.parse(raw);
+              const restored = normalizedProducts.find(p => String(p.id) === String(savedProduct.id));
+              setSelectedProduct(restored || savedProduct || null);
+            }
+          }
+        } catch (e) {
+          // ignore localStorage issues
+        }
+      }
+
+      const rawCats = catRes.data ? (catRes.data.categories || catRes.data.data || catRes.data || []) : [];
+
+      // Ensure we always store category **labels** (strings), never raw objects
+      const fetchedCats = Array.isArray(rawCats)
+        ? rawCats.map((c) => {
+            if (typeof c === "string") return c;
+            if (!c || typeof c !== "object") return "Unknown";
+            return c.name || c.title || c.label || String(c.id || "Unknown");
+          })
+        : [];
+
+      // Only use categories that actually exist in the API response
+      const allCats = ["All", ...fetchedCats];
+      setCategories(allCats);
+    } catch (err) {
+      console.error("Error fetching catalog:", err);
+    }
+  }, []);
 
   const syncAddressesFromBackend = async (token) => {
     try {
@@ -872,6 +1528,76 @@ function App() {
   useEffect(() => {
     localStorage.setItem("svasthya_orders", JSON.stringify(orders));
   }, [orders]);
+
+  // Restore this user's cached orders (including payment method) across logout/login.
+  useEffect(() => {
+    const userKeys = buildOrderCacheUserKeys(user, profile);
+    if (userKeys.length === 0) return;
+
+    const unseenKeys = userKeys.filter((key) => !hydratedOrderCacheKeysRef.current.has(key));
+    if (unseenKeys.length === 0) return;
+
+    const cacheMap = readOrdersCacheByUser();
+    const cachedOrders = collectCachedOrdersForUser(cacheMap, userKeys);
+
+    unseenKeys.forEach((key) => hydratedOrderCacheKeysRef.current.add(key));
+    if (cachedOrders.length === 0) return;
+
+    setOrders((prev) => mergeOrdersByIdPreferExistingOrders(prev, cachedOrders));
+  }, [
+    user?.userId,
+    user?.id,
+    user?._id,
+    user?.phone,
+    user?.email,
+    user?.name,
+    profile?.userId,
+    profile?.id,
+    profile?._id,
+    profile?.phone,
+    profile?.email,
+    profile?.name,
+  ]);
+
+  // Persist orders into a user-scoped cache so future sessions can recover missing API fields.
+  useEffect(() => {
+    if (!Array.isArray(orders) || orders.length === 0) return;
+
+    const userKeys = buildOrderCacheUserKeys(user, profile);
+    if (userKeys.length === 0) return;
+
+    const cacheMap = readOrdersCacheByUser();
+    const compactOrders = sortOrdersNewestFirst(orders).slice(0, 100);
+
+    userKeys.forEach((key) => {
+      cacheMap[key] = compactOrders;
+    });
+
+    writeOrdersCacheByUser(cacheMap);
+  }, [
+    orders,
+    user?.userId,
+    user?.id,
+    user?._id,
+    user?.phone,
+    user?.email,
+    user?.name,
+    profile?.userId,
+    profile?.id,
+    profile?._id,
+    profile?.phone,
+    profile?.email,
+    profile?.name,
+  ]);
+
+  // Sync cart to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("svasthya_cart", JSON.stringify(cart));
+    } catch (e) {
+      console.error("Failed to save cart to localStorage:", e);
+    }
+  }, [cart]);
 
   // Close search when clicking outside of search container
   useEffect(() => {
@@ -1108,86 +1834,8 @@ function App() {
 
   // Fetch products and categories on mount
   useEffect(() => {
-    const fetchCatalog = async () => {
-      try {
-        const [prodRes, catRes] = await Promise.all([getProducts(), getCategories()]);
-        
-        if (prodRes.data && prodRes.data.data) {
-          // Get categories data for mapping
-          const categoriesData = catRes.data?.data || [];
-          
-          // Normalize products if needed
-          const normalizedProducts = (prodRes.data.data || []).map(p => {
-            // Find category name by categoryId
-            const categoryObj = categoriesData.find(c => c.id === p.categoryId);
-            const categoryName = categoryObj?.name || "Uncategorized";
-            
-            // Get active variants with images and update stock
-            const activeVariants = (p.variants || []).filter(v => v.isActive).map(v => {
-              // Update Chikki 50g to be in stock
-              if (p.name === "Chikki" && v.variantName === "Chikki (50g)") {
-                return {
-                  ...v,
-                  stockQuantity: 25,
-                  availabilityStatus: "IN_STOCK"
-                };
-              }
-              return v;
-            });
-            
-            return {
-              ...p,
-              id: p.id || p.productId || p._id,
-              name: p.name || p.productName || "Product",
-              price: activeVariants[0]?.price || p.price || p.unitPrice || 0,
-              mrp: activeVariants[0]?.mrp || p.mrp || 0,
-              category: categoryName,
-              img: activeVariants[0]?.images?.[0]?.imageUrl || p.images?.[0]?.imageUrl || p.imageUrl || p.image || p.img || "/wild_honey.png",
-              desc: p.description || p.desc || "",
-              variants: activeVariants,
-              selectedVariant: activeVariants[0] || null,
-              isActive: p.isActive !== false, // Preserve the isActive status from API
-            };
-          });
-          setProducts(normalizedProducts);
-
-          // If we were on a product details page before reload, restore that product
-          try {
-            const savedPage = localStorage.getItem("svasthya_current_page");
-            if (savedPage === "details") {
-              const raw = localStorage.getItem("svasthya_selected_product");
-              if (raw) {
-                const savedProduct = JSON.parse(raw);
-                const restored = normalizedProducts.find(p => String(p.id) === String(savedProduct.id));
-                setSelectedProduct(restored || savedProduct || null);
-              }
-            }
-          } catch (e) {
-            // ignore localStorage issues
-          }
-        }
-
-        const rawCats = catRes.data ? (catRes.data.categories || catRes.data.data || catRes.data || []) : [];
-
-        // Ensure we always store category **labels** (strings), never raw objects
-        const fetchedCats = Array.isArray(rawCats)
-          ? rawCats.map((c) => {
-              if (typeof c === "string") return c;
-              if (!c || typeof c !== "object") return "Unknown";
-              return c.name || c.title || c.label || String(c.id || "Unknown");
-            })
-          : [];
-
-        // Only use categories that actually exist in the API response
-        const allCats = ["All", ...fetchedCats];
-        setCategories(allCats);
-      } catch (err) {
-        console.error("Error fetching catalog:", err);
-      }
-    };
-
-    fetchCatalog();
-  }, []);
+    refreshCatalog();
+  }, [refreshCatalog]);
 
   // Sync cart from API on token change
   useEffect(() => {
@@ -1222,20 +1870,117 @@ function App() {
         const mapped = mapApiCartToLocal(cartData);
         console.log(`📊 Mapped ${mapped.length} items from cart`);
         
-        if (mapped.length > 0) {
-          console.log("✅ Setting cart with", mapped.length, "items");
-          setCart(mapped);
-        } else {
-          console.log("⚠️  API returned 0 items, cart will appear empty");
-        }
+        // Merge backend cart with existing local cart while preserving stable identifiers.
+        // This avoids "ADDED TO CART" flipping back on refresh if backend payload lacks productId/variantId.
+        setCart(prevCart => {
+          if (!Array.isArray(mapped) || mapped.length === 0) {
+            console.log("⚠️  Backend returned 0 items, keeping existing cart with", prevCart.length, "items");
+            return prevCart;
+          }
+
+          const prevByKey = new Map(
+            (Array.isArray(prevCart) ? prevCart : []).map(it => [String(it.variantId || it.cartItemId || it.productId || it.id || ""), it])
+          );
+
+          const mergedFromBackend = mapped.map(it => {
+            const key = String(it.variantId || it.cartItemId || it.productId || it.id || "");
+            const prev = prevByKey.get(key);
+            if (!prev) return it;
+            return {
+              ...it,
+              // Preserve identifiers from local cart if backend mapping is incomplete
+              productId: it.productId || prev.productId || "",
+              variantId: it.variantId || prev.variantId || "",
+              cartItemId: it.cartItemId || prev.cartItemId || (it.variantId || prev.variantId || it.productId || prev.productId),
+              id: it.id || prev.id,
+            };
+          });
+
+          // Keep any local items not present in backend (offline / backend lag) to maintain UI consistency
+          const backendKeys = new Set(
+            mergedFromBackend.map(it => String(it.variantId || it.cartItemId || it.productId || it.id || ""))
+          );
+          const keepLocal = (Array.isArray(prevCart) ? prevCart : []).filter(it => {
+            const key = String(it.variantId || it.cartItemId || it.productId || it.id || "");
+            return key && !backendKeys.has(key);
+          });
+
+          console.log("✅ Merged cart:", mergedFromBackend.length, "backend items +", keepLocal.length, "local-only items");
+          return [...mergedFromBackend, ...keepLocal];
+        });
       } catch (err) {
         console.error("❌ Fetch cart error:", err.message || err);
         console.error("❌ Full error:", err);
+        // On error, keep the existing cart
       }
     };
 
     fetchCartData();
   }, [apiToken]);
+
+  // When user opens the cart page, refresh cart items (especially variant images)
+  // so the UI doesn't depend on a full page reload to show correct imagery.
+  useEffect(() => {
+    if (currentPage !== "cartPage") return;
+    if (!apiToken) return;
+
+    let cancelled = false;
+    const refreshCartOnOpen = async () => {
+      try {
+        const res = await getCart(apiToken);
+        const cartData = res.data?.cart || res.data?.data || res.data;
+        const backendMapped = mapApiCartToLocal(cartData);
+
+        const PLACEHOLDER_IMG = "/wild_honey.png";
+        const isPlaceholderImg = (value) => !value || value === PLACEHOLDER_IMG;
+
+        if (cancelled) return;
+        setCart((prevCart) => {
+          const prev = Array.isArray(prevCart) ? prevCart : [];
+          if (!Array.isArray(backendMapped) || backendMapped.length === 0) return prevCart;
+
+          const prevByKey = new Map(
+            prev.map((it) => [String(it.variantId || it.cartItemId || it.productId || it.id || ""), it])
+          );
+
+          const mergedFromBackend = backendMapped.map((it) => {
+            const key = String(it.variantId || it.cartItemId || it.productId || it.id || "");
+            const local = prevByKey.get(key);
+            if (!local) return it;
+
+            const backendImg = it?.img;
+            const localImg = local?.variantImage || local?.img;
+            const shouldUseBackendImg = backendImg && !isPlaceholderImg(backendImg) && (isPlaceholderImg(localImg) || backendImg !== localImg);
+
+            return {
+              ...local,
+              ...it,
+              quantity: local.quantity,
+              img: shouldUseBackendImg ? backendImg : (local.img || it.img),
+              variantImage: shouldUseBackendImg ? backendImg : (local.variantImage || it.img),
+            };
+          });
+
+          const backendKeys = new Set(
+            mergedFromBackend.map((it) => String(it.variantId || it.cartItemId || it.productId || it.id || ""))
+          );
+          const keepLocal = prev.filter((it) => {
+            const key = String(it.variantId || it.cartItemId || it.productId || it.id || "");
+            return key && !backendKeys.has(key);
+          });
+
+          return [...mergedFromBackend, ...keepLocal];
+        });
+      } catch {
+        // keep existing cart
+      }
+    };
+
+    refreshCartOnOpen();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, apiToken]);
 
   // Sync wishlist from API on token change
   useEffect(() => {
@@ -1282,6 +2027,127 @@ function App() {
     });
   }, [products]);
 
+  // When user opens My Orders, fetch order details from API and use those item images.
+  // This ensures My Orders images come from the backend, not from the local product catalog.
+  useEffect(() => {
+    if (currentPage !== "myOrders") return;
+    if (!apiToken) return;
+
+    const PLACEHOLDER_IMG = "/wild_honey.png";
+    const isPlaceholderImg = (value) => !value || value === PLACEHOLDER_IMG;
+    const getItemImage = (it) => it?.variantImage || it?.img || it?.imageUrl || it?.image;
+
+    let cancelled = false;
+
+    const refreshOrderImages = async () => {
+      let snapshot = Array.isArray(orders) ? orders : [];
+      const catalog = Array.isArray(products) ? products : [];
+
+      // Phase 0 (no network): Fill missing/placeholder item images from the catalog
+      // using (productId, variantId) and a cache so we don't resolve the same image repeatedly.
+      if (catalog.length > 0 && snapshot.length > 0) {
+        const cache = variantProductImageCacheRef.current;
+        const enrichedItemsByOrderId = new Map();
+        let anyChanged = false;
+
+        snapshot.forEach((o) => {
+          const oid = String(o?.id || "");
+          if (!oid) return;
+          const items = Array.isArray(o?.items) ? o.items : [];
+          const { items: enriched, changed } = enrichOrderItemsWithCatalogImages(items, catalog, cache);
+          if (changed) {
+            anyChanged = true;
+            enrichedItemsByOrderId.set(oid, enriched);
+          }
+        });
+
+        if (anyChanged && !cancelled) {
+          setOrders((prev) => {
+            const list = Array.isArray(prev) ? prev : [];
+            let changed = false;
+            const next = list.map((o) => {
+              const oid = String(o?.id || "");
+              const enriched = enrichedItemsByOrderId.get(oid);
+              if (!enriched) return o;
+              changed = true;
+              return { ...o, items: enriched };
+            });
+            return changed ? sortOrdersNewestFirst(next) : prev;
+          });
+
+          snapshot = snapshot.map((o) => {
+            const oid = String(o?.id || "");
+            const enriched = enrichedItemsByOrderId.get(oid);
+            return enriched ? { ...o, items: enriched } : o;
+          });
+        }
+      }
+
+      const needsFetch = snapshot.filter((o) => {
+        const id = String(o?.id || "");
+        if (!id) return false;
+        if (fetchedOrderImageIdsRef.current.has(id)) return false;
+        const hasMissingPayment = !normalizePaymentMethod(o?.paymentMethod);
+        const items = Array.isArray(o?.items) ? o.items : [];
+        const hasNoItems = items.length === 0;
+        const hasPlaceholderImages = items.some((it) => isPlaceholderImg(getItemImage(it)));
+        return hasMissingPayment || hasNoItems || hasPlaceholderImages;
+      });
+
+      for (const order of needsFetch) {
+        if (cancelled) return;
+        const localId = String(order?.id || "");
+        if (!localId) continue;
+
+        // Prevent refetch loops for the same order id in this session.
+        fetchedOrderImageIdsRef.current.add(localId);
+
+        try {
+          const orderId = String(order?.id || "").replace(/^#/, "");
+          if (!orderId) continue;
+          const res = await getOrderDetails(apiToken, orderId);
+          const rawOrder = extractOrderFromResponse(res?.data || {});
+          if (!rawOrder) continue;
+
+          const mapped = mapApiOrderToLocal(rawOrder, order);
+          const apiItems = Array.isArray(mapped?.items) ? mapped.items : [];
+          const mergedItems = mergeOrderItemsPreferApiImages(order.items, apiItems);
+          const catalog = Array.isArray(products) ? products : [];
+          const cache = variantProductImageCacheRef.current;
+          const { items: nextItems } = (catalog.length > 0)
+            ? enrichOrderItemsWithCatalogImages(mergedItems, catalog, cache)
+            : { items: mergedItems, changed: false };
+
+          if (cancelled) return;
+          setOrders((prev) => {
+            const list = Array.isArray(prev) ? prev : [];
+            let changed = false;
+            const next = list.map((o) => {
+              if (String(o?.id || "") !== localId) return o;
+              const currentPayment = normalizePaymentMethod(o?.paymentMethod);
+              const nextPayment = normalizePaymentMethod(mapped?.paymentMethod);
+              const mergedOrder = {
+                ...o,
+                items: nextItems,
+                paymentMethod: currentPayment || nextPayment || "Not Specified",
+              };
+              changed = true;
+              return mergedOrder;
+            });
+            return changed ? sortOrdersNewestFirst(next) : prev;
+          });
+        } catch (err) {
+          // no-op: keep placeholder images
+        }
+      }
+    };
+
+    refreshOrderImages();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, apiToken, orders, products]);
+
   // Once catalog loads, mark cart items that no longer exist as inactive and sync stock status.
   useEffect(() => {
     if (!products || products.length === 0) return;
@@ -1308,9 +2174,16 @@ function App() {
           console.log("📦 Previous local orders:", prev);
           const localById = {};
           prev.forEach(o => { if (o.id) localById[String(o.id)] = o; });
+          const cacheKeys = buildOrderCacheUserKeys(user, profile);
+          const cacheMap = readOrdersCacheByUser();
+          const cachedOrders = collectCachedOrdersForUser(cacheMap, cacheKeys);
+          const cachedById = {};
+          cachedOrders.forEach((o) => {
+            if (o?.id) cachedById[String(o.id)] = o;
+          });
           const merged = list.map(apiOrder => {
             const apiId = String(apiOrder?.id || apiOrder?.orderId || apiOrder?._id || "");
-            const local = localById[apiId] || {};
+            const local = localById[apiId] || cachedById[apiId] || {};
             console.log(`📦 Merging order ${apiId}:`, { 
               api: apiOrder, 
               local,
@@ -1345,7 +2218,31 @@ function App() {
             const finalOrder = {
               ...mapped,
               items: finalItems,
-              paymentMethod: (mapped.paymentMethod && mapped.paymentMethod !== 'Not Specified') ? mapped.paymentMethod : (local.paymentMethod || 'Not Specified'),
+              paymentMethod: (() => {
+                console.log(`📦 Payment method resolution for order ${apiId}:`, {
+                  mappedPaymentMethod: mapped.paymentMethod,
+                  localPaymentMethod: local.paymentMethod,
+                  apiRawPaymentMethod: apiOrder?.paymentMethod,
+                  apiRawPaymentType: apiOrder?.paymentType,
+                });
+                
+                // ALWAYS prefer localStorage payment method if it exists and is valid
+                const normalizedLocalPayment = normalizePaymentMethod(local.paymentMethod);
+                if (normalizedLocalPayment) {
+                  console.log(`📦 Using LOCAL payment method (priority): ${normalizedLocalPayment}`);
+                  return normalizedLocalPayment;
+                }
+                
+                // Only use API payment method if localStorage doesn't have it
+                const normalizedMappedPayment = normalizePaymentMethod(mapped.paymentMethod);
+                if (normalizedMappedPayment) {
+                  console.log(`📦 Using API payment method: ${normalizedMappedPayment}`);
+                  return normalizedMappedPayment;
+                }
+                
+                console.log(`📦 Falling back to 'Not Specified'`);
+                return 'Not Specified';
+              })(),
               customerName: (mapped.customerName && mapped.customerName !== 'Valued Member') ? mapped.customerName : (local.customerName || user?.name || 'Valued Member'),
               total: (mapped.total && mapped.total > 0) ? mapped.total : (local.total || 0),
             };
@@ -1360,7 +2257,7 @@ function App() {
           // Also keep any local orders that aren't on the API (e.g. offline/failed sync)
           const apiIds = new Set(merged.map(o => String(o.id)));
           const localOnly = prev.filter(o => o.id && !apiIds.has(String(o.id)));
-          const finalOrders = [...merged, ...localOnly];
+          const finalOrders = sortOrdersNewestFirst([...merged, ...localOnly]);
           console.log("📦 Final orders array:", finalOrders);
           return finalOrders;
         });
@@ -1483,12 +2380,31 @@ function App() {
       if (!res.ok) return;
       const json = await res.json();
       console.log("[Profile REFRESH] Raw JSON:", json);
-      const data = extractUserFromResponse(json);
+      let data = extractUserFromResponse(json);
+      
+      // Also aggressively attempt to fetch from user info (fallback for hidden fields)
+      try {
+         const infoRes = await getUserInfo(apiToken);
+         if (infoRes.ok) {
+             const infoJson = await infoRes.json();
+             console.log("[Profile INFO] Raw JSON:", infoJson);
+             const infoData = extractUserFromResponse(infoJson);
+             if (infoData) data = { ...(data || {}), ...infoData };
+         }
+      } catch (e) {
+         console.warn("[Profile INFO] Failed to fetch secondary info source", e);
+      }
+      
       if (data) {
         const normalised = normaliseProfile(data);
         console.log("[Profile REFRESH] Normalised:", normalised);
-        setProfile(normalised);
-        localStorage.setItem("svasthya_profile", JSON.stringify(normalised));
+        
+        setProfile(prev => {
+          const merged = { ...normalised, phone: normalised.phone || prev?.phone || "" };
+          localStorage.setItem("svasthya_profile", JSON.stringify(merged));
+          return merged;
+        });
+        
         setUser(prev => {
           const updated = {
             ...prev,
@@ -1532,29 +2448,62 @@ function App() {
       }
     }
 
-    // Clear all user-specific data from localStorage EXCEPT orders
-    // Orders should be preserved so they can be shown when user logs back in
-    localStorage.removeItem("svasthya_user");
-    localStorage.removeItem("svasthya_token");
-    localStorage.removeItem("svasthya_profile");
-    localStorage.removeItem("svasthya_addresses");
-    // DO NOT remove svasthya_orders - keep them for when user logs back in
-    // localStorage.removeItem("svasthya_orders");
-    localStorage.removeItem("svasthya_current_page");
+    // Clear all user-specific data from localStorage and sessionStorage
+    // Clear all svasthya_* keys from localStorage
+    const keysToRemove = [
+      "svasthya_user",
+      "svasthya_token",
+      "svasthya_profile",
+      "svasthya_addresses",
+      "svasthya_current_page",
+      "svasthya_selected_order",
+      "svasthya_cart",
+      "svasthya_orders",
+      "svasthya_wishlist",
+      "svasthya_selected_product",
+      "svasthya_selected_address",
+      "wishlist_selected_variants",
+    ];
+
+    keysToRemove.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.error(`Failed to remove localStorage key: ${key}`, e);
+      }
+    });
+
+    // Clear any remaining svasthya_* keys in case we missed any
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("svasthya_")) {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.error(`Failed to remove remaining key: ${key}`, e);
+        }
+      }
+    }
+
+    // Clear all sessionStorage data
+    sessionStorage.clear();
+
     // Reset all in-memory user state
     setIsAuthenticated(false);
     setUser(null);
     setApiTokenState(null);
     setProfile({});
     setAddresses([]);
-    // DO NOT clear orders state - keep them in memory
-    // setOrders([]);
+    setOrders([]); // Clear orders to prevent new user from seeing previous user's orders
     setSelectedAddressId(null);
     setCart([]);
+    setWishlist([]);
+    setSelectedProduct(null);
     if (token) {
       clearCart(token).catch(() => { });
     }
     setCurrentPage("auth");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleAuth = (e) => {
@@ -1595,7 +2544,10 @@ function App() {
   };
 
   const handleOTPVerified = async (phone, fullName, token, isSignInAction, responseData) => {
-    console.log("[handleOTPVerified] token received:", token ? token.substring(0, 20) + "..." : "NONE");
+    console.log("[handleOTPVerified] ========== START ==========");
+    console.log("[handleOTPVerified] phone:", phone);
+    console.log("[handleOTPVerified] fullName:", fullName);
+    console.log("[handleOTPVerified] token:", token ? token.substring(0, 20) + "..." : "NONE");
     console.log("[handleOTPVerified] isSignInAction:", isSignInAction);
     console.log("[handleOTPVerified] responseData:", JSON.stringify(responseData, null, 2));
 
@@ -1628,10 +2580,14 @@ function App() {
       console.warn("[handleOTPVerified] No JWT token found — profile fetch will be skipped!");
     }
     
+    // Extract user data
+    const userData = responseData?.user || responseData?.data?.user || responseData?.data || {};
+    const isGoogleAuth = !!(userData?.provider === 'google' || responseData?.isGoogleAuth || (phone && phone.includes("@")));
+
     // Initial user object from verification step
     let mockUser = {
-      name: fullName || "Valued Member",
-      phone: phone
+      name: fullName || userData?.name || userData?.fullName || "Valued Member",
+      phone: phone && !phone.includes("@") ? phone : (userData?.phone || userData?.mobileNumber || "")
     };
 
     localStorage.setItem("svasthya_user", JSON.stringify(mockUser));
@@ -1640,81 +2596,123 @@ function App() {
     setCurrentPage("landing");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    if (!isSignInAction) {
-      // New user registration flow
-      const merged = { name: mockUser.name, phone: mockUser.phone, email: "", gender: "", dob: "" };
-      setProfile(merged);
-      try { localStorage.setItem("svasthya_profile", JSON.stringify(merged)); } catch (e) {}
+    // Evaluate if profile represents a complete state
+    const hasCompleteProfile = (
+      (userData?.phone || userData?.mobileNumber || mockUser.phone) &&
+      userData?.email &&
+      userData?.gender &&
+      (userData?.dob || userData?.dateOfBirth || userData?.birthDate)
+    );
+
+    // Handle modal display logic FIRST before any backend fetches
+    let shouldShowModal = false;
+    
+    if (!isSignInAction && !hasCompleteProfile) {
+      // NEW USER (OTP or Google where details are still missing for some reason)
+      shouldShowModal = true;
+      console.log("[handleOTPVerified] 🟢 NEW USER INCOMPLETE - Show modal");
+    } else if (isGoogleAuth && !hasCompleteProfile) {
+      // GOOGLE AUTH INCOMPLETE: Show modal
+      shouldShowModal = true;
+      console.log("[handleOTPVerified] 🔵 GOOGLE INCOMPLETE - Show modal");
+    } else {
+      // OTP AUTH - EXISTING USER OR COMPLETE GOOGLE USER: Don't show modal
+      shouldShowModal = false;
+      console.log("[handleOTPVerified] 🔴 COMPLETE USER - Don't show modal");
+    }
+
+    // Set up initial profile 
+    const initialProfile = {
+      name: mockUser.name,
+      email: userData?.email || (isGoogleAuth && phone.includes("@") ? phone : ""),
+      gender: userData?.gender || userData?.sex || "",
+      dob: userData?.dob || userData?.dateOfBirth || userData?.birthDate || "",
+      phone: mockUser.phone,
+    };
+    setProfile(initialProfile);
+    localStorage.setItem("svasthya_profile", JSON.stringify(initialProfile));
+    console.log("[handleOTPVerified] 👤 Set initial user profile:", initialProfile);
+
+    // NOW show/hide modal based on our decision
+    if (shouldShowModal) {
+      console.log("[handleOTPVerified] ✅ SETTING showProfileModal = TRUE");
       setShowProfileModal(true);
     } else {
-      // Existing user sign-in: extract user data from verify-otp response first
-      const userData = responseData?.user || responseData?.data?.user || responseData?.data || {};
-      const initialProfile = {
-        name: userData.name || userData.fullName || userData.full_name || fullName || "Valued Member",
-        email: userData.email || "",
-        gender: userData.gender || "",
-        dob: userData.dateOfBirth || userData.dob || userData.birthDate || "",
-        phone: userData.mobileNumber || userData.phone || userData.mobile || phone,
-      };
-      setProfile(initialProfile);
-      localStorage.setItem("svasthya_profile", JSON.stringify(initialProfile));
-      setUser({ name: initialProfile.name, email: initialProfile.email, phone: initialProfile.phone });
-      localStorage.setItem("svasthya_user", JSON.stringify({ name: initialProfile.name, email: initialProfile.email, phone: initialProfile.phone }));
+      console.log("[handleOTPVerified] ❌ SETTING showProfileModal = FALSE");
+      setShowProfileModal(false);
+    }
 
-      // Fetch full profile from backend API for complete/updated data
-      if (authToken) {
-        try {
-          const res = await getUserProfile(authToken);
-          console.log("[Auth] Profile fetch status:", res.status);
-          if (res.ok) {
-            const json = await res.json();
-            console.log("[Auth] Profile Fetch JSON:", JSON.stringify(json, null, 2));
-            const data = extractUserFromResponse(json);
-            console.log("[Auth] Extracted data:", JSON.stringify(data, null, 2));
-            if (data) {
-              const normalised = normaliseProfile(data, initialProfile);
-              console.log("[Auth] Normalised Profile:", JSON.stringify(normalised, null, 2));
-              setProfile(normalised);
-              localStorage.setItem("svasthya_profile", JSON.stringify(normalised));
-              const updatedUser = {
-                name: normalised.name || "Valued Member",
-                email: normalised.email || "",
-                phone: normalised.phone || phone,
-              };
-              setUser(updatedUser);
-              localStorage.setItem("svasthya_user", JSON.stringify(updatedUser));
-            }
-          } else {
-            const errText = await res.text();
-            console.error("[Auth] Profile fetch failed with status:", res.status, errText);
+    // Fetch full profile from backend API for complete/updated data (only if token exists)
+    if (authToken) {
+      try {
+        const res = await getUserProfile(authToken);
+        console.log("[Auth] Profile fetch status:", res.status);
+        if (res.ok) {
+          const json = await res.json();
+          console.log("[Auth] Profile Fetch JSON:", JSON.stringify(json, null, 2));
+          let data = extractUserFromResponse(json);
+          
+          try {
+             const infoRes = await getUserInfo(authToken);
+             if (infoRes.ok) {
+                 const infoJson = await infoRes.json();
+                 console.log("[Auth] Profile INFO JSON:", JSON.stringify(infoJson, null, 2));
+                 const infoData = extractUserFromResponse(infoJson);
+                 if (infoData) data = { ...(data || {}), ...infoData };
+             }
+          } catch (e) {
+             console.warn("[Auth] Failed fetching secondary user info", e);
           }
-        } catch (err) {
-          console.error("[Auth] Profile fetch failed:", err);
-        }
-
-        // Also fetch user_id from GET /api/v1/users
-        try {
-          const userRes = await getUserInfo(authToken);
-          if (userRes.ok) {
-            const userJson = await userRes.json();
-            console.log("[Auth] User Info JSON:", JSON.stringify(userJson, null, 2));
-            const userData2 = extractUserFromResponse(userJson);
-            if (userData2) {
-              const userId = userData2.id || userData2._id || userData2.userId || userData2.user_id || "";
-              setUser(prev => {
-                const updated = { ...prev, userId };
-                localStorage.setItem("svasthya_user", JSON.stringify(updated));
-                return updated;
-              });
-            }
+          
+          console.log("[Auth] Extracted data:", JSON.stringify(data, null, 2));
+          if (data) {
+            const normalised = normaliseProfile(data, profile);
+            
+            // Preserve the locally verified phone number if backend returns blank
+            const finalNormalised = { ...normalised, phone: normalised.phone || profile?.phone || "" };
+            
+            console.log("[Auth] Normalised Profile:", JSON.stringify(finalNormalised, null, 2));
+            setProfile(finalNormalised);
+            localStorage.setItem("svasthya_profile", JSON.stringify(finalNormalised));
+            const updatedUser = {
+              name: finalNormalised.name || "Valued Member",
+              email: finalNormalised.email || "",
+              phone: finalNormalised.phone || "",
+            };
+            setUser(updatedUser);
+            localStorage.setItem("svasthya_user", JSON.stringify(updatedUser));
           }
-        } catch (err) {
-          console.error("[Auth] User info fetch failed:", err);
+        } else {
+          const errText = await res.text();
+          console.error("[Auth] Profile fetch failed with status:", res.status, errText);
         }
+      } catch (err) {
+        console.error("[Auth] Profile fetch failed:", err);
+      }
 
+      // Also fetch user_id from GET /api/v1/users
+      try {
+        const userRes = await getUserInfo(authToken);
+        if (userRes.ok) {
+          const userJson = await userRes.json();
+          console.log("[Auth] User Info JSON:", JSON.stringify(userJson, null, 2));
+          const userData2 = extractUserFromResponse(userJson);
+          if (userData2) {
+            const userId = userData2.id || userData2._id || userData2.userId || userData2.user_id || "";
+            setUser(prev => {
+              const updated = { ...prev, userId };
+              localStorage.setItem("svasthya_user", JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[Auth] User info fetch failed:", err);
+      }
+
+      if (isGoogleAuth || !isSignInAction) {
         await syncAddressesFromBackend(authToken);
       }
-      setShowProfileModal(false);
     }
   };
 
@@ -1726,7 +2724,14 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleViewProduct = (product) => {
+  const handleViewProduct = (product, options = null) => {
+    const nextPreferredVariantId =
+      (options && typeof options === 'object' && options.preferredVariantId != null)
+        ? String(options.preferredVariantId)
+        : null;
+
+    setPreferredVariantId(nextPreferredVariantId);
+
     // Enrich product with latest data from catalog to ensure stock info is current
     let enrichedProduct = product;
     
@@ -1755,7 +2760,48 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const addToCart = async (product, selectedVariant = null, quantity = 1) => {
+  const handleViewCartItem = (cartItem) => {
+    const norm = (v) => (v == null ? "" : String(v)).trim();
+
+    const variantId = norm(cartItem?.variantId) || norm(cartItem?.cartItemId);
+
+    // Prefer productId if we have it, but some backend cart payloads don't include it.
+    const productId = norm(cartItem?.productId) || norm(cartItem?.product_id) || "";
+
+    let catalogProduct = null;
+    if (productId && Array.isArray(products)) {
+      catalogProduct = products.find((p) => norm(p?.id) === productId) || null;
+    }
+
+    // Fallback: resolve product via variant id
+    if (!catalogProduct && variantId && Array.isArray(products)) {
+      catalogProduct = products.find((p) => {
+        const variants = Array.isArray(p?.variants) ? p.variants : [];
+        return variants.some((v) => {
+          const vId = norm(v?.id || v?.variantId || v?.variant_id);
+          return vId && vId === variantId;
+        });
+      }) || null;
+    }
+
+    // Last resort: try matching by name (best-effort)
+    if (!catalogProduct && Array.isArray(products)) {
+      const itemName = norm(cartItem?.name).toLowerCase();
+      if (itemName) {
+        catalogProduct = products.find((p) => norm(p?.name).toLowerCase() === itemName) || null;
+      }
+    }
+
+    if (!catalogProduct) {
+      showToast("Couldn't open product details for this item.", "error");
+      return;
+    }
+
+    handleViewProduct(catalogProduct, { preferredVariantId: variantId || null });
+  };
+
+  const addToCart = async (product, selectedVariant = null, quantity = 1, options = {}) => {
+    const { showToast: shouldShowToast = true, awaitBackend = true } = options || {};
     // Use the provided selectedVariant or the product's selectedVariant
     const variant = selectedVariant || product.selectedVariant || (product.variants && product.variants[0]);
     const variantLabel = variant?.variantName || variant?.name || variant?.label || 'Standard';
@@ -1774,22 +2820,44 @@ function App() {
 
     // Local optimistic behavior (kept as fallback)
     const applyLocalAdd = () => {
+      const variantImg =
+        variant?.images?.[0]?.imageUrl ||
+        variant?.images?.[0]?.url ||
+        variant?.imageUrl ||
+        variant?.image ||
+        product?.img ||
+        product?.imageUrl ||
+        product?.image ||
+        "/wild_honey.png";
+
       setCart(prevCart => {
         const existingItem = prevCart.find(item => item.cartItemId === cartItemId);
         if (existingItem) {
           console.log("Item exists, updating quantity by", quantity);
           return prevCart.map(item =>
             item.cartItemId === cartItemId
-              ? { ...item, quantity: item.quantity + quantity }
+              ? {
+                  ...item,
+                  quantity: item.quantity + quantity,
+                  // Ensure name/image stay correct for this variant immediately
+                  name: product?.name || item.name,
+                  selectedVariant: variantLabel || item.selectedVariant,
+                  img: variantImg,
+                  variantImage: variantImg,
+                  price: variant?.price || product?.price || item.price,
+                }
               : item
           );
         }
         console.log("Adding new item to local cart");
         return [...prevCart, {
           ...product,
-          variantId,
-          cartItemId,
+          productId: String(productId),
+          variantId: String(variantId),
+          cartItemId: String(cartItemId),
           selectedVariant: variantLabel,
+          img: variantImg,
+          variantImage: variantImg,
           price: variant?.price || product.price,
           quantity: quantity,
           availabilityStatus: variant?.availabilityStatus || "IN_STOCK",
@@ -1821,25 +2889,27 @@ function App() {
 
     // Apply locally first for instant UI feedback
     applyLocalAdd();
-    
-    // Show toast with "Go to Cart" button
-    showToast(
-      `${product.name} added to cart`,
-      "success",
-      () => {
-        setCurrentPage("cartPage");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      },
-      "VIEW CART"
-    );
 
-    try {
+    // Optional toast with "Go to Cart" action
+    if (shouldShowToast) {
+      showToast(
+        `${product.name} added to cart`,
+        "success",
+        () => {
+          setCurrentPage("cartPage");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        },
+        "VIEW CART"
+      );
+    }
+
+    const syncCartToBackend = async () => {
       // Send minimal, clean payload
       const payload = {
         variantId: String(variantId),
         quantity: quantity,
       };
-      
+
       console.log("📤 CART ADD Request payload:", JSON.stringify(payload));
       const res = await addCartItem(apiToken, payload);
       console.log("✅ CART ADD Response status:", res?.status);
@@ -1852,32 +2922,74 @@ function App() {
 
       if (backendItems.length === 0) {
         console.error("⚠️  Backend cart is still empty after add — local state kept");
-      } else {
-        console.log(`✅ Backend confirmed ${backendItems.length} item(s) in cart`);
-        // Merge backend data into local cart to pick up backend-assigned IDs/metadata,
-        // but PRESERVE local quantities which the user explicitly chose.
-        setCart(prevCart => {
-          const backendMapped = mapApiCartToLocal(cartData);
-          // For each backend item, if a local item already exists with the same cartItemId/variantId,
-          // keep the local quantity; otherwise add the backend item.
-          const merged = [...prevCart];
-          backendMapped.forEach(backendItem => {
-            const localIdx = merged.findIndex(l => l.cartItemId === backendItem.cartItemId || l.variantId === backendItem.variantId);
-            if (localIdx === -1) {
-              // Entirely new item from backend (edge case), add it
-              merged.push(backendItem);
-            }
-            // else: local item already exists with user's chosen quantity — keep it
-          });
-          return merged;
+        return;
+      }
+
+      console.log(`✅ Backend confirmed ${backendItems.length} item(s) in cart`);
+      // Merge backend data into local cart to pick up backend-assigned IDs/metadata,
+      // but PRESERVE local quantities which the user explicitly chose.
+      setCart(prevCart => {
+        const backendMapped = mapApiCartToLocal(cartData);
+        const PLACEHOLDER_IMG = "/wild_honey.png";
+        const isPlaceholderImg = (value) => !value || value === PLACEHOLDER_IMG;
+
+        const merged = [...prevCart];
+        backendMapped.forEach((backendItem) => {
+          const localIdx = merged.findIndex((l) =>
+            l.cartItemId === backendItem.cartItemId ||
+            l.variantId === backendItem.variantId
+          );
+
+          if (localIdx === -1) {
+            merged.push(backendItem);
+            return;
+          }
+
+          const localItem = merged[localIdx];
+          const backendImg = backendItem?.img;
+          const localImg = localItem?.variantImage || localItem?.img;
+
+          // Keep local quantity, but update image + backend metadata when available.
+          const shouldUseBackendImg = backendImg && !isPlaceholderImg(backendImg) && (isPlaceholderImg(localImg) || backendImg !== localImg);
+
+          merged[localIdx] = {
+            ...localItem,
+            serverCartItemId: backendItem.serverCartItemId || localItem.serverCartItemId,
+            productId: backendItem.productId || localItem.productId,
+            variantId: backendItem.variantId || localItem.variantId,
+            cartItemId: backendItem.cartItemId || localItem.cartItemId,
+            selectedVariant: backendItem.selectedVariant || localItem.selectedVariant,
+            price: backendItem.price || localItem.price,
+            availabilityStatus: backendItem.availabilityStatus || localItem.availabilityStatus,
+            stockQuantity: (backendItem.stockQuantity ?? localItem.stockQuantity),
+            img: shouldUseBackendImg ? backendImg : (localItem.img || backendItem.img),
+            variantImage: shouldUseBackendImg ? backendImg : (localItem.variantImage || backendItem.img),
+            quantity: localItem.quantity,
+          };
         });
+
+        return merged;
+      });
+    };
+
+    if (awaitBackend) {
+      try {
+        await syncCartToBackend();
+      } catch (err) {
+        console.error("❌ Add to cart API failed:", err.message);
+        if (err?.response?.data) {
+          console.error("❌ Backend error response:", JSON.stringify(err.response.data));
+        }
+        // Local state already updated by applyLocalAdd() above — no extra action needed
       }
-    } catch (err) {
-      console.error("❌ Add to cart API failed:", err.message);
-      if (err?.response?.data) {
-        console.error("❌ Backend error response:", JSON.stringify(err.response.data));
-      }
-      // Local state already updated by applyLocalAdd() above — no extra action needed
+    } else {
+      // Fire-and-forget backend sync (used for bulk adds like "Buy again")
+      syncCartToBackend().catch((err) => {
+        console.error("❌ Add to cart API failed (background):", err.message);
+        if (err?.response?.data) {
+          console.error("❌ Backend error response:", JSON.stringify(err.response.data));
+        }
+      });
     }
   };
 
@@ -1975,6 +3087,15 @@ function App() {
     const productIdNorm = normalizeId(product.id) || normalizeId(product.productId);
     const variantIdNorm = normalizeId(variantId);
 
+    // When adding from catalog cards, make sure we persist the selected variant id on the wishlist entry
+    // so subsequent toggles can match and remove instead of adding duplicates.
+    const wishlistEntry = {
+      ...product,
+      productId: product.productId || productIdNorm,
+      selectedVariantId: product.selectedVariantId || variantIdNorm,
+      variantId: product.variantId || variantIdNorm,
+    };
+
     console.log("[Wishlist] Toggle starting - Product:", productIdNorm, "Variant:", variantIdNorm, "Wish ID:", product.wishlistItemId);
 
     // Check if item is already in wishlist using consistent string comparisons
@@ -2021,7 +3142,7 @@ function App() {
               const varMatch = itemVarId === variantIdNorm;
               return !(prodMatch && varMatch);
             })
-          : [...prev, product]
+          : [...prev, wishlistEntry]
       );
       
       if (isAlreadyWishlisted) {
@@ -2056,7 +3177,7 @@ function App() {
             const varMatch = itemVarId === variantIdNorm;
             return !(prodMatch && varMatch);
           })
-        : [...prev, product]
+        : [...prev, wishlistEntry]
     );
     
     // Show toast message
@@ -2457,6 +3578,12 @@ function App() {
     if (method === "cod" || method === "Cash on Delivery") methodLabel = "Cash on Delivery";
     else if (method === "upi" || method === "UPI / Netbanking") methodLabel = "UPI / Netbanking";
 
+    const normalizedMethod = String(method || "card").toLowerCase();
+    const paymentMethodCode =
+      normalizedMethod === "cod" ? "COD" :
+      normalizedMethod === "upi" ? "UPI" :
+      "CARD";
+
     // Verify backend has the cart items - retry if needed
     console.log("🔍 Verifying items are saved in backend...");
     let backendItemsCount = 0;
@@ -2523,7 +3650,23 @@ function App() {
     });
 
     const payload = {
+      // Keep multiple aliases because backend environments may consume different naming styles.
       paymentMethod: method,
+      paymentType: method,
+      paymentMode: method,
+      payment_mode: method,
+      payment_type: method,
+      method: method,
+      paymentCode: paymentMethodCode,
+      paymentMethodCode,
+      paymentMethodName: methodLabel,
+      paymentLabel: methodLabel,
+      payment: {
+        method,
+        code: paymentMethodCode,
+        name: methodLabel,
+        label: methodLabel,
+      },
       deliveryMethod: deliveryMethod || "standard",
       addressId: selectedAddress?.id,
       couponCode: couponCode,
@@ -2593,6 +3736,10 @@ function App() {
           year: 'numeric' 
         }),
       };
+      
+      console.log("📦 Local fallback order being created with payment method:", methodLabel);
+      console.log("📦 Full localFallback object:", localFallback);
+      
       const mappedOrder = raw ? { 
         ...mapApiOrderToLocal(raw, localFallback), 
         items: localFallback.items, 
@@ -2604,9 +3751,21 @@ function App() {
         couponCode: localFallback.couponCode,
         total: localFallback.total  // Preserve the total from local calculation
       } : localFallback;
+      
+      console.log("📦 Final mapped order with payment method:", mappedOrder.paymentMethod);
+      console.log("📦 Full mappedOrder object:", mappedOrder);
 
       const normalizedOrderId = mappedOrder?.id ? String(mappedOrder.id) : fallbackOrderId;
-      setOrders(prev => [mappedOrder, ...prev]);
+      
+      console.log("📦 About to save order to state with payment method:", mappedOrder.paymentMethod);
+      console.log("📦 Order ID:", normalizedOrderId);
+      
+      setOrders(prev => {
+        const newOrders = [mappedOrder, ...prev];
+        console.log("📦 Orders array after adding new order:", newOrders.map(o => ({ id: o.id, paymentMethod: o.paymentMethod })));
+        return newOrders;
+      });
+      
       setLastOrderId(normalizedOrderId.startsWith("#") ? normalizedOrderId : `#${normalizedOrderId}`);
 
       if (apiToken) {
@@ -2614,6 +3773,7 @@ function App() {
       }
       setCart([]);
       setAppliedCoupon(null);
+      refreshCatalog();
       setCurrentPage("orderConfirmation");
       window.scrollTo({ top: 0, behavior: "smooth" });
       showToast("Order placed successfully");
@@ -2927,7 +4087,12 @@ function App() {
       </header>
 
       {/* Dynamic banner carousel immediately below the header (home page) */}
-      {currentPage === "landing" && <BannerCarousel />}
+      {currentPage === "landing" && (
+        <BannerCarousel
+          onNavigateToProducts={handleNavigateToProducts}
+          onAvailabilityChange={handleBannerAvailabilityChange}
+        />
+      )}
 
       {/* Mobile Nav Overlay */}
       {isMobileMenuOpen && (
@@ -2997,6 +4162,7 @@ function App() {
               onNavigateToProducts={handleNavigateToProducts}
               scrollToSection={scrollToSection}
               onNavigateToOurStory={() => { setCurrentPage("ourStory"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              hasBanner={landingHasBanners}
             />
           )}
           {currentPage === "products" && (
@@ -3022,6 +4188,7 @@ function App() {
               products={products}
               cart={cart}
               wishlist={wishlist}
+              preferredVariantId={preferredVariantId}
               onViewProduct={handleViewProduct}
               onBack={() => setCurrentPage("products")}
               onAddToCart={addToCart}
@@ -3033,6 +4200,7 @@ function App() {
           {currentPage === "wishlist" && (
             <WishlistPage
               wishlist={wishlist}
+              cart={cart}
               onAddToCart={addToCart}
               onRemove={toggleWishlist}
               onViewProduct={handleViewProduct}
@@ -3052,6 +4220,205 @@ function App() {
                 setSupportInitialOrder(order);
                 setCurrentPage("support");
                 window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              onBuyAgain={async (order) => {
+                if (!isAuthenticated) {
+                  setIsSignIn(true);
+                  setCurrentPage("auth");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  return;
+                }
+
+                const orderItems = Array.isArray(order?.items) ? order.items : [];
+                if (orderItems.length === 0) {
+                  showToast("No items found in this order.", "error");
+                  return;
+                }
+
+                const normId = (v) => (v === undefined || v === null ? "" : String(v));
+                const num = (v, fallback = 0) => {
+                  const n = Number(v);
+                  return Number.isFinite(n) ? n : fallback;
+                };
+
+                const resolveProductId = (item) => normId(
+                  item?.productId ??
+                  item?.product_id ??
+                  item?.product?.id ??
+                  item?.product?.productId ??
+                  item?.product?.product_id
+                );
+
+                const resolveVariantId = (item) => normId(
+                  item?.variantId ??
+                  item?.variant_id ??
+                  item?.variant?.id ??
+                  item?.variant?.variantId ??
+                  item?.variant?.variant_id ??
+                  item?.productVariantId ??
+                  item?.product_variant_id
+                );
+
+                const resolveQuantity = (item) => {
+                  const q = num(item?.quantity ?? item?.qty ?? item?.count, 1);
+                  return q > 0 ? q : 1;
+                };
+
+                const resolveVariantLabel = (item) => (
+                  item?.selectedVariant ||
+                  item?.variantName ||
+                  item?.variant?.name ||
+                  item?.variant?.variantName ||
+                  item?.size ||
+                  "Standard"
+                );
+
+                const resolveName = (item) => (
+                  item?.name ||
+                  item?.productName ||
+                  item?.product?.name ||
+                  "Product"
+                );
+
+                const resolveImage = (item) => (
+                  item?.img ||
+                  item?.image ||
+                  item?.imageUrl ||
+                  item?.product?.img ||
+                  item?.product?.image ||
+                  "/wild_honey.png"
+                );
+
+                const resolveCategory = (item) => (
+                  item?.category ||
+                  item?.product?.category ||
+                  ""
+                );
+
+                const resolvePrice = (item) => {
+                  const p = num(item?.price ?? item?.unitPrice ?? item?.product?.price, 0);
+                  return p > 0 ? p : 0;
+                };
+
+                // Aggregate by variant so cart doesn't show duplicates when the same variant
+                // appears multiple times in an order.
+                const byVariantKey = new Map();
+
+                for (const item of orderItems) {
+                  const productId = resolveProductId(item);
+                  const variantIdRaw = resolveVariantId(item);
+                  const quantity = resolveQuantity(item);
+                  const variantLabel = resolveVariantLabel(item);
+                  const itemName = resolveName(item);
+
+                  const catalogProduct = (() => {
+                    const list = Array.isArray(products) ? products : [];
+                    if (list.length === 0) return null;
+
+                    const matchesProductId = (p) => {
+                      const pid = normId(p?.id) || normId(p?.productId) || normId(p?.product_id);
+                      return productId && pid === productId;
+                    };
+
+                    const matchesVariantId = (p) => {
+                      if (!variantIdRaw) return false;
+                      const variants = Array.isArray(p?.variants) ? p.variants : [];
+                      return variants.some((v) => normId(v?.id || v?.variantId || v?.variant_id) === variantIdRaw);
+                    };
+
+                    const matchesName = (p) => {
+                      if (!itemName) return false;
+                      const pname = String(p?.name || p?.productName || "").trim().toLowerCase();
+                      return pname && pname === String(itemName).trim().toLowerCase();
+                    };
+
+                    return (
+                      list.find(matchesProductId) ||
+                      list.find(matchesVariantId) ||
+                      list.find(matchesName) ||
+                      null
+                    );
+                  })();
+
+                  // Resolve variant from catalog by id first, then by label.
+                  let variant = null;
+                  if (catalogProduct && variantIdRaw) {
+                    variant = catalogProduct.variants?.find((v) => normId(v?.id || v?.variantId || v?.variant_id) === variantIdRaw) || null;
+                  }
+                  if (!variant && catalogProduct) {
+                    const wanted = String(variantLabel).toLowerCase();
+                    variant = catalogProduct.variants?.find((v) => String(v?.variantName || v?.name || v?.label || "").toLowerCase() === wanted) || null;
+                  }
+
+                  const resolvedVariantId = normId(variant?.id || variant?.variantId || variant?.variant_id || variantIdRaw);
+                  if (!resolvedVariantId) {
+                    // If we can't resolve a real variant id, skip to avoid adding broken cart lines.
+                    continue;
+                  }
+
+                  const resolvedImg =
+                    resolveCatalogImageByVariantProduct(products, productId, resolvedVariantId) ||
+                    catalogProduct?.img ||
+                    resolveImage(item);
+
+                  const product = catalogProduct
+                    ? {
+                        ...catalogProduct,
+                        // Ensure we show the correct name/image for this variant.
+                        name: catalogProduct?.name || itemName,
+                        productId: normId(catalogProduct?.productId || catalogProduct?.id || productId),
+                        img: resolvedImg,
+                      }
+                    : {
+                        id: productId || resolveName(item),
+                        productId: productId || "",
+                        name: itemName,
+                        img: resolvedImg,
+                        category: resolveCategory(item),
+                        price: resolvePrice(item),
+                        variants: [{ id: resolvedVariantId, variantId: resolvedVariantId, variantName: variantLabel, price: resolvePrice(item) }],
+                      };
+
+                  const variantObj = variant
+                    ? {
+                        ...variant,
+                        id: resolvedVariantId,
+                        variantId: resolvedVariantId,
+                        images: Array.isArray(variant?.images) && variant.images.length > 0
+                          ? variant.images
+                          : (resolvedImg ? [{ imageUrl: resolvedImg }] : []),
+                      }
+                    : {
+                        id: resolvedVariantId,
+                        variantId: resolvedVariantId,
+                        variantName: variantLabel,
+                        price: resolvePrice(item) || product.price,
+                        images: resolvedImg ? [{ imageUrl: resolvedImg }] : [],
+                        availabilityStatus: item?.availabilityStatus,
+                        stockQuantity: item?.stockQuantity,
+                      };
+
+                  const key = resolvedVariantId;
+                  const existing = byVariantKey.get(key);
+                  if (existing) {
+                    existing.quantity += quantity;
+                  } else {
+                    byVariantKey.set(key, { product, variant: variantObj, quantity });
+                  }
+                }
+
+                let addedCount = 0;
+                for (const entry of byVariantKey.values()) {
+                  addToCart(entry.product, entry.variant, entry.quantity, { showToast: false, awaitBackend: false });
+                  addedCount++;
+                }
+
+                if (addedCount > 0) {
+                  setCurrentPage("cartPage");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                } else {
+                  showToast("Could not add items from this order.", "error");
+                }
               }}
             />
           )}
@@ -3076,6 +4443,8 @@ function App() {
               orders={orders}
               products={products}
               initialOrder={supportInitialOrder}
+              apiToken={apiToken}
+              onShowToast={showToast}
               onGoToContactMessage={() => {
                 setContactScrollTarget("message");
                 setCurrentPage("contact");
@@ -3095,6 +4464,7 @@ function App() {
               onApplyCoupon={setAppliedCoupon}
               onProceedToCheckout={goToCheckout}
               onShowToast={showToast}
+              onViewItem={handleViewCartItem}
             />
           )}
           {currentPage === "ourStory" && <OurStory />}
@@ -3165,6 +4535,8 @@ function App() {
                 setCurrentPage("products");
                 setActiveCategory("All");
                 window.scrollTo({ top: 0, behavior: "smooth" });
+                // Refresh products from API after checkout (no full page reload)
+                refreshCatalog();
               }}
               onReturnHome={() => {
                 setCurrentPage("landing");

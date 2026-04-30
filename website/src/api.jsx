@@ -118,17 +118,47 @@ export const clearCart = (token) => fetchJson(API_ENDPOINTS.CLEAR_CART, {
 	headers: authHeader(token),
 });
 
-// Sends OTP to a mobile number during auth.
-export const sendOtp = (payload) => fetchJson(API_ENDPOINTS.SEND_OTP, {
+// Sends OTP to a mobile number for SIGNUP (new users only)
+export const sendOtp = (payload, token = null) => fetchJson(API_ENDPOINTS.SEND_OTP, {
 	method: "POST",
-	headers: { "Content-Type": "application/json" },
+	headers: { 
+		"Content-Type": "application/json",
+		...(token ? authHeader(token) : {})
+	},
+	body: JSON.stringify(payload),
+});
+
+// Sends OTP to a mobile number for LOGIN (existing users only)
+export const sendOtpLogin = (payload, token = null) => fetchJson(API_ENDPOINTS.SEND_OTP_LOGIN, {
+	method: "POST",
+	headers: { 
+		"Content-Type": "application/json",
+		...(token ? authHeader(token) : {})
+	},
 	body: JSON.stringify(payload),
 });
 
 // Verifies OTP and returns auth/user response.
-export const verifyOtp = (payload) => fetchJson(API_ENDPOINTS.VERIFY_OTP, {
+export const verifyOtp = (payload, token = null) => fetchJson(API_ENDPOINTS.VERIFY_OTP, {
 	method: "POST",
-	headers: { "Content-Type": "application/json" },
+	headers: { 
+		"Content-Type": "application/json",
+		...(token ? authHeader(token) : {})
+	},
+	body: JSON.stringify(payload),
+});
+
+// Sends OTP to link phone to a Google authenticated account
+export const sendLinkPhoneOtp = (token, payload) => fetchJson(API_ENDPOINTS.SEND_LINK_PHONE_OTP, {
+	method: "POST",
+	headers: { "Content-Type": "application/json", ...authHeader(token) },
+	body: JSON.stringify(payload),
+});
+
+// Verifies OTP to link phone to a Google authenticated account
+export const verifyLinkPhoneOtp = (token, payload) => fetchJson(API_ENDPOINTS.VERIFY_LINK_PHONE_OTP, {
+	method: "POST",
+	headers: { "Content-Type": "application/json", ...authHeader(token) },
 	body: JSON.stringify(payload),
 });
 
@@ -138,6 +168,74 @@ export const googleAuth = (payload) => fetchJson(API_ENDPOINTS.GOOGLE_AUTH, {
 	headers: { "Content-Type": "application/json" },
 	body: JSON.stringify(payload),
 });
+
+// Submits a support ticket from Order Related or General Support sections
+export const submitSupport = async (payload, token) => {
+	// Select endpoint based on support type
+	const endpoint = payload.type === 'order' 
+		? API_ENDPOINTS.SUBMIT_SUPPORT_ORDER 
+		: API_ENDPOINTS.SUBMIT_SUPPORT;
+	
+	// Order queries always use FormData, general support uses JSON
+	const useFormData = payload.type === 'order';
+	
+	let options = {
+		method: 'POST',
+		headers: authHeader(token),
+	};
+	
+	if (useFormData) {
+		// Always use FormData for order queries
+		const formData = new FormData();
+		formData.append('name', payload.name || '');
+		formData.append('email', payload.email || '');
+		formData.append('subject', payload.subject);
+		formData.append('description', payload.message);
+		formData.append('type', payload.type);
+		
+		if (payload.orderId) {
+			formData.append('orderId', payload.orderId);
+		}
+		
+		if (payload.images && payload.images.length > 0) {
+			payload.images.forEach((image) => {
+				formData.append('images', image);
+			});
+		}
+		
+		options.body = formData;
+	} else {
+		// Use JSON for general support
+		options.headers['Content-Type'] = 'application/json';
+		options.body = JSON.stringify({
+			name: payload.name || '',
+			email: payload.email || '',
+			subject: payload.subject,
+			message: payload.message,
+			type: payload.type,
+			orderId: payload.orderId || null
+		});
+	}
+	
+	const res = await fetch(endpoint, options);
+	
+	const text = await res.text();
+	let data = null;
+	
+	try {
+		data = text ? JSON.parse(text) : null;
+	} catch {
+		data = text;
+	}
+	
+	if (!res.ok) {
+		const error = new Error((data && data.message) || text || `HTTP ${res.status}`);
+		error.response = { data, status: res.status };
+		throw error;
+	}
+	
+	return { data, status: res.status };
+};
 
 // Logs out the current user by invalidating their session/token on the backend.
 export const logoutUser = (token) => fetchJson(API_ENDPOINTS.LOGOUT, {

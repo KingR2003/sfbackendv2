@@ -24,7 +24,7 @@ const CheckCircle = ({ size, color }) => (
     </svg>
 );
 
-const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onViewProduct, onAddToCart, onGoToCart, onToggleWishlist, onShowToast }) => {
+const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onViewProduct, onAddToCart, onGoToCart, onToggleWishlist, onShowToast, preferredVariantId = null }) => {
     const [activeTab, setActiveTab] = useState("description");
 
     if (!product) return null;
@@ -44,7 +44,17 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
     const [isAdded, setIsAdded] = useState(false);
     const [mainImage, setMainImage] = useState(product.img);
     const [images, setImages] = useState(() => {
-        const srcImages = product.selectedVariant?.images || product.images || (product.img ? [product.img] : []);
+        // Priority: selectedVariant images > product images > product.img fallback
+        let srcImages = [];
+        
+        if (product.selectedVariant?.images && Array.isArray(product.selectedVariant.images) && product.selectedVariant.images.length > 0) {
+            srcImages = product.selectedVariant.images;
+        } else if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+            srcImages = product.images;
+        } else if (product.img) {
+            srcImages = [product.img];
+        }
+        
         const list = Array.isArray(srcImages) ? srcImages : [srcImages];
         return list
             .map((img) => (img && (img.imageUrl || img.url || img.src)) || img)
@@ -176,6 +186,54 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
 
     const variants = getVariants();
 
+    const normId = (v) => (v === undefined || v === null ? "" : String(v)).trim();
+
+    const productIdNorm = normId(product?.id) || normId(product?.productId);
+    const isWishlisted = Array.isArray(wishlist)
+        ? wishlist.some((item) => {
+            const itemProdId = normId(item?.id) || normId(item?.productId) || normId(item?.product_id);
+            return itemProdId === productIdNorm;
+        })
+        : false;
+
+    const findVariantInCart = (variantList) => {
+        if (!Array.isArray(variantList) || variantList.length === 0) return null;
+        if (!Array.isArray(cart) || cart.length === 0) return null;
+
+        const variantById = new Map(
+            variantList
+                .map((v) => {
+                    const id = normId(v?.id || v?.variantId || v?.variant_id);
+                    return id ? [id, v] : null;
+                })
+                .filter(Boolean)
+        );
+
+        if (variantById.size === 0) return null;
+
+        // First try direct variant-id matching (most reliable)
+        for (const item of cart) {
+            const itemVariantId = normId(item?.variantId || item?.selectedVariantId || item?.cartItemId || item?.id);
+            if (itemVariantId && variantById.has(itemVariantId)) {
+                return variantById.get(itemVariantId);
+            }
+        }
+
+        // Fallback: if cart items carry productId, match product then variant
+        const currentProductId = normId(product?.productId || product?.id);
+        if (currentProductId) {
+            const forProduct = cart.find((it) => normId(it?.productId || it?.id) === currentProductId);
+            if (forProduct) {
+                const itemVariantId = normId(forProduct?.variantId || forProduct?.selectedVariantId || forProduct?.cartItemId || forProduct?.id);
+                if (itemVariantId && variantById.has(itemVariantId)) {
+                    return variantById.get(itemVariantId);
+                }
+            }
+        }
+
+        return null;
+    };
+
     const findInitialVariant = (variantList) => {
         if (!Array.isArray(variantList) || variantList.length === 0) return null;
 
@@ -189,21 +247,44 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
         return available || variantList[0];
     };
 
-    const [selectedVariant, setSelectedVariant] = useState(() => findInitialVariant(variants));
+    const findPreferredVariant = (variantList) => {
+        const pref = normId(preferredVariantId);
+        if (!pref) return null;
+        if (!Array.isArray(variantList) || variantList.length === 0) return null;
 
-    // When navigating to a new product, auto-select an available variant if possible
+        return variantList.find((v) => {
+            const id = normId(v?.id || v?.variantId || v?.variant_id);
+            return id && id === pref;
+        }) || null;
+    };
+
+    const [selectedVariant, setSelectedVariant] = useState(() => findPreferredVariant(variants) || findVariantInCart(variants) || findInitialVariant(variants));
+
+    // When navigating to a new product, auto-select the variant already in cart (if any),
+    // otherwise select the first available variant.
     React.useEffect(() => {
-        const initial = findInitialVariant(variants);
+        const initial = findPreferredVariant(variants) || findVariantInCart(variants) || findInitialVariant(variants);
         if (initial) {
-            setSelectedVariant(initial);
+            const currentId = normId(selectedVariant?.id || selectedVariant?.variantId || selectedVariant?.variant_id);
+            const nextId = normId(initial?.id || initial?.variantId || initial?.variant_id);
+            if (currentId !== nextId) {
+                setSelectedVariant(initial);
+            }
         }
-    }, [product]);
+    }, [product, cart, preferredVariantId]);
 
     // Sync main image and thumbnails whenever selected variant or product changes
     React.useEffect(() => {
-        const srcImages = (selectedVariant && selectedVariant.images && selectedVariant.images.length)
-            ? selectedVariant.images
-            : product.images || (product.img ? [product.img] : []);
+        // Priority: selectedVariant images > product images > product.img fallback
+        let srcImages = [];
+        
+        if (selectedVariant && selectedVariant.images && Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0) {
+            srcImages = selectedVariant.images;
+        } else if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+            srcImages = product.images;
+        } else if (product.img) {
+            srcImages = [product.img];
+        }
 
         const list = Array.isArray(srcImages) ? srcImages : [srcImages];
         const urls = list
@@ -309,10 +390,47 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
         .filter(p => p.id !== product.id && (p.category === product.category || p.category?.name === product.category?.name))
         .slice(0, 3);
 
-    // Reset isAdded when variant or product changes
+    // Reset isAdded when variant or product changes, and check if item is already in cart
     React.useEffect(() => {
-        setIsAdded(false);
-    }, [selectedVariant, product]);
+        // Check if current product/variant is in the cart
+        if (cart && Array.isArray(cart) && cart.length > 0) {
+            const isInCart = cart.some(cartItem => {
+                // Normalize IDs to strings for comparison
+                const itemProductId = String(cartItem.productId || cartItem.id || "").trim();
+                const currentProductId = String(product.id || "").trim();
+                
+                // Must have both IDs to compare
+                if (!itemProductId || !currentProductId) {
+                    return false;
+                }
+                
+                // Product ID must match
+                if (itemProductId !== currentProductId) {
+                    return false;
+                }
+                
+                // For products without variants or single-variant products, product ID match is enough
+                if (!selectedVariant || !Array.isArray(product.variants) || product.variants.length <= 1) {
+                    return true;
+                }
+                
+                // For multi-variant products, also check if variant matches
+                const itemVariantId = String(cartItem.variantId || cartItem.selectedVariantId || cartItem.cartItemId || "").trim();
+                const selectedVarId = String(selectedVariant?.id || selectedVariant?.variantId || selectedVariant?.variant_id || "").trim();
+                
+                // If both variant IDs exist, they must match
+                if (itemVariantId && selectedVarId) {
+                    return itemVariantId === selectedVarId;
+                }
+                
+                // If we only have product ID match, consider it as added for single-variant
+                return true;
+            });
+            setIsAdded(isInCart);
+        } else {
+            setIsAdded(false);
+        }
+    }, [selectedVariant, product, cart]);
 
     return (
         <div className="product-details-container">
@@ -352,10 +470,10 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
                         <div className="pd-actions">
                             <Heart
                                 size={20}
-                                className={`pd-icon ${wishlist.some(item => item.id === product.id) ? 'active' : ''}`}
+                                className={`pd-icon ${isWishlisted ? 'active' : ''}`}
                                 onClick={() => onToggleWishlist(product)}
-                                color={wishlist.some(item => item.id === product.id) ? "#7C3225" : "#4A4A4A"}
-                                fill={wishlist.some(item => item.id === product.id) ? "#7C3225" : "none"}
+                                color={isWishlisted ? "#7C3225" : "#4A4A4A"}
+                                fill={isWishlisted ? "#7C3225" : "none"}
                                 style={{ cursor: 'pointer' }}
                             />
                             <Share2 size={20} className="pd-icon" />
@@ -422,26 +540,35 @@ const ProductDetails = ({ product, products = [], cart, wishlist, onBack, onView
 
                     <div className="pd-buy-block">
                         <button
-                            className={`pd-add-to-cart ${isAdded ? 'added' : ''} ${(product.isActive === false || effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax)) ? 'out-of-stock' : ''}`}
+                            className={`pd-add-to-cart ${isAdded ? 'added' : ''} ${(product.isActive === false || effectiveAvailability === 'OUT_OF_STOCK') ? 'out-of-stock' : ''}`}
                             onClick={() => {
                                 if (product.isActive === false) return;
                                 if (effectiveAvailability === 'OUT_OF_STOCK') return;
-                                if (hasFiniteStock && hasReachedMax) {
-                                    return;
-                                }
-                                if (onAddToCart) {
-                                    onAddToCart(product, selectedVariant, 1);
-                                    setIsAdded(true);
+                                // If already in cart, go to cart instead of adding again
+                                if (isAdded) {
+                                    if (onGoToCart) {
+                                        onGoToCart();
+                                    }
+                                } else {
+                                    // If stock is finite and we've already reached max, don't add more.
+                                    // (This can happen if cart already has the max quantity.)
+                                    if (hasFiniteStock && hasReachedMax) {
+                                        return;
+                                    }
+                                    // Add to cart
+                                    if (onAddToCart) {
+                                        onAddToCart(product, selectedVariant, 1);
+                                    }
                                 }
                             }}
-                            disabled={product.isActive === false || effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax)}
-                            style={(product.isActive === false || effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax)) ? { backgroundColor: '#888', cursor: 'not-allowed' } : {}}
+                            disabled={product.isActive === false || effectiveAvailability === 'OUT_OF_STOCK'}
+                            style={(product.isActive === false || effectiveAvailability === 'OUT_OF_STOCK') ? { backgroundColor: '#888', cursor: 'not-allowed' } : {}}
                         >
                             {product.isActive === false
                                 ? "NOT AVAILABLE"
-                                : (effectiveAvailability === 'OUT_OF_STOCK' || (hasFiniteStock && hasReachedMax))
+                                : (effectiveAvailability === 'OUT_OF_STOCK')
                                 ? "OUT OF STOCK"
-                                : (isAdded ? "ADDED TO CART" : "ADD TO CART")} {isAdded && !(hasFiniteStock && hasReachedMax) && product.isActive !== false ? <CheckCircle size={18} color="#FFF" /> : <ChevronRight size={18} />}
+                                : (isAdded ? "ADDED TO CART" : "ADD TO CART")} {isAdded && product.isActive !== false && effectiveAvailability !== 'OUT_OF_STOCK' ? <CheckCircle size={18} color="#FFF" /> : <ChevronRight size={18} />}
                         </button>
                     </div>
 

@@ -47,7 +47,7 @@ const getDiscountFromCoupon = (coupon, subtotal) => {
   return Math.min(toNumber(coupon.discount), subtotal);
 };
 
-const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onClearCart = () => { }, onContinueShopping, appliedCoupon, onApplyCoupon = () => { }, onProceedToCheckout = () => { }, onShowToast }) => {
+const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onClearCart = () => { }, onContinueShopping, appliedCoupon, onApplyCoupon = () => { }, onProceedToCheckout = () => { }, onShowToast, onViewItem = null }) => {
   const [couponCode, setCouponCode] = useState("");
   const [couponError, setCouponError] = useState("");
   const [availableCoupons, setAvailableCoupons] = useState([]);
@@ -185,20 +185,6 @@ const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onClearCart = ()
         <div className="cp-layout">
           {/* Left column - items */}
           <div className="cp-left">
-            {/* Free shipping banner */}
-            <div className="cp-shipping-banner">
-              {shippingFree ? (
-                <p className="cp-ship-text cp-ship-unlocked">You've unlocked free shipping!</p>
-              ) : (
-                <p className="cp-ship-text">
-                  Add <strong>₹{remaining}</strong> more to unlock <strong>Free Shipping</strong>
-                </p>
-              )}
-              <div className="cp-progress-bar">
-                <div className="cp-progress-fill" style={{ width: `${progress}%` }} />
-              </div>
-            </div>
-
             {/* Cart items */}
             <div className="cp-items-list">
               {cart.map((item) => {
@@ -212,11 +198,21 @@ const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onClearCart = ()
 
                 return (
                 <div key={item.cartItemId} className={`cp-item ${(isOutOfStock || isInactive) ? 'oos-item' : ''}`}>
-                  <div className="cp-item-img">
+                  <div
+                    className="cp-item-img"
+                    onClick={() => onViewItem && onViewItem(item)}
+                    style={onViewItem ? { cursor: 'pointer' } : undefined}
+                  >
                     <img src={item.img} alt={item.name} />
                   </div>
                   <div className="cp-item-details">
-                    <h3 className="cp-item-name">{item.name}</h3>
+                    <h3
+                      className="cp-item-name"
+                      onClick={() => onViewItem && onViewItem(item)}
+                      style={onViewItem ? { cursor: 'pointer' } : undefined}
+                    >
+                      {item.name}
+                    </h3>
                     <div className="cp-item-meta">
                       <span className="cp-item-badge">{item.category?.toUpperCase()}</span>
                       {item.selectedVariant && (
@@ -342,30 +338,22 @@ const CartPage = ({ cart, apiToken, onUpdateQuantity, onRemove, onClearCart = ()
             {/* Order Summary */}
             <div className="cp-summary-card">
               <h2 className="cp-summary-title">Order Summary</h2>
-              <div className="cp-summary-row">
-                <span>Subtotal</span>
-                <span>₹{subtotal}</span>
-              </div>
+              {cart.map((item) => (
+                <div key={item.cartItemId || item.id} className="cp-summary-row">
+                  <span>{item.name} {item.selectedVariant ? `${item.selectedVariant}` : `x${item.quantity}`}</span>
+                  <span>₹{(item.price * item.quantity).toFixed(0)}</span>
+                </div>
+              ))}
               {appliedCoupon && (
                 <div className="cp-summary-row cp-discount-row">
                   <span>Discount ({appliedCoupon.code})</span>
                   <span className="cp-discount-amount">-₹{discount.toFixed(0)}</span>
                 </div>
               )}
-              <div className="cp-summary-row">
-                <span>Shipping Estimate</span>
-                <span className={shippingFree ? "cp-free" : ""}>
-                  {shippingFree ? "Free" : "₹99"}
-                </span>
-              </div>
-              <div className="cp-summary-row">
-                <span>Tax Estimate</span>
-                <span>Included</span>
-              </div>
               <div className="cp-summary-divider" />
               <div className="cp-summary-total">
                 <span>Order Total</span>
-                <span>₹{(finalSubtotal + shipping).toFixed(0)}</span>
+                <span>₹{finalSubtotal.toFixed(0)}</span>
               </div>
               {hasInactiveItems && (
                 <p className="cp-oos-overall-warning" style={{ color: '#7C3225', fontSize: '13px', marginBottom: '10px', textAlign: 'center', fontWeight: '500' }}>

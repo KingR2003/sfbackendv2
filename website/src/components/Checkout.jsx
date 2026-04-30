@@ -195,7 +195,6 @@ const Checkout = ({
             <div className="summary-header">
               <div>
                 <h2>Order Summary</h2>
-                <p>An overview of the items in your bag.</p>
               </div>
             </div>
 
@@ -204,8 +203,11 @@ const Checkout = ({
                 const quantity = item.quantity || 1;
                 return (
                   <div key={item.id} className="summary-item">
-                    <div className="summary-thumb">
-                      <img src={item.img || "/wild_honey.png"} alt={item.name} />
+                    <div className="summary-thumb-container">
+                      <div className="summary-thumb">
+                        <span className="summary-qty-badge">{item.quantity || 1}</span>
+                        <img src={item.img || "/wild_honey.png"} alt={item.name} />
+                      </div>
                     </div>
                     <div>
                       <p className="summary-name">{item.name}</p>
@@ -215,11 +217,8 @@ const Checkout = ({
                     </div>
                     <div className="summary-price">
                       <strong>
-                        {formatCurrency(item.price * quantity)}
+                        {formatCurrency(item.price * (item.quantity || 1))}
                       </strong>
-                      {quantity > 1 && (
-                        <span className="summary-qty">Qty {quantity}</span>
-                      )}
                     </div>
                   </div>
                 );

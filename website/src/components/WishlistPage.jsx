@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { Heart, ShoppingCart, Trash2, ArrowRight, ChevronLeft } from "lucide-react";
 
-const WishlistPage = ({ wishlist, onAddToCart, onRemove, onViewProduct, onContinueShopping, onGoToCart = () => {}, onClearWishlist = null }) => {
+const WishlistPage = ({ wishlist, cart = [], onAddToCart, onRemove, onViewProduct, onContinueShopping, onGoToCart = () => {}, onClearWishlist = null }) => {
     const [addedIds, setAddedIds] = useState([]);
+
+    const normId = (v) => (v === undefined || v === null ? "" : String(v)).trim();
+
+    const isVariantInCart = (variantId) => {
+        const wanted = normId(variantId);
+        if (!wanted) return false;
+        if (!Array.isArray(cart) || cart.length === 0) return false;
+        return cart.some((item) => normId(item?.variantId || item?.selectedVariantId || item?.cartItemId || item?.id) === wanted);
+    };
     
     // Initialize selectedVariants from localStorage
     const [selectedVariants, setSelectedVariants] = useState(() => {
@@ -27,10 +36,16 @@ const WishlistPage = ({ wishlist, onAddToCart, onRemove, onViewProduct, onContin
     const handleAddToCart = (product) => {
         // Get the currently selected variant for this wishlist item
         const currentVariantId = selectedVariants[product.wishlistItemId] || product.selectedVariantId;
+
+        // If selected variant is already in cart, always show/view cart until removed
+        if (isVariantInCart(currentVariantId)) {
+            onGoToCart();
+            return;
+        }
         
         // Find the full variant object from the product's variants array
         const selectedVariantObj = product.variants?.find(v => 
-            (v.id === currentVariantId || v.variantId === currentVariantId)
+            (normId(v.id) === normId(currentVariantId) || normId(v.variantId) === normId(currentVariantId))
         ) || product.variants?.[0];
 
         const key = `${product.id || product.productId}-${currentVariantId}`;
@@ -62,7 +77,7 @@ const WishlistPage = ({ wishlist, onAddToCart, onRemove, onViewProduct, onContin
 
     if (wishlist.length === 0) {
         return (
-            <div style={{ backgroundColor: '#FEF8F0', width: '100vw', position: 'relative', left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw', padding: '60px 0 40px', minHeight: '100vh', display: 'flex', alignItems: 'flex-start' }}>
+            <div style={{ backgroundColor: '#FEF8F0', width: '100vw', position: 'relative', left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw', padding: '30px 0 40px', minHeight: '100vh', display: 'flex', alignItems: 'flex-start' }}>
                 <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px', textAlign: 'center' }}>
                     <div className="empty-cart-container fade-in" style={{ padding: '0', textAlign: 'center' }}>
                         <div className="empty-cart-icon" style={{ background: '#FEF8F0', padding: '30px', borderRadius: '50%', display: 'inline-block', marginBottom: '24px' }}>
@@ -86,32 +101,34 @@ const WishlistPage = ({ wishlist, onAddToCart, onRemove, onViewProduct, onContin
     }
 
     return (
-        <div style={{ backgroundColor: '#FEF8F0', width: '100vw', position: 'relative', left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw', padding: '60px 0' }}>
+        <div style={{ backgroundColor: '#FEF8F0', width: '100vw', position: 'relative', left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw', padding: '30px 0' }}>
             <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }} className="wishlist-page fade-in">
-                <div className="pd-breadcrumb" style={{ marginBottom: '30px' }}>
+                <div className="pd-breadcrumb" style={{ marginBottom: '20px' }}>
                     <button onClick={onContinueShopping} className="back-btn">
                         <ChevronLeft size={18} /> Back to Shopping
                     </button>
                 </div>
 
-                <h1 style={{ color: '#7C3225', fontSize: '2.5rem', marginBottom: '40px', fontWeight: '700' }}>My Wishlist</h1>
+                <h1 style={{ color: '#7C3225', fontSize: '2.5rem', marginBottom: '30px', fontWeight: '700' }}>My Wishlist</h1>
 
                 {onClearWishlist && (
                     <button
                         className="cp-add-more-btn cp-remove-all-btn"
                         onClick={onClearWishlist}
                         title="Clear all wishlist data"
+                        style={{ marginBottom: '40px' }}
                     >
                         Remove all
                     </button>
                 )}
 
-                <div className="wishlist-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '30px' }}>
+                <div className="wishlist-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '30px', marginTop: '20px' }}>
                     {wishlist.map((product, index) => {
                         const currentVariantId = selectedVariants[product.wishlistItemId] || product.selectedVariantId;
-                        const currentVariant = product.variants?.find(v => v.id === currentVariantId);
+                        const currentVariant = product.variants?.find(v => normId(v.id) === normId(currentVariantId));
                         const displayPrice = currentVariant?.price || product.price;
                         const displayName = currentVariant?.variantName;
+                        const inCart = isVariantInCart(currentVariantId);
                         // Use wishlistItemId if available, otherwise create unique key from product + index
                         const uniqueKey = product.wishlistItemId ? String(product.wishlistItemId) : `${product.id}-${currentVariantId || index}`;
 
@@ -160,7 +177,7 @@ const WishlistPage = ({ wishlist, onAddToCart, onRemove, onViewProduct, onContin
                                             </label>
                                             <select
                                                 value={currentVariantId}
-                                                onChange={(e) => handleVariantChange(product.wishlistItemId, parseInt(e.target.value))}
+                                                onChange={(e) => handleVariantChange(product.wishlistItemId, e.target.value)}
                                                 style={{
                                                     width: '100%',
                                                     padding: '6px 8px',
@@ -194,11 +211,11 @@ const WishlistPage = ({ wishlist, onAddToCart, onRemove, onViewProduct, onContin
                                             </div>
                                         </div>
                                         <button
-                                            className={`p-view-btn btn-product ${addedIds.includes(`${product.productId || product.id}-${currentVariantId}`) ? 'is-added' : ''}`}
+                                            className={`p-view-btn btn-product ${(inCart || addedIds.includes(`${product.productId || product.id}-${currentVariantId}`)) ? 'is-added' : ''}`}
                                             onClick={() => handleAddToCart(product)}
                                             style={{ display: 'flex', gap: '8px' }}
                                         >
-                                            <ShoppingCart size={16} /> {addedIds.includes(`${product.productId || product.id}-${currentVariantId}`) ? 'VIEW CART' : 'ADD TO CART'}
+                                            <ShoppingCart size={16} /> {inCart ? 'VIEW CART' : (addedIds.includes(`${product.productId || product.id}-${currentVariantId}`) ? 'VIEW CART' : 'ADD TO CART')}
                                         </button>
                                     </div>
                                 </div>

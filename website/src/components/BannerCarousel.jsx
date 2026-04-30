@@ -10,14 +10,22 @@ import "./banner.css";
 //   <header>...</header>
 //   <BannerCarousel />
 
-const BannerCarousel = () => {
+const BannerCarousel = ({ onNavigateToProducts, onAvailabilityChange }) => {
   const [banners, setBanners] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resolved, setResolved] = useState(false);
   const scrollContainerRef = useRef(null);
 
   const hasBanners = Array.isArray(banners) && banners.length > 0;
+
+  useEffect(() => {
+    if (!resolved) return;
+    if (typeof onAvailabilityChange === "function") {
+      onAvailabilityChange(hasBanners);
+    }
+  }, [resolved, hasBanners, onAvailabilityChange]);
 
   const normalizeBannersResponse = (json) => {
     console.log("🔍 Normalizing response, input:", json);
@@ -76,6 +84,7 @@ const BannerCarousel = () => {
   const fetchBanners = useCallback(async () => {
     setLoading(true);
     setError("");
+    setResolved(false);
     try {
       console.log("🎨 Fetching banners from API...");
       const res = await getActiveBanners();
@@ -96,10 +105,11 @@ const BannerCarousel = () => {
     } catch (err) {
       console.error("❌ Failed to load banners:", err);
       console.error("❌ Error details:", err.message, err.response);
-      setError("We couldn't load today's offers. Showing our signature banner instead.");
+      setError("We couldn't load today's offers.");
       setBanners([]);
     } finally {
       setLoading(false);
+      setResolved(true);
     }
   }, []);
 
@@ -185,70 +195,10 @@ const BannerCarousel = () => {
     touchDeltaXRef.current = 0;
   };
 
-  // Fallback banner when there are no banners (or on error)
-  const FallbackBanner = () => (
-    <div className="relative flex h-[50vh] md:h-[50vh] w-full overflow-hidden bg-[#FDF8F1] shadow-md" style={{ borderRadius: '48px' }}>
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-6 text-center md:items-start md:px-10 md:py-8 md:text-left">
-        <p className="text-[11px] font-semibold tracking-[0.28em] text-emerald-700 uppercase">
-          Pure • Natural • Honest
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold leading-snug text-[#6D3123] md:text-3xl">
-          Nourish your body
-          <span className="block">with herbal goodness</span>
-        </h2>
-        <p className="mt-3 max-w-md text-xs text-slate-700 md:text-sm">
-          Small-batch honey, traditional chikki and wholesome ghee — crafted with
-          care, transparency and zero shortcuts for your everyday wellness.
-        </p>
-        <button
-          type="button"
-          className="mt-4 inline-flex items-center rounded-full bg-[#6D3123] px-5 py-2 text-xs font-semibold text-white shadow-md shadow-amber-500/40 transition-colors hover:bg-[#532418] md:text-sm"
-        >
-          Shop Now
-        </button>
-      </div>
-      <div className="relative hidden h-full flex-1 overflow-hidden md:block" style={{ borderRadius: '48px' }}>
-        <img
-          src="/1st.png"
-          alt="Herbal wellness banner"
-          className="h-full w-full object-cover"
-          style={{ borderRadius: '48px' }}
-        />
-      </div>
-    </div>
-  );
-
   const renderContent = () => {
-    if (loading) {
-      return (
-        <div className="flex h-[50vh] md:h-[50vh] w-full items-center justify-center bg-[#FDF8F1]" style={{ borderRadius: '48px' }}>
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-300 border-t-[#6D3123]" />
-        </div>
-      );
-    }
-
-    // On error we still show fallback image, with a small message above
-    if (error) {
-      return (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] text-[#6D3123] md:text-xs">
-            <span>{error}</span>
-            <button
-              type="button"
-              onClick={fetchBanners}
-              className="rounded-full border border-amber-300 px-2 py-0.5 text-[10px] font-semibold hover:bg-amber-100"
-            >
-              Retry
-            </button>
-          </div>
-          <FallbackBanner />
-        </div>
-      );
-    }
-
-    if (!hasBanners) {
-      return <FallbackBanner />;
-    }
+    // When banners aren't available, render nothing.
+    // (Landing page hero handles the no-banner design.)
+    if (loading || error || !hasBanners) return null;
 
     return (
       <div className="banner-carousel-wrapper relative w-full">
@@ -303,10 +253,57 @@ const BannerCarousel = () => {
               banner.ctaLabel || banner.ctaText || banner.buttonText || "Shop Now";
 
             const slideCtaLink =
-              banner.ctaLink || banner.link || banner.href || null;
+              banner.ctaLink || banner.link || banner.href || banner.customPageUrl || null;
 
-            const onSlideCtaClick = () => {
-              if (slideCtaLink) window.location.href = slideCtaLink;
+            // Extract category - check multiple possible field names
+            const slideCategory =
+              banner.redirectTo ||  // Primary field from your API
+              banner.category || 
+              banner.category_name || 
+              banner.categoryName || 
+              banner.categoryId ||
+              banner.category_id ||
+              banner.targetCategory ||
+              banner.target_category ||
+              null;
+
+            const onSlideCtaClick = (e) => {
+              e.stopPropagation(); // Prevent parent div click
+              console.log("[Banner Click] Full banner object:", banner);
+              console.log("[Banner Click] Extracted category:", slideCategory);
+              console.log("[Banner Click] ctaLink:", slideCtaLink);
+              
+              // Prioritize category from backend
+              if (slideCategory) {
+                console.log("[Banner Click] Navigating to category:", slideCategory);
+                if (onNavigateToProducts) {
+                  onNavigateToProducts(slideCategory);
+                }
+              } else if (slideCtaLink) {
+                // Fallback to ctaLink if no category
+                // If link looks like internal navigation (e.g., "honey", "ghee", "chikki", etc)
+                if (!slideCtaLink.includes('http') && !slideCtaLink.startsWith('/')) {
+                  // Internal category navigation
+                  console.log("[Banner Click] Navigating to ctaLink (category):", slideCtaLink);
+                  if (onNavigateToProducts) {
+                    onNavigateToProducts(slideCtaLink);
+                  }
+                } else if (slideCtaLink.startsWith('/')) {
+                  // Internal route
+                  console.log("[Banner Click] Navigating to route:", slideCtaLink);
+                  window.location.href = slideCtaLink;
+                } else {
+                  // External URL
+                  console.log("[Banner Click] Opening external URL:", slideCtaLink);
+                  window.open(slideCtaLink, '_blank');
+                }
+              } else {
+                // Default: go to products page if no category/link
+                console.log("[Banner Click] No category/link found, going to All products");
+                if (onNavigateToProducts) {
+                  onNavigateToProducts("All");
+                }
+              }
             };
 
             return (
@@ -354,10 +351,13 @@ const BannerCarousel = () => {
     );
   };
 
+  const content = renderContent();
+  if (!content) return null;
+
   return (
     <section className="w-full bg-[#FDF8F1]" style={{ marginBottom: '250px' }}>
       <div className="mx-auto w-full max-w-7xl px-4 pb-0 pt-1 md:px-6 md:pb-0 md:pt-2">
-        {renderContent()}
+        {content}
       </div>
     </section>
   );

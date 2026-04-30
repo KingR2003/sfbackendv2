@@ -30,6 +30,62 @@ const isProductOutOfStock = (product) => {
   return false;
 };
 
+// Get the price to display based on variant stock status
+const getDisplayPrice = (product) => {
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+
+  const isVariantAvailable = (v) => {
+    const qty = typeof v.stockQuantity === "number" ? v.stockQuantity : null;
+    if (v.availabilityStatus === "OUT_OF_STOCK") return false;
+    if (qty !== null && qty <= 0) return false;
+    return true;
+  };
+
+  if (variants.length > 0) {
+    // Check if first variant is in stock
+    if (isVariantAvailable(variants[0])) {
+      return variants[0].price || product.price;
+    }
+    // If first variant is out of stock, check second variant
+    if (variants.length > 1 && isVariantAvailable(variants[1])) {
+      return variants[1].price || product.price;
+    }
+    // Both out of stock or only one variant, show first variant price
+    return variants[0].price || product.price;
+  }
+
+  // No variants, use product price
+  return product.price;
+};
+
+// Get the MRP to display based on variant stock status
+const getDisplayMRP = (product) => {
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+
+  const isVariantAvailable = (v) => {
+    const qty = typeof v.stockQuantity === "number" ? v.stockQuantity : null;
+    if (v.availabilityStatus === "OUT_OF_STOCK") return false;
+    if (qty !== null && qty <= 0) return false;
+    return true;
+  };
+
+  if (variants.length > 0) {
+    // Check if first variant is in stock
+    if (isVariantAvailable(variants[0])) {
+      return Math.round(variants[0].mrp || variants[0].price * 1.2);
+    }
+    // If first variant is out of stock, check second variant
+    if (variants.length > 1 && isVariantAvailable(variants[1])) {
+      return Math.round(variants[1].mrp || variants[1].price * 1.2);
+    }
+    // Both out of stock or only one variant, show first variant MRP
+    return Math.round(variants[0].mrp || variants[0].price * 1.2);
+  }
+
+  // No variants, use product MRP
+  return Math.round(product.mrp || product.price * 1.2);
+};
+
 // IMPORTANT: This component must be top-level (not nested inside ProductsPage).
 // If it's nested, React remounts it on every ProductsPage render, which resets scrollLeft.
 const CategorySection = ({ title, products, onViewProduct, onToggleWishlist, wishlist, cart, onAddToCart, onUpdateQuantity }) => {
@@ -61,6 +117,15 @@ const CategorySection = ({ title, products, onViewProduct, onToggleWishlist, wis
             const singleVariant = hasSingleVariant ? product.variants[0] : null;
             const singleVariantId = singleVariant ? (singleVariant.id || singleVariant.variantId || singleVariant.variant_id) : null;
 
+            const normalizeId = (id) => String(id ?? "").trim();
+            const productIdNorm = normalizeId(product.id) || normalizeId(product.productId);
+            const isWishlisted = Array.isArray(wishlist)
+              ? wishlist.some((item) => {
+                  const itemProdId = normalizeId(item?.id) || normalizeId(item?.productId) || normalizeId(item?.product_id);
+                  return itemProdId === productIdNorm;
+                })
+              : false;
+
             const cartItem = singleVariantId && Array.isArray(cart)
               ? cart.find((item) => {
                   const itemVariantId = item.variantId || item.id || item.cartItemId;
@@ -83,13 +148,13 @@ const CategorySection = ({ title, products, onViewProduct, onToggleWishlist, wis
                   </span>
                 )}
                 <button
-                  className={`p-wishlist-btn ${wishlist?.some(item => item.id === product.id) ? 'active' : ''}`}
+                  className={`p-wishlist-btn ${isWishlisted ? 'active' : ''}`}
                   onClick={(e) => { e.stopPropagation(); onToggleWishlist(product); }}
                 >
                   <Heart
                     size={18}
-                    fill={wishlist?.some(item => item.id === product.id) ? "#7C3225" : "none"}
-                    color={wishlist?.some(item => item.id === product.id) ? "#7C3225" : "#4A4A4A"}
+                    fill={isWishlisted ? "#7C3225" : "none"}
+                    color={isWishlisted ? "#7C3225" : "#4A4A4A"}
                   />
                 </button>
                 {product.isActive === false && (
@@ -117,8 +182,8 @@ const CategorySection = ({ title, products, onViewProduct, onToggleWishlist, wis
                 <div className="p-card-footer">
                   <div className="p-price-block">
                     <div className="p-price-row">
-                      <span className="p-mrp">₹{Math.round(product.mrp || product.price * 1.2)}</span>
-                      <span className="p-price">₹{product.price}</span>
+                      <span className="p-mrp">₹{getDisplayMRP(product)}</span>
+                      <span className="p-price">₹{getDisplayPrice(product)}</span>
                     </div>
                     {(!isProductOutOfStock(product) && product.selectedVariant?.stockQuantity > 0 && product.selectedVariant?.stockQuantity <= 10) && (
                       <div className="p-stock-warning">
@@ -135,29 +200,38 @@ const CategorySection = ({ title, products, onViewProduct, onToggleWishlist, wis
                     ) : (
                       /* Single-variant products: show Add to Cart, then quantity controls once added */
                       hasSingleVariant && !isProductOutOfStock(product) ? (
-                        cartItem && onUpdateQuantity ? (
-                          <div className="p-qty-controls">
-                            <button
-                              className="quantity-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onUpdateQuantity(cartItem.cartItemId, cartItem.quantity - 1);
-                              }}
-                              disabled={cartItem.quantity <= 1}
+                        cartItem ? (
+                          onUpdateQuantity ? (
+                            <div className="p-qty-controls">
+                              <button
+                                className="quantity-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUpdateQuantity(cartItem.cartItemId, cartItem.quantity - 1);
+                                }}
+                                disabled={cartItem.quantity <= 1}
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <span className="quantity">{cartItem.quantity}</span>
+                              <button
+                                className="quantity-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUpdateQuantity(cartItem.cartItemId, cartItem.quantity + 1);
+                                }}
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <button 
+                              className="p-view-btn" 
+                              style={{ backgroundColor: '#1AA60B', color: '#fff' }}
                             >
-                              <Minus size={14} />
+                              ADDED TO CART
                             </button>
-                            <span className="quantity">{cartItem.quantity}</span>
-                            <button
-                              className="quantity-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onUpdateQuantity(cartItem.cartItemId, cartItem.quantity + 1);
-                              }}
-                            >
-                              <Plus size={14} />
-                            </button>
-                          </div>
+                          )
                         ) : (
                           <button 
                             className="p-view-btn" 
@@ -206,8 +280,9 @@ const ProductsPage = ({ activeCategory, setActiveCategory, onViewProduct, search
     <div className="products-page">
       {/* Header Area */}
       <div className="products-page-header">
-        <h1 className="products-page-title">Our Products</h1>
-        <div className="title-divider">
+        <h1 className="products-page-title" style={{ marginBottom: 0 }}>Our Products</h1>
+        <div className="title-divider"></div>
+        <div className="landing-title-divider" style={{ marginBottom: "18px" }}>
           <span className="diamond"></span>
         </div>
         <p className="products-page-subtitle">

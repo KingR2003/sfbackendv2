@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Mail, Phone, MapPin, Send } from "lucide-react";
-import { submitQuery } from "../api";
+import { submitSupport } from "../api";
 
 const ImageWithLoader = ({ src, alt, className }) => {
   const [loaded, setLoaded] = useState(false);
@@ -22,7 +22,6 @@ const Contact = ({ onShowToast, apiToken, scrollTarget = null, onDidScrollToTarg
   const messageSectionRef = useRef(null);
   const [formData, setFormData] = useState({
     firstName: "",
-    lastName: "",
     email: "",
     subject: "",
     message: ""
@@ -39,30 +38,40 @@ const Contact = ({ onShowToast, apiToken, scrollTarget = null, onDidScrollToTarg
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!apiToken) {
+      if (onShowToast) {
+        onShowToast("Please login to send a message", "error");
+      } else {
+        alert("Please login to send a message");
+      }
+      return;
+    }
+
     const payload = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      name: `${formData.firstName} ${formData.lastName}`.trim(),
+      name: formData.firstName,
       email: formData.email,
       subject: formData.subject,
       message: formData.message,
-      source: "contact_page",
+      type: "general",
+      images: []
     };
 
     try {
       setIsSubmitting(true);
-      await submitQuery(payload, apiToken);
+      await submitSupport(payload, apiToken);
 
       if (onShowToast) {
-        onShowToast("Thank you for your message! We will get back to you soon.");
+        onShowToast("Thank you for your message! We will get back to you soon.", "success");
       } else {
         alert("Thank you for your message! We will get back to you soon.");
       }
 
-      setFormData({ firstName: "", lastName: "", email: "", subject: "", message: "" });
+      setFormData({ firstName: "", email: "", subject: "", message: "" });
     } catch (err) {
-      console.error("Contact query submission failed:", err);
-      const msg = (err && err.message) ? err.message : "Something went wrong while sending your message. Please try again.";
+      console.error("Contact message submission failed:", err);
+      const msg = (err && err.response && err.response.data && err.response.data.message) 
+        ? err.response.data.message 
+        : "Something went wrong while sending your message. Please try again.";
       if (onShowToast) {
         onShowToast(msg, "error");
       } else {
@@ -171,35 +180,21 @@ const Contact = ({ onShowToast, apiToken, scrollTarget = null, onDidScrollToTarg
             <h2>Send us a Message</h2>
             
             <form onSubmit={handleSubmit} className="contact-form-refined">
-              <div className="form-row-refined">
-                <div className="form-group-refined">
-                  <label htmlFor="firstName">First Name</label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    placeholder="Dinesh"
-                    required
-                  />
-                </div>
-                <div className="form-group-refined">
-                  <label htmlFor="lastName">Last Name</label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    placeholder="S"
-                    required
-                  />
-                </div>
+              <div className="form-group-refined">
+                <label htmlFor="firstName">Name</label>
+                <input
+                  type="text"
+                  id="firstName"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  placeholder="Dinesh"
+                  required
+                />
               </div>
 
               <div className="form-group-refined">
-                <label htmlFor="email">Email Address</label>
+                <label htmlFor="email">Email</label>
                 <input
                   type="email"
                   id="email"

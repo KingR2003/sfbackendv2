@@ -25,7 +25,13 @@ export default function ProfileDetails({ profile = {}, onSave, onRefresh }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const payload = { name: name.trim(), email: email.trim(), gender, dob };
+    const payload = { 
+       name: name.trim(), 
+       email: email.trim(), 
+       gender, 
+       dob,
+       mobile: phone.trim()
+    };
     try {
       await onSave && onSave(payload);
     } catch (err) {
@@ -55,14 +61,25 @@ export default function ProfileDetails({ profile = {}, onSave, onRefresh }) {
           </div>
           <div>
             <label className="block text-sm text-gray-600">Email</label>
-            <input type="email" className="mt-1 w-full px-3 py-2 border rounded-md" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input 
+              type="email" 
+              className={`mt-1 w-full px-3 py-2 border rounded-md ${profile.email ? "bg-gray-50 text-gray-600 cursor-not-allowed" : ""}`} 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              readOnly={!!profile.email}
+            />
           </div>
-          {phone && (
-            <div>
-              <label className="block text-sm text-gray-600">Phone</label>
-              <input className="mt-1 w-full px-3 py-2 border rounded-md bg-gray-50 text-gray-600" value={phone} readOnly />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm text-gray-600">Phone</label>
+            <input 
+              type="tel"
+              className={`mt-1 w-full px-3 py-2 border rounded-md ${profile.phone ? "bg-gray-50 text-gray-600 cursor-not-allowed" : ""}`} 
+              value={phone} 
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+              readOnly={!!profile.phone}
+              placeholder="10-digit number"
+            />
+          </div>
           <div>
             <label className="block text-sm text-gray-600">Gender</label>
             <select className="mt-1 w-full px-3 py-2 border rounded-md" value={gender} onChange={(e) => setGender(e.target.value)}>

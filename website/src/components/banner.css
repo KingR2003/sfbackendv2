@@ -76,10 +76,10 @@
 }
 
 /* Force all banner elements to have rounded corners */
-section.w-full.bg-\\[\\#FDF8F1\\] {
+section.w-full.bg-\[\#FDF8F1\] {
   border-radius: 48px !important;
 }
 
-section.w-full.bg-\\[\\#FDF8F1\\] > div {
+section.w-full.bg-\[\#FDF8F1\] > div {
   border-radius: 48px !important;
 }

@@ -14,7 +14,10 @@ export const API_ENDPOINTS = {
   REMOVE_CART_ITEM: (variantId) => `${BASE_URL}/api/v1/cart/${variantId}`,
   CLEAR_CART: `${BASE_URL}/api/v1/cart/clear`,
   SEND_OTP: `${BASE_URL}/api/v1/auth/send-otp`,
+  SEND_OTP_LOGIN: `${BASE_URL}/api/v1/auth/login/send-otp`,
   VERIFY_OTP: `${BASE_URL}/api/v1/auth/verify-otp`,
+  SEND_LINK_PHONE_OTP: `${BASE_URL}/api/v1/auth/link-phone/send-otp`,
+  VERIFY_LINK_PHONE_OTP: `${BASE_URL}/api/v1/auth/link-phone/verify`,
   GOOGLE_AUTH: `${BASE_URL}/api/v1/auth/google`,
   LOGOUT: `${BASE_URL}/api/v1/auth/logout`,
   CREATE_CHECKOUT: `${BASE_URL}/api/v1/checkout`,
@@ -37,4 +40,6 @@ export const API_ENDPOINTS = {
   GET_PRODUCT: (id) => `${BASE_URL}/api/v1/products/${id}`,
   SUBMIT_QUERY: `${BASE_URL}/api/v1/queries`,
   GET_ACTIVE_BANNERS: `${BASE_URL}/api/v1/banners/active`,
+  SUBMIT_SUPPORT: `${BASE_URL}/api/v1/support/general`,
+  SUBMIT_SUPPORT_ORDER: `${BASE_URL}/api/v1/support/order-query`,
 };

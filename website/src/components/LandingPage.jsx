@@ -18,11 +18,13 @@ const ImageWithLoader = ({ src, alt, className }) => {
   );
 };
 
-const LandingPage = ({ onNavigateToProducts, scrollToSection, onNavigateToOurStory }) => {
+const LandingPage = ({ onNavigateToProducts, scrollToSection, onNavigateToOurStory, hasBanner = true }) => {
   return (
-    <div className="landing-page">
+    <div className={`landing-page ${hasBanner ? "" : "landing-page--no-banner"}`}>
       {/* Hero Section */}
-      <HeroSection onShopNow={() => onNavigateToProducts("All")} />
+      <HeroSection
+        onShopNow={() => onNavigateToProducts("All")}
+      />
 
       {/* Essentials Section */}
       <section id="essentials" className="essentials-section">

@@ -270,15 +270,28 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  overflow: visible;
 }
 
 .summary-thumb {
   width: 64px;
   height: 64px;
   border-radius: 18px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid #FEF8F0;
   background: #FEF8F0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summary-thumb-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  position: relative;
 }
 
 .summary-thumb img {
@@ -312,6 +325,22 @@
 .summary-qty {
   font-size: 0.8rem;
   color: #868889;
+}
+
+.summary-qty-badge {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: rgba(124, 50, 37, 0.95);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 9px;
+  border-radius: 10px;
+  white-space: nowrap;
+  z-index: 50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid white;
 }
 
 .summary-divider {
