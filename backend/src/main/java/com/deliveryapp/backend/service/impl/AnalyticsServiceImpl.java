@@ -30,6 +30,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final BannerRepository bannerRepository;
     private final CartRepository cartRepository;
     private final AddressRepository addressRepository;
+    private final PaymentRepository paymentRepository;
+    private final VisitorRepository visitorRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -44,8 +46,12 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         int iIdx = 0;
         for (Map.Entry<String, BigDecimal> entry : prodDto.getTop5ProductsByRevenue().entrySet()) {
              if(iIdx >= 3) break;
+             long units = prodDto.getProductPerformanceTable().stream()
+                 .filter(p -> p.getProduct().equals(entry.getKey()))
+                 .mapToLong(ProductPerformanceDto.ProductPerformanceItem::getUnitsSold)
+                 .sum();
              productPerformance.add(new AnalyticsDashboardDto.ProductPerformanceItem(
-                 entry.getKey(), entry.getValue(), prodDto.getUnitsSoldByCategory().getOrDefault(entry.getKey(), 0L)
+                 entry.getKey(), entry.getValue(), units
              ));
              iIdx++;
         }
@@ -168,7 +174,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         
         for (Map.Entry<Long, BigDecimal> entry : productRevMap.entrySet()) {
             productVariantRepository.findById(entry.getKey()).ifPresent(variant -> {
-                String name = variant.getVariantName();
+                String name = variant.getProduct() != null && variant.getProduct().getName() != null ? variant.getProduct().getName() + " " + variant.getVariantName() : variant.getVariantName();
                 revByProduct.put(name, revByProduct.getOrDefault(name, BigDecimal.ZERO).add(entry.getValue()));
                 
                 long units = productUnitsMap.getOrDefault(entry.getKey(), 0L);
@@ -323,7 +329,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         
         List<User> allUsers = userRepository.findAll();
         for (User u : allUsers) {
-            String gender = u.getGender() != null ? u.getGender() : "Unknown";
+            String gender = u.getGender() != null ? u.getGender().substring(0, 1).toUpperCase() + u.getGender().substring(1).toLowerCase() : "Unknown";
             genderDist.put(gender, genderDist.getOrDefault(gender, 0L) + 1);
             
             String ageGroup = "Unknown";
@@ -357,7 +363,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             
             User u = userRepository.findById(uId).orElse(null);
             if (u != null) {
-                String gender = u.getGender() != null ? u.getGender() : "Unknown";
+                String gender = u.getGender() != null ? u.getGender().substring(0, 1).toUpperCase() + u.getGender().substring(1).toLowerCase() : "Unknown";
                 revByGender.put(gender, revByGender.getOrDefault(gender, BigDecimal.ZERO).add(order.getFinalAmount()));
                 
                 String ageGroup = "Unknown";
@@ -414,7 +420,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 
                 topCustomersTable.add(DemographicReportDto.TopCustomerItem.builder()
                         .customer(user.getName() != null ? user.getName() : "Unknown")
-                        .gender(user.getGender() != null ? user.getGender() : "Unknown")
+                        .gender(user.getGender() != null ? user.getGender().substring(0, 1).toUpperCase() + user.getGender().substring(1).toLowerCase() : "Unknown")
                         .age(ageGroup)
                         .location(location)
                         .orders(userOrdersMap.get(userId))
@@ -447,9 +453,12 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         long delivered = orders.stream().filter(o -> "DELIVERED".equals(o.getOrderStatus())).count();
         long checkout = orders.size();
         
-        // Mock visitors and add to cart based on checkout count
-        long addToCart = checkout * 2L + cartRepository.count();
-        long visitors = checkout * 5L; 
+        long addToCart = cartRepository.count(); // actual carts 
+        long visitors = visitorRepository.countDistinctSessionIdByVisitedAtAfter(startDate);
+        
+        // Ensure logical funnel progression: visitors >= addToCart >= checkout >= delivered
+        if (visitors < addToCart) visitors = addToCart;
+        if (addToCart < checkout) addToCart = checkout;
         
         List<FunnelReportDto.FunnelStageItem> table = new ArrayList<>();
         table.add(new FunnelReportDto.FunnelStageItem("Visitors", visitors, 100.0, 0.0));
@@ -463,7 +472,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .paymentCompleted(delivered)
                 .delivered(delivered)
                 .overallConversion(visitors > 0 ? (delivered * 100.0) / visitors : 0.0)
-                .cartAbandonmentRate(44.7) 
+                .cartAbandonmentRate(addToCart > 0 ? ((addToCart - checkout) * 100.0) / addToCart : 0.0) 
                 .funnelSummaryTable(table)
                 .build();
     }
@@ -480,12 +489,27 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         long returned = 0;
         
         Map<String, Long> dist = new HashMap<>();
+        Map<String, Map<String, Long>> monthlyStatusBreakdown = new HashMap<>();
+        Map<String, Long> cancellationTrend = new HashMap<>();
+        DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM");
+
         for (OrderEntity o : orders) {
             String status = o.getOrderStatus();
             dist.put(status, dist.getOrDefault(status, 0L) + 1);
             if ("DELIVERED".equals(status)) delivered++;
             if ("CANCELLED".equals(status)) cancelled++;
             if ("RETURNED".equals(status)) returned++;
+            
+            if (o.getCreatedAt() != null) {
+                String month = o.getCreatedAt().format(monthFormatter);
+                monthlyStatusBreakdown.putIfAbsent(month, new HashMap<>());
+                Map<String, Long> monthMap = monthlyStatusBreakdown.get(month);
+                monthMap.put(status, monthMap.getOrDefault(status, 0L) + 1);
+                
+                if ("CANCELLED".equals(status)) {
+                    cancellationTrend.put(month, cancellationTrend.getOrDefault(month, 0L) + 1);
+                }
+            }
         }
         
         List<OrderStatusReportDto.StatusDistributionItem> table = new ArrayList<>();
@@ -502,8 +526,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .returned(returned)
                 .cancelledOrders(cancelled)
                 .orderStatusDistribution(dist)
-                .monthlyStatusBreakdown(new HashMap<>())
-                .cancellationTrend(new HashMap<>())
+                .monthlyStatusBreakdown(monthlyStatusBreakdown)
+                .cancellationTrend(cancellationTrend)
                 .statusDistributionTable(table)
                 .build();
     }
@@ -558,11 +582,11 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         
         return BannerAnalyticsDto.builder()
                 .totalImpressions(totalImpressions)
-                .impressionChange(12.4)
+                .impressionChange(0.0) // Requires historical tracking
                 .totalClicks(totalClicks)
-                .clickChange(8.1)
+                .clickChange(0.0) // Requires historical tracking
                 .averageCTR(avgCTR)
-                .ctrChange(2.3)
+                .ctrChange(0.0) // Requires historical tracking
                 .topPerformerName(topPerformer)
                 .topPerformerViews(topViews)
                 .viewsClicksTrendLast14Days(viewsClicksTrend)
@@ -580,43 +604,55 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         LocalDateTime startDate = LocalDateTime.now().minusDays(days);
         List<OrderEntity> orders = orderRepository.findByCreatedAtAfter(startDate);
         
-        BigDecimal totalRev = orders.stream()
-                .filter(o -> "DELIVERED".equals(o.getOrderStatus()))
-                .map(OrderEntity::getFinalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<Payment> payments = paymentRepository.findAll();
+        Map<Long, Payment> paymentMap = payments.stream()
+                .collect(Collectors.toMap(Payment::getId, p -> p));
         
-        // Mock refund data
-        BigDecimal totalRefund = totalRev.multiply(BigDecimal.valueOf(0.094));
-        double refundRate = 9.4;
-        double failedRate = 3.1;
+        BigDecimal totalRev = BigDecimal.ZERO;
+        BigDecimal totalRefund = BigDecimal.ZERO;
         
-        long paidCount = (long) (orders.size() * 0.625);
-        long pendingCount = (long) (orders.size() * 0.25);
-        long refundedCount = (long) (orders.size() * 0.094);
-        long failedCount = (long) (orders.size() * 0.031);
+        long paidCount = 0;
+        long pendingCount = 0;
+        long refundedCount = 0;
+        long failedCount = 0;
         
-        // Mock payment method distribution
         Map<String, Long> paymentDist = new HashMap<>();
-        paymentDist.put("COD", (long) (orders.size() * 0.30));
-        paymentDist.put("Debit Card", (long) (orders.size() * 0.25));
-        paymentDist.put("Net Banking", (long) (orders.size() * 0.20));
-        paymentDist.put("Credit Card", (long) (orders.size() * 0.15));
-        paymentDist.put("UPI", (long) (orders.size() * 0.10));
-        
         Map<String, BigDecimal> revenueByMethod = new HashMap<>();
-        revenueByMethod.put("COD", totalRev.multiply(BigDecimal.valueOf(0.307)));
-        revenueByMethod.put("Debit Card", totalRev.multiply(BigDecimal.valueOf(0.276)));
-        revenueByMethod.put("Net Banking", totalRev.multiply(BigDecimal.valueOf(0.235)));
-        revenueByMethod.put("Credit Card", totalRev.multiply(BigDecimal.valueOf(0.130)));
-        revenueByMethod.put("UPI", totalRev.multiply(BigDecimal.valueOf(0.052)));
-        
         Map<String, Long> refundTrend = new HashMap<>();
-        refundTrend.put("Mar", 3L);
-        refundTrend.put("Apr", 4L);
-        
         Map<String, BigDecimal> refundAmountTrend = new HashMap<>();
-        refundAmountTrend.put("Mar", BigDecimal.valueOf(5000));
-        refundAmountTrend.put("Apr", BigDecimal.valueOf(5300));
+        DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM");
+        
+        for (OrderEntity o : orders) {
+            Payment p = o.getPaymentId() != null ? paymentMap.get(o.getPaymentId()) : null;
+            if (p != null) {
+                String method = p.getPaymentMethod() != null ? p.getPaymentMethod() : "Unknown";
+                String status = p.getPaymentStatus() != null ? p.getPaymentStatus() : "PENDING";
+                
+                paymentDist.put(method, paymentDist.getOrDefault(method, 0L) + 1);
+                
+                if ("PAID".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status)) {
+                    paidCount++;
+                    totalRev = totalRev.add(o.getFinalAmount());
+                    revenueByMethod.put(method, revenueByMethod.getOrDefault(method, BigDecimal.ZERO).add(o.getFinalAmount()));
+                } else if ("REFUNDED".equalsIgnoreCase(status)) {
+                    refundedCount++;
+                    totalRefund = totalRefund.add(o.getFinalAmount());
+                    
+                    if (p.getCreatedAt() != null) {
+                        String month = p.getCreatedAt().format(monthFormatter);
+                        refundTrend.put(month, refundTrend.getOrDefault(month, 0L) + 1);
+                        refundAmountTrend.put(month, refundAmountTrend.getOrDefault(month, BigDecimal.ZERO).add(o.getFinalAmount()));
+                    }
+                } else if ("FAILED".equalsIgnoreCase(status)) {
+                    failedCount++;
+                } else {
+                    pendingCount++;
+                }
+            }
+        }
+        
+        double refundRate = orders.size() > 0 ? ((double) refundedCount / orders.size()) * 100.0 : 0.0;
+        double failedRate = orders.size() > 0 ? ((double) failedCount / orders.size()) * 100.0 : 0.0;
         
         List<PaymentRefundReportDto.PaymentMethodDetailItem> table = new ArrayList<>();
         for (Map.Entry<String, Long> entry : paymentDist.entrySet()) {
@@ -673,7 +709,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             Map<String, Long> data = new HashMap<>();
             data.put("Stock", v.getStockQuantity() != null ? v.getStockQuantity().longValue() : 0);
             data.put("Sold", (long) (Math.random() * 100));
-            stockVsSold.put(v.getVariantName(), data);
+            String name = v.getProduct() != null && v.getProduct().getName() != null ? v.getProduct().getName() + " " + v.getVariantName() : v.getVariantName();
+            stockVsSold.put(name, data);
         }
         
         Map<String, Long> monthlyMovement = new HashMap<>();
@@ -690,8 +727,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             String catName = v.getProduct() != null && v.getProduct().getCategoryId() != null ?
                     categoryRepository.findById(v.getProduct().getCategoryId()).map(Category::getName).orElse("Unknown") : "Unknown";
             
+            String name = v.getProduct() != null && v.getProduct().getName() != null ? v.getProduct().getName() + " " + v.getVariantName() : v.getVariantName();
             table.add(InventoryReportDto.InventoryDetailItem.builder()
-                    .product(v.getVariantName())
+                    .product(name)
                     .category(catName)
                     .stock(stock)
                     .sold((long) (Math.random() * 100))
