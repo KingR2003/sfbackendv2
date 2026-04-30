@@ -31,6 +31,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final CartRepository cartRepository;
     private final AddressRepository addressRepository;
     private final PaymentRepository paymentRepository;
+    private final VisitorRepository visitorRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -452,9 +453,12 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         long delivered = orders.stream().filter(o -> "DELIVERED".equals(o.getOrderStatus())).count();
         long checkout = orders.size();
         
-        // Mock visitors and add to cart based on checkout count
-        long addToCart = checkout * 2L + cartRepository.count();
-        long visitors = checkout * 5L; 
+        long addToCart = cartRepository.count(); // actual carts 
+        long visitors = visitorRepository.countDistinctSessionIdByVisitedAtAfter(startDate);
+        
+        // Ensure logical funnel progression: visitors >= addToCart >= checkout >= delivered
+        if (visitors < addToCart) visitors = addToCart;
+        if (addToCart < checkout) addToCart = checkout;
         
         List<FunnelReportDto.FunnelStageItem> table = new ArrayList<>();
         table.add(new FunnelReportDto.FunnelStageItem("Visitors", visitors, 100.0, 0.0));
@@ -468,7 +472,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .paymentCompleted(delivered)
                 .delivered(delivered)
                 .overallConversion(visitors > 0 ? (delivered * 100.0) / visitors : 0.0)
-                .cartAbandonmentRate(44.7) 
+                .cartAbandonmentRate(addToCart > 0 ? ((addToCart - checkout) * 100.0) / addToCart : 0.0) 
                 .funnelSummaryTable(table)
                 .build();
     }
