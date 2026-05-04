@@ -45,7 +45,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         List<AnalyticsDashboardDto.ProductPerformanceItem> productPerformance = new ArrayList<>();
         int iIdx = 0;
         for (Map.Entry<String, BigDecimal> entry : prodDto.getTop5ProductsByRevenue().entrySet()) {
-             if(iIdx >= 3) break;
+             if(iIdx >= 20) break;
              long units = prodDto.getProductPerformanceTable().stream()
                  .filter(p -> p.getProduct().equals(entry.getKey()))
                  .mapToLong(ProductPerformanceDto.ProductPerformanceItem::getUnitsSold)
@@ -75,7 +75,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             
         Map<String, String> specificProducts = new HashMap<>();
         for (Map.Entry<String, Map<String, Long>> entry : invDto.getStockVsSoldTopProducts().entrySet()) {
-             if (specificProducts.size() < 3) {
+             if (specificProducts.size() < 20) {
                  specificProducts.put(entry.getKey(), entry.getValue().get("Stock") + " / " + invDto.getTotalStockUnits());
              }
         }
@@ -90,7 +90,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             
         List<OrderEntity> recentOrderEntities = orderRepository.findAll().stream()
                 .sorted(Comparator.comparing(OrderEntity::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .limit(5)
+                .limit(20)
                 .collect(Collectors.toList());
 
         List<AnalyticsDashboardDto.RecentOrderItem> recentOrders = new ArrayList<>();
@@ -211,6 +211,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                     else ageGroup = "55+";
                 }
                 revByAge.put(ageGroup, revByAge.getOrDefault(ageGroup, BigDecimal.ZERO).add(order.getFinalAmount()));
+            } else {
+                revByGender.put("Unknown", revByGender.getOrDefault("Unknown", BigDecimal.ZERO).add(order.getFinalAmount()));
+                revByAge.put("Unknown", revByAge.getOrDefault("Unknown", BigDecimal.ZERO).add(order.getFinalAmount()));
             }
         }
 
@@ -294,7 +297,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         
         Map<String, BigDecimal> top5 = revMap.entrySet().stream()
                 .sorted((a,b)-> b.getValue().compareTo(a.getValue()))
-                .limit(5)
+                .limit(20)
                 .collect(Collectors.toMap(
                     e -> productVariantRepository.findById(e.getKey())
                             .map(v -> v.getProduct() != null && v.getProduct().getName() != null ? v.getProduct().getName() + " " + v.getVariantName() : v.getVariantName())
@@ -390,7 +393,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         
         List<Map.Entry<Long, BigDecimal>> topUserEntries = userRevenueMap.entrySet().stream()
                 .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
-                .limit(5)
+                .limit(20)
                 .collect(Collectors.toList());
                 
         List<DemographicReportDto.TopCustomerItem> topCustomersTable = new ArrayList<>();
@@ -633,16 +636,16 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         for (OrderEntity o : orders) {
             Payment p = o.getPaymentId() != null ? paymentMap.get(o.getPaymentId()) : null;
             
-            String method = "Unknown";
+            String method = "COD";
             String status = "PENDING";
             
             if (p != null) {
-                method = p.getPaymentMethod() != null ? p.getPaymentMethod() : "Unknown";
+                method = p.getPaymentMethod() != null ? p.getPaymentMethod() : "COD";
                 status = p.getPaymentStatus() != null ? p.getPaymentStatus() : "PENDING";
             } else {
                 if ("DELIVERED".equalsIgnoreCase(o.getOrderStatus()) || "SHIPPED".equalsIgnoreCase(o.getOrderStatus())) {
                     status = "PAID";
-                    method = "Unknown"; 
+                    method = "COD"; 
                 } else if ("CANCELLED".equalsIgnoreCase(o.getOrderStatus())) {
                     status = "FAILED";
                 } else if ("RETURNED".equalsIgnoreCase(o.getOrderStatus())) {
@@ -742,7 +745,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         List<ProductVariant> sortedVariants = new ArrayList<>(allVariants);
         sortedVariants.sort((v1, v2) -> Long.compare(variantSoldMap.getOrDefault(v2.getId(), 0L), variantSoldMap.getOrDefault(v1.getId(), 0L)));
         
-        for (int i = 0; i < Math.min(8, sortedVariants.size()); i++) {
+        for (int i = 0; i < Math.min(20, sortedVariants.size()); i++) {
             ProductVariant v = sortedVariants.get(i);
             Map<String, Long> data = new HashMap<>();
             data.put("Stock", v.getStockQuantity() != null ? v.getStockQuantity().longValue() : 0);
