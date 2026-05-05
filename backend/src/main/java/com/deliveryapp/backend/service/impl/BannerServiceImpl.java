@@ -12,14 +12,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.deliveryapp.backend.entity.User;
+import com.deliveryapp.backend.repository.UserRepository;
 
 @Service
 @RequiredArgsConstructor
 public class BannerServiceImpl implements BannerService {
 
     private final BannerRepository bannerRepository;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -84,10 +92,19 @@ public class BannerServiceImpl implements BannerService {
         LocalDateTime now = LocalDateTime.now();
         List<Banner> activeBanners = bannerRepository.findByIsActiveTrueAndStatusAndStartDateTimeBeforeAndEndDateTimeAfter("active", now, now);
 
+        User loggedInUser = null;
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
+            String username = authentication.getName();
+            loggedInUser = userRepository.findByEmail(username)
+                    .orElseGet(() -> userRepository.findByMobile(username).orElse(null));
+        }
+
+        final User finalUser = loggedInUser;
+
         return activeBanners.stream()
                 .filter(b -> {
-                    // Platform filter: if caller specifies a platform, only return banners
-                    // matching that platform OR set to "BOTH". Banners with null platform are excluded.
+                    // Platform filter
                     if (platform != null) {
                         String bannerPlatform = b.getPlatform();
                         if (bannerPlatform == null) return false;
@@ -95,15 +112,60 @@ public class BannerServiceImpl implements BannerService {
                             return false;
                         }
                     }
-                    // Gender filter: if caller specifies a gender, only return banners
-                    // matching that gender OR set to "ALL". Banners with null gender are excluded.
-                    if (gender != null) {
-                        String bannerGender = b.getGender();
-                        if (bannerGender == null) return false;
-                        if (!bannerGender.equalsIgnoreCase("ALL") && !bannerGender.equalsIgnoreCase(gender)) {
+
+                    // If guest user, all banners are visible
+                    if (finalUser == null) {
+                        return true;
+                    }
+
+                    // Logged in user: check gender
+                    String bannerGender = b.getGender();
+                    if (bannerGender != null && !bannerGender.equalsIgnoreCase("All Users") && !bannerGender.equalsIgnoreCase("All")) {
+                        if (finalUser.getGender() == null || !bannerGender.equalsIgnoreCase(finalUser.getGender())) {
+                            return false; // User gender doesn't match banner specific gender
+                        }
+                    }
+
+                    // Logged in user: check age group
+                    String bannerAgeGroup = b.getAgeGroup();
+                    if (bannerAgeGroup != null && !bannerAgeGroup.equalsIgnoreCase("All Ages") && !bannerAgeGroup.equalsIgnoreCase("All")) {
+                        if (finalUser.getDateOfBirth() == null) {
+                            return false; // User has no DOB set, cannot match specific age group
+                        }
+                        
+                        int age = Period.between(finalUser.getDateOfBirth(), LocalDate.now()).getYears();
+                        boolean matchesAge = false;
+                        String parsedAgeGroup = bannerAgeGroup.replaceAll("\\s+", "");
+                        
+                        if (parsedAgeGroup.contains("-") || parsedAgeGroup.contains("–")) {
+                            String sep = parsedAgeGroup.contains("-") ? "-" : "–";
+                            String[] parts = parsedAgeGroup.split(sep);
+                            if (parts.length == 2) {
+                                try {
+                                    int min = Integer.parseInt(parts[0]);
+                                    int max = Integer.parseInt(parts[1]);
+                                    if (age >= min && age <= max) matchesAge = true;
+                                } catch (NumberFormatException ignored) {}
+                            }
+                        } else if (parsedAgeGroup.startsWith("<")) {
+                            try {
+                                int max = Integer.parseInt(parsedAgeGroup.substring(1));
+                                if (age < max) matchesAge = true;
+                            } catch (NumberFormatException ignored) {}
+                        } else if (parsedAgeGroup.endsWith("+")) {
+                            try {
+                                int min = Integer.parseInt(parsedAgeGroup.substring(0, parsedAgeGroup.length() - 1));
+                                if (age >= min) matchesAge = true;
+                            } catch (NumberFormatException ignored) {}
+                        } else {
+                            matchesAge = true; // Fallback for unrecognized formats
+                        }
+                        
+                        if (!matchesAge) {
                             return false;
                         }
                     }
+
                     return true;
                 })
                 .map(this::mapToDto)
