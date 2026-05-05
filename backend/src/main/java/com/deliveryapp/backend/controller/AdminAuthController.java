@@ -4,15 +4,21 @@ import com.deliveryapp.backend.dto.ApiResponse;
 import com.deliveryapp.backend.dto.AdminRegisterRequest;
 import com.deliveryapp.backend.dto.LoginRequest;
 import com.deliveryapp.backend.dto.LoginResponse;
+import com.deliveryapp.backend.dto.ForgotPasswordRequest;
+import com.deliveryapp.backend.dto.ResetPasswordRequest;
 import com.deliveryapp.backend.entity.User;
 import com.deliveryapp.backend.entity.Token;
 import com.deliveryapp.backend.entity.ActiveToken;
+import com.deliveryapp.backend.entity.PasswordResetToken;
 import com.deliveryapp.backend.repository.UserRepository;
 import com.deliveryapp.backend.repository.TokenRepository;
 import com.deliveryapp.backend.repository.ActiveTokenRepository;
+import com.deliveryapp.backend.repository.PasswordResetTokenRepository;
 import com.deliveryapp.backend.security.JwtUtil;
+import com.deliveryapp.backend.service.EmailService;
 import com.deliveryapp.backend.service.TokenService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,6 +32,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Admin authentication endpoint.
@@ -53,6 +60,15 @@ public class AdminAuthController {
 
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Value("${app.admin-frontend-url:http://localhost:5173}")
+    private String adminFrontendUrl;
 
     // ---------------------------------------------------------------
     // POST /api/v1/admin/auth/register — ADMIN registration only
@@ -196,5 +212,84 @@ public class AdminAuthController {
         }
         SecurityContextHolder.clearContext();
         return ResponseEntity.ok(new ApiResponse(200, "Logged out successfully"));
+    }
+
+    // ---------------------------------------------------------------
+    // POST /api/v1/admin/auth/forgot-password
+    // Sends a reset link to the admin's registered email
+    // ---------------------------------------------------------------
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        try {
+            Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
+
+            // Always return 200 even if email not found (security best practice - prevents email enumeration)
+            if (userOpt.isEmpty() || !"ADMIN".equalsIgnoreCase(userOpt.get().getRole())) {
+                return ResponseEntity.ok(new ApiResponse(200,
+                        "If this email is registered, a password reset link has been sent."));
+            }
+
+            User admin = userOpt.get();
+
+            // Delete any existing token for this user (only one active reset at a time)
+            passwordResetTokenRepository.deleteByUserId(admin.getId());
+
+            // Create new token
+            PasswordResetToken resetToken = new PasswordResetToken();
+            resetToken.setToken(UUID.randomUUID().toString());
+            resetToken.setUser(admin);
+            passwordResetTokenRepository.save(resetToken);
+
+            // Build the reset URL the admin will click
+            String resetLink = adminFrontendUrl + "/reset-password?token=" + resetToken.getToken();
+
+            // Send the email
+            emailService.sendPasswordResetEmail(admin.getEmail(), admin.getName(), resetLink);
+
+            return ResponseEntity.ok(new ApiResponse(200,
+                    "If this email is registered, a password reset link has been sent."));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "An error occurred: " + e.getMessage()));
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // POST /api/v1/admin/auth/reset-password
+    // Verifies the token and updates the admin's password
+    // ---------------------------------------------------------------
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(request.getToken());
+
+            if (tokenOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Invalid or expired password reset link."));
+            }
+
+            PasswordResetToken resetToken = tokenOpt.get();
+
+            if (resetToken.isExpired()) {
+                passwordResetTokenRepository.delete(resetToken);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ApiResponse(400, "Password reset link has expired. Please request a new one."));
+            }
+
+            // Update the admin's password
+            User admin = resetToken.getUser();
+            admin.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(admin);
+
+            // Delete the token so it cannot be reused
+            passwordResetTokenRepository.delete(resetToken);
+
+            return ResponseEntity.ok(new ApiResponse(200, "Password reset successfully. You can now log in with your new password."));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "An error occurred: " + e.getMessage()));
+        }
     }
 }
