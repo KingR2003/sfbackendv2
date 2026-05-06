@@ -2,11 +2,13 @@ package com.deliveryapp.backend.controller;
 
 import com.deliveryapp.backend.dto.ApiResponse;
 import com.deliveryapp.backend.dto.CartResponse;
+import com.deliveryapp.backend.dto.WishlistResponse;
 import com.deliveryapp.backend.entity.OrderEntity;
 import com.deliveryapp.backend.exception.ResourceNotFoundException;
 import com.deliveryapp.backend.repository.UserRepository;
 import com.deliveryapp.backend.service.CartService;
 import com.deliveryapp.backend.service.OrderService;
+import com.deliveryapp.backend.service.WishlistService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +36,9 @@ public class AdminUserDataController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private WishlistService wishlistService;
 
     /**
      * GET /api/v1/admin/users/{userId}/cart
@@ -69,7 +74,6 @@ public class AdminUserDataController {
     @GetMapping("/{userId}/orders")
     public ResponseEntity<Object> getUserOrders(@PathVariable Long userId) {
         try {
-            // Verify user exists
             userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
@@ -87,6 +91,33 @@ public class AdminUserDataController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse(500, "Failed to retrieve orders: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * GET /api/v1/admin/users/{userId}/wishlist
+     * Fetch the wishlist of a specific user with full product, variant, and image details.
+     */
+    @GetMapping("/{userId}/wishlist")
+    public ResponseEntity<Object> getUserWishlist(@PathVariable Long userId) {
+        try {
+            userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+            List<WishlistResponse> wishlist = wishlistService.getWishlist(userId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", 200);
+            response.put("message", "Wishlist retrieved successfully");
+            response.put("userId", userId);
+            response.put("wishlist", wishlist);
+            response.put("count", wishlist.size());
+            return ResponseEntity.ok(response);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse(404, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(500, "Failed to retrieve wishlist: " + e.getMessage()));
         }
     }
 }

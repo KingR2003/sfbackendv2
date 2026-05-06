@@ -88,4 +88,40 @@ public class EmailServiceImpl implements EmailService {
                 + "<p style='font-size: 12px; color: #999;'>This is an automated email. Please do not reply directly to this email.</p>"
                 + "</div></body></html>";
     }
+    @Override
+    public void sendEmailVerification(String toNewEmail, String userName, String verifyLink) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail, "Svasthya Fresh");
+            helper.setTo(toNewEmail);
+            helper.setSubject("Verify Your New Email Address - Svasthya Fresh");
+            helper.setText(buildEmailVerificationBody(userName, verifyLink), true);
+
+            mailSender.send(message);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send email verification: " + e.getMessage(), e);
+        }
+    }
+
+    private String buildEmailVerificationBody(String userName, String verifyLink) {
+        return "<!DOCTYPE html><html><body style='font-family: Arial, sans-serif; color: #333;'>"
+                + "<div style='max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;'>"
+                + "<h2 style='color: #2e7d32;'>Svasthya Fresh</h2>"
+                + "<hr style='border-color: #e0e0e0;'/>"
+                + "<p>Hello <strong>" + (userName != null ? userName : "there") + "</strong>,</p>"
+                + "<p>You requested to update your email address on Svasthya Fresh. Click the button below to verify and confirm this new email address:</p>"
+                + "<div style='text-align: center; margin: 32px 0;'>"
+                + "<a href='" + verifyLink + "' style='background-color: #2e7d32; color: white; padding: 14px 28px; "
+                + "text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold;'>Verify My Email</a>"
+                + "</div>"
+                + "<p style='color: #777; font-size: 13px;'>This link will expire in <strong>30 minutes</strong>.</p>"
+                + "<p style='color: #777; font-size: 13px;'>If you did not request this change, please ignore this email. Your email address will remain unchanged.</p>"
+                + "<hr style='border-color: #e0e0e0;'/>"
+                + "<p style='font-size: 12px; color: #999;'>This is an automated email. Please do not reply directly to this email.</p>"
+                + "</div></body></html>";
+    }
 }
+

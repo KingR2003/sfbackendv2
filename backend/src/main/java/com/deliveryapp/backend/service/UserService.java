@@ -30,4 +30,7 @@ public interface UserService {
     List<User> getAllCustomers();
 
     User updateUserStatus(Long id, String status);
+
+    /** Directly saves a User entity - used for verified email changes. */
+    User saveUser(User user);
 }
