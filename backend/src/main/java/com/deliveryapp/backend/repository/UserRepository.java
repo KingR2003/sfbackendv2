@@ -10,6 +10,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     java.util.Optional<User> findByMobile(String mobile);
 
+    java.util.Optional<User> findByGoogleId(String googleId);
+
     java.util.List<User> findByRole(String role);
 
     java.util.List<User> findByRoleIn(java.util.List<String> roles);
