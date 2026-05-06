@@ -21,4 +21,13 @@ public interface EmailService {
      * @param resetLink  The full password reset URL with token
      */
     void sendPasswordResetEmail(String toEmail, String adminName, String resetLink);
+
+    /**
+     * Sends an email verification link to the user's NEW email address.
+     *
+     * @param toNewEmail   The new email address to verify
+     * @param userName     User's name for personalization
+     * @param verifyLink   The full verification URL with token
+     */
+    void sendEmailVerification(String toNewEmail, String userName, String verifyLink);
 }

@@ -52,6 +52,7 @@ public class SecurityConfig {
                                 "/api/v1/banners/*/view",
                                 "/api/v1/banners/*/click",
                                 "/api/v1/support/general", // general query submission
+                                "/api/v1/users/email/verify", // email change verification (token-based, no auth needed)
                                 "/api/v1/health",
                                 "/h2-console/**",
                                 "/v3/api-docs/**",

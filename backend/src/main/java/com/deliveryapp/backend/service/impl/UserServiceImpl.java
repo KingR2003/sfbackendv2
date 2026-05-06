@@ -180,4 +180,9 @@ public class UserServiceImpl implements UserService {
         user.setUpdatedAt(java.time.LocalDateTime.now());
         return userRepository.save(user);
     }
+
+    @Override
+    public User saveUser(User user) {
+        return userRepository.save(user);
+    }
 }

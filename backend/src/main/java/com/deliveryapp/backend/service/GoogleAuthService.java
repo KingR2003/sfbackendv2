@@ -56,8 +56,9 @@ public class GoogleAuthService {
             String email = payload.getEmail();
             String name = (String) payload.get("name");
 
-            // Step 2: Find existing user by email or googleId, or create new
-            Optional<User> existingUser = userRepository.findByEmail(email);
+            // Step 2: Find existing user by googleId first, then by email, or create new
+            Optional<User> existingUser = userRepository.findByGoogleId(googleId)
+                    .or(() -> userRepository.findByEmail(email));
             boolean isNewUser = false;
             User user;
 
