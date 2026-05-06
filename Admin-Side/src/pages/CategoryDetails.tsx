@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { motion } from "framer-motion";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getProducts, getCategories } from "@/lib/api";
@@ -91,23 +91,90 @@ const CategoryDetails = () => {
 
     return (
         <DashboardLayout>
-            <div className="mb-6">
-                <button onClick={() => window.history.back()} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
-                    <ChevronLeft className="w-4 h-4 mr-1" />
+            <div className="mb-8">
+                {/* Back Button */}
+                <motion.button 
+                    onClick={() => window.history.back()
+                    } 
+                    whileHover={{ x: -4 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                    className="group mb-6 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-600/50 hover:shadow-md transition-all duration-200 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400"
+                >
+                    <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
                     Back to Categories
-                </button>
-                <div className="flex items-center gap-4">
+                </motion.button>
+
+                {/* Header Section */}
+                <div className="flex items-center justify-between gap-8">
+                    <div className="flex items-center gap-6 flex-1">
+                    {/* Category Image */}
                     {(currentCategory.imageUrl || currentCategory.image) && (
-                        <img
-                            src={currentCategory.imageUrl || currentCategory.image}
-                            alt={currentCategory.name}
-                            className="w-16 h-16 rounded-xl object-cover shadow-lg"
-                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="relative"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl opacity-20 blur-xl" />
+                            <img
+                                src={currentCategory.imageUrl || currentCategory.image}
+                                alt={currentCategory.name}
+                                className="relative w-24 h-24 rounded-2xl object-cover shadow-lg border border-slate-200 dark:border-slate-700"
+                            />
+                        </motion.div>
                     )}
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">{currentCategory.name ?? currentCategory.categoryName}</h1>
-                        <p className="text-muted-foreground">{currentCategory.description}</p>
+                    
+                    {/* Category Info */}
+                    <div className="flex-1">
+                        <motion.h1 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-4xl font-bold text-slate-900 dark:text-white mb-2"
+                        >
+                            {currentCategory.name ?? currentCategory.categoryName}
+                        </motion.h1>
+                        <motion.p 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="text-lg text-slate-600 dark:text-slate-400 mb-4"
+                        >
+                            {currentCategory.description || "No description available"}
+                        </motion.p>
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="flex items-center gap-3"
+                        >
+                            <div className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-full text-sm font-semibold border border-emerald-200 dark:border-emerald-800/50">
+                                {categoryProducts.length} Products
+                            </div>
+                            <div className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${
+                                currentCategory.is_active || currentCategory.isActive || currentCategory.active
+                                    ? "bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/50"
+                                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-700"
+                            }`}>
+                                {currentCategory.is_active || currentCategory.isActive || currentCategory.active ? "Active" : "Inactive"}
+                            </div>
+                        </motion.div>
                     </div>
+                    </div>
+                    
+                    {/* Go to Products Button */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="flex-shrink-0"
+                    >
+                        <Link
+                            to="/products"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-white font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-200"
+                        >
+                            View All Products
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </motion.div>
                 </div>
             </div>
 
@@ -176,7 +243,7 @@ const CategoryDetails = () => {
                                                                 <tbody>
                                                                     {product.variants.map((variant) => (
                                                                         <tr key={variant.id} className="border-b border-border/50 last:border-0">
-                                                                            <td className="py-2">{variant.variant_name}</td>
+                                                                            <td className="py-2">{variant.variant_name ? `(${variant.variant_name})` : ""}</td>
                                                                             <td className="py-2">{variant.sku}</td>
                                                                             <td className="py-2">₹{variant.price}</td>
                                                                             <td className="py-2">{variant.stock_quantity}</td>

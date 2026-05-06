@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area,
@@ -8,6 +8,8 @@ import { Eye, MousePointerClick, TrendingUp, Trophy, Smartphone, Globe, Layers }
 import { cn } from "@/lib/utils";
 import { Banner, ctr, BannerPlatform } from "./bannerTypes";
 import { CHART_COLORS, TOOLTIP_STYLE, AXIS_STYLE, GRID_PROPS } from "@/lib/chartConfig";
+import { getAnalyticsBanners } from "@/lib/api";
+import type { AnalyticsFilters } from "@/components/analytics/AnalyticsSidebar";
 
 // ── Shared KPI card ───────────────────────────────────────────────────────
 function KpiCard({
@@ -106,83 +108,132 @@ function generateTimeSeries(banners: Banner[]) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-interface Props { banners: Banner[]; }
+interface Props {
+  banners?: Banner[];
+  filters?: AnalyticsFilters | null;
+}
 
-export function BannerAnalyticsDashboard({ banners }: Props) {
+export function BannerAnalyticsDashboard({ filters }: Props) {
+  const [apiData, setApiData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    getAnalyticsBanners(filters).then(res => {
+      if (mounted) { setApiData(res); setLoading(false); }
+    }).catch(() => {
+      if (mounted) setLoading(false);
+    });
+    return () => { mounted = false; };
+  }, [filters]);
+
+  // ── ALL hooks MUST be before any conditional return ──────────────────────
+
+  const banners: Banner[] = useMemo(() => {
+    if (Array.isArray(apiData?.banners) && apiData.banners.length > 0) return apiData.banners;
+    if (Array.isArray(apiData)) return apiData;
+    return [];
+  }, [apiData]);
+
   const total = useMemo(() => ({
-    views:  banners.reduce((s, b) => s + b.analytics.views, 0),
-    clicks: banners.reduce((s, b) => s + b.analytics.clicks, 0),
-  }), [banners]);
+    views:  apiData?.totalViews  ?? banners.reduce((s, b) => s + (b.analytics?.views  ?? 0), 0),
+    clicks: apiData?.totalClicks ?? banners.reduce((s, b) => s + (b.analytics?.clicks ?? 0), 0),
+  }), [apiData, banners]);
+
+  const topBanner = useMemo(() =>
+    [...banners].sort((a, b) => (b.analytics?.views ?? 0) - (a.analytics?.views ?? 0))[0],
+  [banners]);
+
+  const timeData = useMemo(() => generateTimeSeries(banners), [banners]);
+
+  const bannerBarData = useMemo(() =>
+    [...banners]
+      .filter(b => (b.analytics?.views ?? 0) > 0)
+      .sort((a, b) => (b.analytics?.views ?? 0) - (a.analytics?.views ?? 0))
+      .slice(0, 6)
+      .map(b => ({
+        name: b.title.length > 16 ? b.title.slice(0, 14) + "…" : b.title,
+        Views: b.analytics?.views ?? 0,
+        Clicks: b.analytics?.clicks ?? 0,
+        ctr: (b.analytics?.views ?? 0) > 0
+          ? parseFloat((((b.analytics?.clicks ?? 0) / (b.analytics?.views ?? 1)) * 100).toFixed(1))
+          : 0,
+      })),
+  [banners]);
+
+  const platformData = useMemo(() => {
+    const map: Record<string, { views: number; clicks: number }> = {
+      App: { views: 0, clicks: 0 },
+      Website: { views: 0, clicks: 0 },
+      Both: { views: 0, clicks: 0 },
+    };
+    const normalize = (p: string): string => {
+      const l = (p ?? "").toLowerCase();
+      if (l === "app") return "App";
+      if (l === "website" || l === "web") return "Website";
+      return "Both";
+    };
+    banners.forEach(b => {
+      const key = normalize(b.platform);
+      if (!map[key]) map[key] = { views: 0, clicks: 0 };
+      map[key].views  += b.analytics?.views  ?? 0;
+      map[key].clicks += b.analytics?.clicks ?? 0;
+    });
+    const labels: Record<string, string> = { App: "Mobile App", Website: "Website", Both: "App & Web" };
+    return Object.entries(map)
+      .filter(([, v]) => v.views > 0)
+      .map(([p, v]) => ({ name: labels[p] ?? p, views: v.views, clicks: v.clicks }));
+  }, [banners]);
+
+  const campaignData = useMemo(() => {
+    const map: Record<string, { views: number; clicks: number }> = {};
+    banners.forEach(b => {
+      const key = b.campaign || "General";
+      if (!map[key]) map[key] = { views: 0, clicks: 0 };
+      map[key].views  += b.analytics?.views  ?? 0;
+      map[key].clicks += b.analytics?.clicks ?? 0;
+    });
+    return Object.entries(map).map(([name, v]) => ({ name, ...v }));
+  }, [banners]);
+
+  const genderData = useMemo(() => {
+    const map: Record<string, number> = {};
+    banners.forEach(b => {
+      const key = b.gender || "All";
+      map[key] = (map[key] || 0) + (b.analytics?.views ?? 0);
+    });
+    return Object.entries(map).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
+  }, [banners]);
+
+  const leaderboard = useMemo(() =>
+    [...banners].sort((a, b) => (b.analytics?.views ?? 0) - (a.analytics?.views ?? 0)),
+  [banners]);
+
+  const PIE_COLORS = [CHART_COLORS[0], CHART_COLORS[1], CHART_COLORS[2], CHART_COLORS[3], CHART_COLORS[4]];
 
   const avgCtr = total.views > 0
     ? `${((total.clicks / total.views) * 100).toFixed(1)}%`
     : "0%";
 
-  const topBanner = useMemo(() =>
-    [...banners].sort((a, b) => b.analytics.views - a.analytics.views)[0],
-  [banners]);
+  // ── Now safe to do conditional returns ────────────────────────────────────
 
-  // ── Time series ─────────────────────────────────────────────────────────
-  const timeData = useMemo(() => generateTimeSeries(banners), [banners]);
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64 animate-pulse">
+        <div className="text-muted-foreground text-sm font-medium">Loading banner analytics...</div>
+      </div>
+    );
+  }
 
-  // ── Per-banner bar data ──────────────────────────────────────────────────
-  const bannerBarData = useMemo(() =>
-    [...banners]
-      .filter(b => b.analytics.views > 0)
-      .sort((a, b) => b.analytics.views - a.analytics.views)
-      .slice(0, 6)
-      .map(b => ({
-        name: b.title.length > 16 ? b.title.slice(0, 14) + "…" : b.title,
-        Views: b.analytics.views,
-        Clicks: b.analytics.clicks,
-        ctr: parseFloat(((b.analytics.clicks / b.analytics.views) * 100).toFixed(1)),
-      })),
-  [banners]);
-
-  // ── Platform breakdown ───────────────────────────────────────────────────
-  const platformData = useMemo(() => {
-    const map: Record<BannerPlatform, { views: number; clicks: number }> = {
-      App: { views: 0, clicks: 0 },
-      Website: { views: 0, clicks: 0 },
-      Both: { views: 0, clicks: 0 },
-    };
-    banners.forEach(b => {
-      map[b.platform].views  += b.analytics.views;
-      map[b.platform].clicks += b.analytics.clicks;
-    });
-    const labels: Record<BannerPlatform, string> = { App: "Mobile App", Website: "Website", Both: "App & Web" };
-    return (Object.entries(map) as [BannerPlatform, { views: number; clicks: number }][])
-      .filter(([, v]) => v.views > 0)
-      .map(([p, v]) => ({ name: labels[p], views: v.views, clicks: v.clicks }));
-  }, [banners]);
-
-  // ── Campaign type breakdown ──────────────────────────────────────────────
-  const campaignData = useMemo(() => {
-    const map: Record<string, { views: number; clicks: number }> = {};
-    banners.forEach(b => {
-      if (!map[b.campaign]) map[b.campaign] = { views: 0, clicks: 0 };
-      map[b.campaign].views  += b.analytics.views;
-      map[b.campaign].clicks += b.analytics.clicks;
-    });
-    return Object.entries(map).map(([name, v]) => ({ name, ...v }));
-  }, [banners]);
-
-  // ── Audience breakdown (gender) ──────────────────────────────────────────
-  const genderData = useMemo(() => {
-    const map: Record<string, number> = {};
-    banners.forEach(b => {
-      const key = b.gender;
-      map[key] = (map[key] || 0) + b.analytics.views;
-    });
-    return Object.entries(map).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
-  }, [banners]);
-
-  // ── Leaderboard (all banners sorted by views) ────────────────────────────
-  const leaderboard = useMemo(() =>
-    [...banners].sort((a, b) => b.analytics.views - a.analytics.views),
-  [banners]);
-
-  const PIE_COLORS = [CHART_COLORS[0], CHART_COLORS[1], CHART_COLORS[2], CHART_COLORS[3], CHART_COLORS[4]];
+  if (!banners.length) {
+    return (
+      <div className="flex justify-center items-center h-64 flex-col gap-2">
+        <div className="text-muted-foreground text-sm font-medium">No banner data available.</div>
+        <div className="text-xs text-muted-foreground">Create some banners first to see analytics here.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -212,7 +263,7 @@ export function BannerAnalyticsDashboard({ banners }: Props) {
         />
         <KpiCard
           label="Top Performer"
-          value={topBanner?.title.length > 18 ? topBanner.title.slice(0, 16) + "…" : (topBanner?.title ?? "—")}
+          value={topBanner ? (topBanner.title.length > 18 ? topBanner.title.slice(0, 16) + "…" : topBanner.title) : "—"}
           sub={topBanner ? `${topBanner.analytics.views.toLocaleString()} views` : undefined}
           icon={Trophy}
           color="bg-amber-500"
@@ -378,8 +429,9 @@ export function BannerAnalyticsDashboard({ banners }: Props) {
             </thead>
             <tbody className="divide-y divide-border">
               {leaderboard.map((banner, idx) => {
-                const barWidth = total.views > 0
-                  ? Math.max(4, Math.round((banner.analytics.views / leaderboard[0].analytics.views) * 100))
+                const topViews = leaderboard[0]?.analytics?.views ?? 0;
+                const barWidth = topViews > 0
+                  ? Math.max(4, Math.round((banner.analytics.views / topViews) * 100))
                   : 0;
                 return (
                   <tr key={banner.id} className="hover:bg-accent/20 transition-colors">

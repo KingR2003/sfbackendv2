@@ -1,7 +1,7 @@
 export type BannerStatus = "Active" | "Scheduled" | "Expired" | "Inactive";
 export type BannerPlatform = "App" | "Website" | "Both";
 export type BannerCampaign = "Festival" | "Seasonal" | "Discount" | "New Product" | "Announcement";
-export type BannerGender = "All Users" | "Men" | "Women";
+export type BannerGender = "All" | "Male" | "Female";
 export type BannerAgeGroup = "All Ages" | "13–17" | "18–25" | "26–35" | "36–45" | "45+";
 export type BannerRedirect = "Honey" | "Chikki" | "Ghee" | "Custom Page";
 
@@ -58,7 +58,7 @@ export const INITIAL_BANNERS: Banner[] = [
     description: "Celebrate Women's Day with pure organic honey.",
     imageUrl: "/banner-womens-day.jpg",
     platform: "Both",
-    gender: "Women",
+    gender: "Female",
     ageGroup: "18–25",
     campaign: "Festival",
     buttonText: "Shop Now",
@@ -77,7 +77,7 @@ export const INITIAL_BANNERS: Banner[] = [
     description: "Get 20% off on all honey products this week.",
     imageUrl: "/banner-honey.jpg",
     platform: "App",
-    gender: "All Users",
+    gender: "Male",
     ageGroup: "All Ages",
     campaign: "Discount",
     buttonText: "Buy Now",
@@ -96,7 +96,7 @@ export const INITIAL_BANNERS: Banner[] = [
     description: "Limited edition chikki packs for the festive season.",
     imageUrl: "/banner-chikki.jpg",
     platform: "Website",
-    gender: "All Users",
+    gender: "Female",
     ageGroup: "All Ages",
     campaign: "Seasonal",
     buttonText: "Explore",
@@ -115,7 +115,7 @@ export const INITIAL_BANNERS: Banner[] = [
     description: "Introducing our new pure cow ghee – first 500 orders get 15% off.",
     imageUrl: "/banner-ghee.webp",
     platform: "Both",
-    gender: "Men",
+    gender: "Male",
     ageGroup: "26–35",
     campaign: "New Product",
     buttonText: "Order Now",
@@ -132,7 +132,7 @@ export const INITIAL_BANNERS: Banner[] = [
 
 export const CAMPAIGN_OPTIONS: BannerCampaign[] = ["Festival", "Seasonal", "Discount", "New Product", "Announcement"];
 export const PLATFORM_OPTIONS: BannerPlatform[] = ["App", "Website", "Both"];
-export const GENDER_OPTIONS: BannerGender[] = ["All Users", "Men", "Women"];
+export const GENDER_OPTIONS: BannerGender[] = ["All", "Male", "Female"];
 export const AGE_OPTIONS: BannerAgeGroup[] = ["All Ages", "13–17", "18–25", "26–35", "36–45", "45+"];
 export const REDIRECT_OPTIONS: BannerRedirect[] = ["Honey", "Chikki", "Ghee", "Custom Page"];
 export const CTA_OPTIONS = ["Shop Now", "Buy Now", "Explore", "Order Now", "Learn More"];

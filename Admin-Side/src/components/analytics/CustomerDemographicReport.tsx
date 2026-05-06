@@ -1,83 +1,54 @@
+import { useState, useEffect } from "react";
 import { GlassCard } from "../shared/GlassCard";
+import { KPICard } from "./KPICard";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
     ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { Users, UserPlus, UserCheck, Wallet } from "lucide-react";
-import { mockOrders } from "@/data/mockData";
+import { Users, UserPlus, UserCheck, Wallet, TrendingUp, Award } from "lucide-react";
 import { AnalyticsFilters } from "./AnalyticsSidebar";
 import { CHART_COLORS, TOOLTIP_STYLE, AXIS_STYLE } from "@/lib/chartConfig";
+import { getAnalyticsDemographic } from "@/lib/api";
 
 export function CustomerDemographicReport({ filters }: { filters: AnalyticsFilters | null }) {
-    const filteredOrders = mockOrders.filter(order => {
-        if (!filters) return true;
-        if (filters.startDate && order.date < filters.startDate) return false;
-        if (filters.endDate && order.date > filters.endDate) return false;
-        if (filters.gender !== "all" && order.customerDemographics.gender.toLowerCase() !== filters.gender) return false;
-        if (filters.location !== "all" && order.customerDemographics.location.toLowerCase() !== filters.location) return false;
-        return true;
-    });
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 15;
 
-    const total = filteredOrders.length;
+    useEffect(() => {
+        let mounted = true;
+        setLoading(true);
+        setData(null);
+        getAnalyticsDemographic(filters)
+            .then(res => { if (mounted) { setData(res); setLoading(false); setCurrentPage(1); } })
+            .catch(() => { if (mounted) setLoading(false); });
+        return () => { mounted = false; };
+    }, [filters]);
 
-    // Unique customers
-    const uniqueCustomers = new Set(filteredOrders.map(o => o.customerId ?? o.customerName ?? o.customer ?? o.id)).size;
-    // New vs returning: mock — treat customers appearing >1 time as returning
-    const customerFreq: Record<string, number> = {};
-    filteredOrders.forEach(o => {
-        const id = o.customerId ?? o.customerName ?? o.customer ?? o.id;
-        customerFreq[id] = (customerFreq[id] || 0) + 1;
-    });
-    const returning = Object.values(customerFreq).filter(v => v > 1).length;
-    const newCust = uniqueCustomers - returning;
-    const returningPct = uniqueCustomers > 0 ? ((returning / uniqueCustomers) * 100).toFixed(1) : "0";
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-64 animate-pulse">
+                <div className="text-muted-foreground text-sm font-medium">Loading demographic data...</div>
+            </div>
+        );
+    }
 
-    // Gender distribution
-    const genderMap: Record<string, { count: number; revenue: number }> = {};
-    filteredOrders.forEach(o => {
-        const g = o.customerDemographics.gender || "Unknown";
-        if (!genderMap[g]) genderMap[g] = { count: 0, revenue: 0 };
-        genderMap[g].count += 1;
-        genderMap[g].revenue += o.totalAmount;
-    });
-    const genderColors: Record<string, string> = { Male: CHART_COLORS[1], Female: "#ec4899", Other: CHART_COLORS[3] };
-    const genderPieData = Object.entries(genderMap).map(([name, d]) => ({
-        name, value: d.count, revenue: d.revenue, fill: genderColors[name] || CHART_COLORS[5],
-    }));
-    const genderRevenueData = genderPieData.map(g => ({ name: g.name, revenue: g.revenue }));
+    const uniqueCustomers: number = data?.uniqueCustomers ?? 0;
+    const newCust: number = data?.newCust ?? 0;
+    const returning: number = data?.returning ?? 0;
+    const returningPct: string | number = data?.returningPct ?? "0";
+    const totalRevenue: number = data?.totalRevenue ?? 0;
+    const genderPieData: any[] = data?.genderPieData ?? [];
+    const genderRevenueData: any[] = data?.genderRevenueData ?? [];
+    const ageData: any[] = data?.ageData ?? [];
+    const ageRevenueData: any[] = data?.ageRevenueData ?? [];
+    const allCustomers: any[] = data?.allCustomers ?? data?.topCustomers ?? [];
 
-    // Age distribution — brackets: <18, 18-24, 25-34, 35-44, 45-54, 55+
-    const ageBrackets = [
-        { label: "< 18", min: 0, max: 17 },
-        { label: "18–24", min: 18, max: 24 },
-        { label: "25–34", min: 25, max: 34 },
-        { label: "35–44", min: 35, max: 44 },
-        { label: "45–54", min: 45, max: 54 },
-        { label: "55+", min: 55, max: 999 },
-    ];
-    const ageData = ageBrackets.map(b => {
-        const orders = filteredOrders.filter(o => o.customerDemographics.age >= b.min && o.customerDemographics.age <= b.max);
-        return { age: b.label, count: orders.length, revenue: orders.reduce((s, o) => s + o.totalAmount, 0) };
-    });
-    const ageRevenueData = ageData.map(a => ({ age: a.age, revenue: a.revenue }));
-
-    // Demographic customer table
-    const customerMap: Record<string, { name: string; gender: string; age: number; location: string; orders: number; revenue: number }> = {};
-    filteredOrders.forEach(o => {
-        const id = o.customerId ?? o.customerName ?? o.customer ?? o.id;
-        if (!customerMap[id]) {
-            customerMap[id] = {
-                name: o.customerName ?? o.customer ?? "Unknown", gender: o.customerDemographics.gender,
-                age: o.customerDemographics.age, location: o.customerDemographics.location,
-                orders: 0, revenue: 0,
-            };
-        }
-        customerMap[id].orders += 1;
-        customerMap[id].revenue += o.totalAmount;
-    });
-    const topCustomers = Object.values(customerMap).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
-
-    const totalRevenue = filteredOrders.reduce((s, o) => s + o.totalAmount, 0);
+    // Pagination logic
+    const totalPages = Math.ceil(allCustomers.length / itemsPerPage);
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    const paginatedCustomers = allCustomers.slice(startIdx, startIdx + itemsPerPage);
 
     return (
         <div className="space-y-5 py-1">
@@ -85,24 +56,41 @@ export function CustomerDemographicReport({ filters }: { filters: AnalyticsFilte
                 <h2 className="text-lg font-bold text-foreground">Customer Demographics</h2>
             </div>
 
-            {/* KPI Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                    { label: "Total Customers", value: uniqueCustomers.toLocaleString(), icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-                    { label: "New Customers", value: newCust.toLocaleString(), icon: UserPlus, color: "text-green-600", bg: "bg-green-50" },
-                    { label: "Returning Customers", value: `${returningPct}%`, icon: UserCheck, color: "text-indigo-600", bg: "bg-indigo-50" },
-                    { label: "Total Revenue", value: `₹${(totalRevenue / 1000).toFixed(1)}k`, icon: Wallet, color: "text-amber-600", bg: "bg-amber-50" },
-                ].map(kpi => (
-                    <GlassCard key={kpi.label} className="p-4 flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-lg ${kpi.bg} flex items-center justify-center flex-shrink-0`}>
-                            <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">{kpi.label}</p>
-                            <p className="text-base font-bold text-foreground">{kpi.value}</p>
-                        </div>
-                    </GlassCard>
-                ))}
+            {/* Enhanced KPI Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <KPICard
+                  index={0}
+                  title="Total Customers"
+                  value={uniqueCustomers.toLocaleString()}
+                  icon={<Users className="w-5 h-5" />}
+                  trend={{ value: 18, direction: "up" }}
+                  color="blue"
+                />
+                <KPICard
+                  index={1}
+                  title="New Customers"
+                  value={newCust.toLocaleString()}
+                  icon={<UserPlus className="w-5 h-5" />}
+                  trend={{ value: 23, direction: "up" }}
+                  color="emerald"
+                />
+                <KPICard
+                  index={2}
+                  title="Returning Rate"
+                  value={`${returningPct}`}
+                  unit="%"
+                  icon={<UserCheck className="w-5 h-5" />}
+                  trend={{ value: 7, direction: "up" }}
+                  color="purple"
+                />
+                <KPICard
+                  index={3}
+                  title="Total Revenue"
+                  value={`₹${(totalRevenue / 1000).toFixed(1)}k`}
+                  icon={<Wallet className="w-5 h-5" />}
+                  trend={{ value: 14, direction: "up" }}
+                  color="amber"
+                />
             </div>
 
             {/* New vs Returning bar */}
@@ -112,7 +100,7 @@ export function CustomerDemographicReport({ filters }: { filters: AnalyticsFilte
                     <span className="text-xs text-muted-foreground">{uniqueCustomers} total customers</span>
                 </div>
                 <div className="flex h-5 rounded-full overflow-hidden gap-0.5">
-                    <div className="bg-green-500 rounded-l-full transition-all" style={{ width: `${100 - parseFloat(returningPct)}%` }} />
+                    <div className="bg-green-500 rounded-l-full transition-all" style={{ width: `${100 - parseFloat(String(returningPct))}%` }} />
                     <div className="bg-indigo-500 rounded-r-full flex-1" />
                 </div>
                 <div className="flex gap-6 mt-2 text-xs text-muted-foreground">
@@ -123,108 +111,213 @@ export function CustomerDemographicReport({ filters }: { filters: AnalyticsFilte
 
             {/* Charts Row 1: Gender Pie + Age Bar */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <GlassCard className="p-5">
-                    <h3 className="text-sm font-semibold text-foreground mb-4">Gender Distribution</h3>
-                    <ResponsiveContainer width="100%" height={220}>
-                        <PieChart>
-                            <Pie data={genderPieData} cx="40%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
-                                {genderPieData.map((g, i) => <Cell key={i} fill={g.fill} />)}
-                            </Pie>
-                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
-                            <Legend iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                        </PieChart>
-                    </ResponsiveContainer>
+                <GlassCard className="p-5 border border-border/50">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-foreground">Gender Distribution</h3>
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-lg">{genderPieData.length} genders</span>
+                    </div>
+                    {genderPieData.length === 0 ? (
+                        <div className="h-[220px] flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                            <div className="text-3xl opacity-20">📊</div>
+                            <p className="text-sm">No gender data available</p>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={220}>
+                            <PieChart>
+                                <Pie data={genderPieData} cx="40%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                                    {genderPieData.map((g: any, i: number) => <Cell key={i} fill={g.fill ?? CHART_COLORS[i % CHART_COLORS.length]} />)}
+                                </Pie>
+                                <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                                <Legend iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
                 </GlassCard>
 
-                <GlassCard className="p-5">
-                    <h3 className="text-sm font-semibold text-foreground mb-4">Age Distribution</h3>
-                    <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={ageData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
-                            <XAxis dataKey="age" tick={AXIS_STYLE} />
-                            <YAxis tick={AXIS_STYLE} />
-                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
-                            <Bar dataKey="count" fill={CHART_COLORS[2]} radius={[4, 4, 0, 0]} name="Customers" />
-                        </BarChart>
-                    </ResponsiveContainer>
+                <GlassCard className="p-5 border border-border/50">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-foreground">Age Distribution</h3>
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-lg">{ageData.length} groups</span>
+                    </div>
+                    {ageData.length === 0 ? (
+                        <div className="h-[220px] flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                            <div className="text-3xl opacity-20">📊</div>
+                            <p className="text-sm">No age data available</p>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={220}>
+                            <BarChart data={ageData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
+                                <XAxis dataKey="age" tick={AXIS_STYLE} />
+                                <YAxis tick={AXIS_STYLE} />
+                                <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                                <Bar dataKey="count" fill={CHART_COLORS[2]} radius={[4, 4, 0, 0]} name="Customers" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </GlassCard>
             </div>
 
             {/* Charts Row 2: Revenue by Gender + Revenue by Age */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <GlassCard className="p-5">
+                <GlassCard className="p-5 border border-border/50">
                     <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Gender</h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                        <BarChart data={genderRevenueData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
-                            <XAxis dataKey="name" tick={AXIS_STYLE} />
-                            <YAxis tick={AXIS_STYLE} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
-                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`₹${v.toLocaleString()}`, "Revenue"]} />
-                            <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                                {genderRevenueData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {genderRevenueData.length === 0 ? (
+                        <div className="h-[200px] flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                            <div className="text-3xl opacity-20">💰</div>
+                            <p className="text-sm">No revenue data available</p>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={200}>
+                            <BarChart data={genderRevenueData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
+                                <XAxis dataKey="name" tick={AXIS_STYLE} />
+                                <YAxis tick={AXIS_STYLE} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+                                <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`₹${v.toLocaleString()}`, "Revenue"]} />
+                                <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                                    {genderRevenueData.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </GlassCard>
 
-                <GlassCard className="p-5">
+                <GlassCard className="p-5 border border-border/50">
                     <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Age Group</h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                        <BarChart data={ageRevenueData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
-                            <XAxis dataKey="age" tick={AXIS_STYLE} />
-                            <YAxis tick={AXIS_STYLE} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
-                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`₹${v.toLocaleString()}`, "Revenue"]} />
-                            <Bar dataKey="revenue" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {ageRevenueData.length === 0 ? (
+                        <div className="h-[200px] flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                            <div className="text-3xl opacity-20">📊</div>
+                            <p className="text-sm">No revenue data available</p>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={200}>
+                            <BarChart data={ageRevenueData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
+                                <XAxis dataKey="age" tick={AXIS_STYLE} />
+                                <YAxis tick={AXIS_STYLE} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+                                <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`₹${v.toLocaleString()}`, "Revenue"]} />
+                                <Bar dataKey="revenue" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </GlassCard>
             </div>
 
             {/* Demographic Table */}
-            <GlassCard className="overflow-hidden">
-                <div className="px-5 py-4 border-b border-border">
-                    <h3 className="text-sm font-semibold text-foreground">Top Customers</h3>
+            <GlassCard className="overflow-hidden border border-border/50">
+                <div className="px-5 py-4 border-b border-border bg-muted/20 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-foreground">All Customers</h3>
+                    <span className="text-xs text-muted-foreground bg-background px-2.5 py-1.5 rounded-lg border border-border">{allCustomers.length} total</span>
                 </div>
                 <div className="overflow-x-auto">
-                        <table className="w-full text-sm table-auto">
+                    <table className="w-full text-sm">
                         <thead>
-                            <tr className="bg-muted/40 border-b border-border">
-                                    {[
-                                        { label: "Customer", align: "text-left" },
-                                        { label: "Gender", align: "text-left" },
-                                        { label: "Age", align: "text-left" },
-                                        { label: "Location", align: "text-left" },
-                                        { label: "Orders", align: "text-right" },
-                                        { label: "Revenue", align: "text-right" },
-                                    ].map(h => (
-                                        <th
-                                            key={h.label}
-                                            className={`px-4 py-3 text-xs font-semibold text-muted-foreground ${h.align}`}
-                                        >
-                                            {h.label}
-                                        </th>
-                                    ))}
+                            <tr className="bg-muted/30 border-b border-border">
+                                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wide">Customer</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wide">Demographics</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wide">Location</th>
+                                <th className="px-4 py-3 text-center text-xs font-bold text-muted-foreground uppercase tracking-wide">Orders</th>
+                                <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase tracking-wide">Total Spent</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {topCustomers.map((c, i) => (
-                                <tr key={i} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                                        <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{c.name}</td>
-                                    <td className="px-4 py-3">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c.gender === "Male" ? "bg-blue-50 text-blue-600" : c.gender === "Female" ? "bg-pink-50 text-pink-600" : "bg-muted text-muted-foreground"}`}>
-                                            {c.gender}
+                            {paginatedCustomers.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-5 py-12 text-center">
+                                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                            <div className="text-3xl opacity-20">👥</div>
+                                            <p className="text-sm">No customer data available</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : paginatedCustomers.map((c: any, i: number) => (
+                                <tr key={i} className={`border-b border-border/40 hover:bg-muted/20 transition-colors ${i % 2 === 0 ? "bg-background" : "bg-muted/5"}`}>
+                                    {/* Customer Name */}
+                                    <td className="px-4 py-3.5">
+                                        <div className="flex flex-col gap-1">
+                                            <p className="font-semibold text-foreground">{c.name || "—"}</p>
+                                            {c.customerId && <p className="text-xs text-muted-foreground">ID: {c.customerId}</p>}
+                                        </div>
+                                    </td>
+                                    
+                                    {/* Demographics */}
+                                    <td className="px-4 py-3.5">
+                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold inline-flex items-center gap-1 w-fit ${
+                                            c.gender === "Male" ? "bg-blue-100 text-blue-700" :
+                                            c.gender === "Female" ? "bg-pink-100 text-pink-700" :
+                                            c.gender === "Other" ? "bg-purple-100 text-purple-700" :
+                                            "bg-slate-100 text-slate-700"
+                                        }`}>
+                                            {c.gender === "Male" ? "♂" : c.gender === "Female" ? "♀" : "•"} {c.gender || "Unknown"}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 text-muted-foreground">{c.age}</td>
-                                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{c.location}</td>
-                                        <td className="px-4 py-3 text-right font-medium tabular-nums">{c.orders}</td>
-                                        <td className="px-4 py-3 text-right font-semibold tabular-nums">₹{c.revenue.toLocaleString()}</td>
+                                    
+                                    {/* Location */}
+                                    <td className="px-4 py-3.5">
+                                        <p className="text-sm font-medium text-foreground">{c.location || "—"}</p>
+                                    </td>
+                                    
+                                    {/* Orders Count */}
+                                    <td className="px-4 py-3.5 text-center">
+                                        <p className="text-lg font-bold text-primary">{c.orders || 0}</p>
+                                    </td>
+                                    
+                                    {/* Total Revenue */}
+                                    <td className="px-4 py-3.5 text-right">
+                                        <p className="text-lg font-bold text-emerald-600">₹{(c.revenue ?? 0).toLocaleString()}</p>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="px-5 py-4 border-t border-border flex items-center justify-between bg-muted/10">
+                        <div className="text-xs text-muted-foreground font-medium">
+                            Showing {startIdx + 1} to {Math.min(startIdx + itemsPerPage, allCustomers.length)} of {allCustomers.length}
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                ← Previous
+                            </button>
+                            
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                                    const pageNum = currentPage > 3 ? currentPage - 2 + i : i + 1;
+                                    if (pageNum > totalPages) return null;
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
+                                                pageNum === currentPage
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'border border-border text-muted-foreground hover:bg-muted'
+                                            }`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Next →
+                            </button>
+                        </div>
+                    </div>
+                )}
             </GlassCard>
         </div>
     );

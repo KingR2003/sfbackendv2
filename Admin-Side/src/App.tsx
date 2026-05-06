@@ -22,6 +22,8 @@ import ManagePermissions from "./pages/ManagePermissions";
 import SupportCenter from "./pages/SupportCenter";
 import TicketDetails from "./pages/TicketDetails";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
@@ -77,6 +79,8 @@ const App = () => (
         <ScrollToTop />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<MainRoutes />} />

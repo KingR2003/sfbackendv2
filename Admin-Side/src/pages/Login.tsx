@@ -203,13 +203,10 @@ const Login = () => {
                                     <label className="text-[13px] font-bold text-[#374151] uppercase tracking-wider">Password</label>
                                     <button
                                         type="button"
-                                        onClick={() => toast({
-                                            title: "Password Reset Request",
-                                            description: "A reset link has been sent to your registered email address.",
-                                        })}
+                                        onClick={() => navigate("/forgot-password")}
                                         className="text-sm font-bold text-primary hover:underline"
                                     >
-                                        Reset password
+                                        Forgot Password?
                                     </button>
                                 </div>
                                 <div className="relative group">

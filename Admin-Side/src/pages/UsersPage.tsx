@@ -742,329 +742,312 @@ const Users = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Centered Popup Modal */}
+            {/* Modern User Details Modal */}
             {
                 showPanel && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowPanel(false)} />
+                        <div className="absolute inset-0 bg-foreground/20 backdrop-blur-md" onClick={() => setShowPanel(false)} />
                         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", damping: 25 }}
-                            className="glass-strong shadow-elevated w-full max-w-lg min-h-[400px] max-h-[85vh] relative z-10 p-6 rounded-2xl flex flex-col">
+                            className="bg-white dark:bg-slate-950 shadow-2xl w-full max-w-2xl max-h-[90vh] relative z-10 rounded-2xl flex flex-col overflow-hidden">
 
-                            <div className="flex items-center justify-between mb-5 shrink-0">
-                                <h2 className="text-lg font-bold text-foreground">{selectedUser ? "User Details" : "Add New User"}</h2>
-                                <button onClick={() => setShowPanel(false)} className="p-2 hover:bg-muted rounded-full transition-colors">
-                                    <XCircle className="w-5 h-5 text-muted-foreground" />
-                                </button>
+                            {/* Header */}
+                            <div className="relative shrink-0 px-8 py-6 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-b border-slate-200/50 dark:border-slate-700/50">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">User Details</h2>
+                                    <button onClick={() => setShowPanel(false)} className="p-2 hover:bg-slate-200/50 dark:hover:bg-slate-800 rounded-full transition-colors duration-200">
+                                        <XCircle className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="overflow-y-auto flex-1 pr-2 -mr-2">
+                            {/* Content */}
+                            <div className="overflow-y-auto flex-1">
                                 {selectedUser && (
-                                    <div className="flex flex-col items-center mb-6">
-                                        {formImage ? (
-                                            <img src={formImage} alt={formName} className="w-24 h-24 rounded-full object-cover mb-3 border-4 border-background shadow-lg" />
-                                        ) : (
-                                            <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-3 border-4 border-background shadow-lg">
-                                                <User className="w-10 h-10 text-muted-foreground" />
-                                            </div>
-                                        )}
-                                        <h3 className="text-xl font-bold text-foreground">{formName}</h3>
-                                        <p className="text-sm text-muted-foreground">{formEmail}</p>
-                                        <div className="mt-3 flex items-center justify-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50">
-                                            {(["Active", "Inactive", "Blocked"] as const).map((status) => (
-                                                (() => {
-                                                    const StatusIcon = statusIconMap[status];
-                                                    return (
-                                                <button
-                                                    key={status}
-                                                    onClick={() => handleStatusChange(status)}
-                                                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 ${
-                                                        formStatus === status 
-                                                            ? status === "Active" 
-                                                                ? "bg-green-500/15 text-green-500 shadow-sm ring-1 ring-green-500/30" 
-                                                                : status === "Inactive" 
-                                                                    ? "bg-red-500/15 text-red-500 shadow-sm ring-1 ring-red-500/30" 
-                                                                    : "bg-yellow-500/15 text-yellow-500 shadow-sm ring-1 ring-yellow-500/30" 
-                                                            : "text-muted-foreground hover:bg-muted font-medium"
-                                                    }`}
-                                                >
-                                                    <span className="inline-flex items-center gap-1.5">
-                                                        <StatusIcon className="w-3.5 h-3.5" />
-                                                        {status}
-                                                    </span>
-                                                </button>
-                                                    );
-                                                })()
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <Tabs defaultValue="personal" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1 rounded-xl">
-                                        <TabsTrigger value="personal" className="rounded-lg text-xs"><User className="w-3.5 h-3.5 mr-1.5" /> Personal</TabsTrigger>
-                                        <TabsTrigger value="cart" className="rounded-lg text-xs"><ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Cart</TabsTrigger>
-                                        <TabsTrigger value="orders" className="rounded-lg text-xs"><Package className="w-3.5 h-3.5 mr-1.5" /> Orders</TabsTrigger>
-                                    </TabsList>
-
-                                    <TabsContent value="personal" className="space-y-4">
-                                        <div>
-                                            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Profile Details</label>
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-border bg-muted/30 flex items-center justify-center">
-                                                    {formImage ? (
-                                                        <img src={formImage} alt="Preview" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <User className="w-8 h-8 text-muted-foreground/50" />
-                                                    )}
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="text-sm font-medium text-foreground">{formName || "New User"}</p>
-                                                    <p className="text-xs text-muted-foreground">User Profile</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">Full Name</label><div className="w-full px-4 py-2.5 rounded-xl bg-muted/30 border border-border text-sm text-foreground">{formName || "—"}</div></div>
-                                        <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email Address</label><div className="w-full px-4 py-2.5 rounded-xl bg-muted/30 border border-border text-sm text-foreground">{formEmail || "—"}</div></div>
-                                        <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">Mobile Number</label><div className="w-full px-4 py-2.5 rounded-xl bg-muted/30 border border-border text-sm text-foreground">{formMobile || "—"}</div></div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Gender</label>
-                                                <div className="w-full px-4 py-2.5 rounded-xl bg-muted/30 border border-border text-sm text-foreground flex items-center gap-2">
-                                                    {(() => {
-                                                        const genderMeta = getGenderMeta(formGender);
-                                                        const GenderIcon = genderMeta.Icon;
-                                                        return (
-                                                            <>
-                                                                <GenderIcon className={`w-4 h-4 ${genderMeta.iconClass}`} />
-                                                                <span>{genderMeta.label}</span>
-                                                                <span className={`ml-auto px-2 py-0.5 rounded-md text-[10px] font-semibold ${genderMeta.chipClass}`}>
-                                                                    {genderMeta.short}
-                                                                </span>
-                                                            </>
-                                                        );
-                                                    })()}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Date of Birth</label>
-                                                <div className="w-full px-4 py-2.5 rounded-xl bg-muted/30 border border-border text-sm text-foreground">{formDob || "—"}</div>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between items-center mb-3">
-                                                <label className="text-xs font-semibold text-primary uppercase tracking-wider">User Addresses</label>
-                                            </div>
-                                            <div className="space-y-4">
-                                                {isLoadingAddresses ? (
-                                                    <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground bg-muted/20 rounded-2xl border border-dashed border-border">
-                                                        <svg className="animate-spin w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                                                        <span className="text-xs font-medium">Fetching secure address data...</span>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        {formAddresses.map((addr, idx) => (
-                                                            <div key={idx} className="group relative p-4 bg-background/50 backdrop-blur-sm rounded-2xl border border-border/60 hover:border-primary/30 transition-all duration-300">
-                                                                <div className="flex justify-between items-start mb-4">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                                            <MapPin className="w-4 h-4 text-primary" />
-                                                                        </div>
-                                                                        <span className="px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-bold uppercase tracking-tight">{addr.type}</span>
-                                                                    </div>
-                                                                    {addr.is_default === 1 && (
-                                                                        <span className="flex items-center gap-1 text-[10px] text-green-500 font-bold bg-green-500/10 px-2 py-0.5 rounded-full ring-1 ring-green-500/20">
-                                                                            <CheckCircle className="w-3 h-3" /> Default
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                
-                                                                <div className="space-y-3">
-                                                                    {/* Location specifics */}
-                                                                    {(addr.building_no || addr.building_name || addr.street_no) && (
-                                                                        <div className="flex items-start gap-3">
-                                                                            <Package className="w-3.5 h-3.5 mt-0.5 text-muted-foreground/70" />
-                                                                            <div className="flex-1 text-[12px]">
-                                                                                <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider mb-0.5">Location</p>
-                                                                                <p className="text-foreground font-semibold leading-relaxed">
-                                                                                    {addr.building_no} {addr.building_name}
-                                                                                    {addr.street_no && <span className="block text-muted-foreground font-normal">Street {addr.street_no}</span>}
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* Area specifics */}
-                                                                    {addr.area_name && (
-                                                                        <div className="flex items-start gap-3">
-                                                                            <Search className="w-3.5 h-3.5 mt-0.5 text-muted-foreground/70" />
-                                                                            <div className="flex-1 text-[12px]">
-                                                                                <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider mb-0.5">Area / Landmark</p>
-                                                                                <p className="text-foreground font-medium">{addr.area_name}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* City specifics */}
-                                                                    <div className="flex items-start gap-3">
-                                                                        <div className="w-3.5 h-3.5 mt-0.5 flex items-center justify-center">
-                                                                            <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                                                                        </div>
-                                                                        <div className="flex-1 grid grid-cols-2 gap-4">
-                                                                            <div>
-                                                                                <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider mb-0.5">City</p>
-                                                                                <p className="text-[12px] text-foreground font-medium">{addr.city || "—"}</p>
-                                                                            </div>
-                                                                            <div>
-                                                                                <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider mb-0.5">State & PIN</p>
-                                                                                <p className="text-[12px] text-foreground font-medium">{addr.state || "—"} {addr.pincode && <span className="text-primary font-bold ml-1">{addr.pincode}</span>}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Fallback for unstructured addresses */}
-                                                                {!addr.building_no && !addr.area_name && addr.addressLine && (
-                                                                    <div className="mt-4 pt-3 border-t border-border/40">
-                                                                        <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider mb-1">Full Address</p>
-                                                                        <div className="text-[11px] text-foreground font-medium leading-relaxed bg-muted/30 p-2.5 rounded-xl border border-border/50">
-                                                                            {addr.addressLine}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                        {formAddresses.length === 0 && (
-                                                            <div className="flex flex-col items-center justify-center py-10 text-center bg-muted/10 border border-dashed border-border rounded-2xl">
-                                                                <div className="w-10 h-10 rounded-full bg-muted/40 flex items-center justify-center mb-3">
-                                                                    <MapPin className="w-5 h-5 text-muted-foreground/40" />
-                                                                </div>
-                                                                <p className="text-xs font-semibold text-muted-foreground">No records found</p>
-                                                                <p className="text-[10px] text-muted-foreground/60 px-6">This customer has not saved any addresses in their profile yet.</p>
+                                    <>
+                                        {/* Profile Section */}
+                                        <div className="px-8 py-8 border-b border-slate-200/50 dark:border-slate-700/50">
+                                            <div className="flex flex-col items-center text-center">
+                                                {/* Avatar */}
+                                                <div className="relative mb-6">
+                                                    <div className="w-28 h-28 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 p-1">
+                                                        {formImage ? (
+                                                            <img src={formImage} alt={formName} className="w-full h-full rounded-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                                                                <User className="w-12 h-12 text-slate-400 dark:text-slate-500" />
                                                             </div>
                                                         )}
-                                                    </>
-                                                )}
+                                                    </div>
+                                                    <div className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-white dark:border-slate-950 ${
+                                                        formStatus === "Active" ? "bg-emerald-500" : formStatus === "Blocked" ? "bg-red-500" : "bg-slate-400"
+                                                    }`} />
+                                                </div>
+
+                                                {/* Name & Email */}
+                                                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{formName}</h3>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{formEmail}</p>
+
+                                                {/* Status Pills */}
+                                                <div className="flex items-center justify-center gap-3 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-full border border-slate-200/50 dark:border-slate-700/50">
+                                                    {(["Active", "Blocked"] as const).map((status) => (
+                                                        (() => {
+                                                            const StatusIcon = statusIconMap[status];
+                                                            return (
+                                                            <button
+                                                                key={status}
+                                                                onClick={() => handleStatusChange(status)}
+                                                                className={`px-4 py-2 text-xs font-semibold rounded-full transition-all duration-300 flex items-center gap-2 ${
+                                                                    formStatus === status 
+                                                                        ? status === "Active" 
+                                                                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-sm" 
+                                                                            : "bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 shadow-sm" 
+                                                                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 border border-transparent"
+                                                                }`}
+                                                            >
+                                                                <StatusIcon className="w-4 h-4" />
+                                                                {status}
+                                                            </button>
+                                                            );
+                                                        })()
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
-                                    </TabsContent>
 
-                                    <TabsContent value="cart">
-                                        <div className="space-y-4">
-                                            {isLoadingCart ? (
-                                                <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground bg-muted/20 rounded-2xl border border-dashed border-border">
-                                                    <svg className="animate-spin w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                                                    <span className="text-xs font-medium">Fetching cart data...</span>
-                                                </div>
-                                            ) : userCart.length === 0 ? (
-                                                <div className="flex flex-col items-center justify-center py-12 text-center bg-muted/10 border border-dashed border-border rounded-2xl">
-                                                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                                                        <ShoppingCart className="w-8 h-8 text-muted-foreground/50" />
-                                                    </div>
-                                                    <h4 className="text-sm font-semibold text-foreground mb-1">Cart is Empty</h4>
-                                                    <p className="text-xs text-muted-foreground max-w-[200px]">This user currently has no items in their shopping cart.</p>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-3">
-                                                    {userCart.map((item, idx) => (
-                                                        <div key={idx} className="flex items-center gap-4 p-3 bg-background/50 backdrop-blur-sm rounded-2xl border border-border/60 hover:border-primary/30 transition-colors">
-                                                            <div className="w-16 h-16 rounded-xl bg-muted overflow-hidden flex-shrink-0 border border-border">
-                                                                {item.product?.image || item.image ? (
-                                                                    <img src={item.product?.image || item.image} alt="Product" className="w-full h-full object-cover" />
+                                        {/* Tabs */}
+                                        <Tabs defaultValue="personal" className="w-full">
+                                            <div className="px-8 pt-6 border-b border-slate-200/50 dark:border-slate-700/50">
+                                                <TabsList className="grid w-full grid-cols-3 bg-slate-100/50 dark:bg-slate-800/50 p-1 rounded-lg gap-1">
+                                                    <TabsTrigger value="personal" className="rounded-md text-xs font-semibold transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:text-slate-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm">
+                                                        <User className="w-3.5 h-3.5 mr-1.5" /> Personal
+                                                    </TabsTrigger>
+                                                    <TabsTrigger value="cart" className="rounded-md text-xs font-semibold transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:text-slate-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm">
+                                                        <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Cart
+                                                    </TabsTrigger>
+                                                    <TabsTrigger value="orders" className="rounded-md text-xs font-semibold transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:text-slate-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm">
+                                                        <Package className="w-3.5 h-3.5 mr-1.5" /> Orders
+                                                    </TabsTrigger>
+                                                </TabsList>
+                                            </div>
+
+                                            <div className="px-8 py-6 space-y-4">
+                                                {/* Personal Tab */}
+                                                <TabsContent value="personal" className="space-y-6 mt-0">
+                                                    {/* Profile Card */}
+                                                    <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+                                                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Profile Details</p>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center border border-slate-200 dark:border-slate-600">
+                                                                {formImage ? (
+                                                                    <img src={formImage} alt="Profile" className="w-full h-full object-cover rounded-lg" />
                                                                 ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                                                                        <Package className="w-6 h-6 text-muted-foreground" />
-                                                                    </div>
+                                                                    <User className="w-6 h-6 text-slate-400 dark:text-slate-500" />
                                                                 )}
                                                             </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-semibold text-foreground truncate">{item.product?.name || item.name || "Unknown Product"}</p>
-                                                                {item.variant && <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5 font-medium">{item.variant.variant_name || item.variant.name || "Standard"}</p>}
-                                                                <div className="flex items-center gap-3 mt-1.5">
-                                                                    <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground">Qty: {item.quantity || 1}</span>
-                                                                    <span className="text-sm font-bold text-primary">₹{(item.price || 0).toLocaleString()}</span>
-                                                                </div>
+                                                            <div>
+                                                                <p className="text-sm font-semibold text-slate-900 dark:text-white">{formName || "New User"}</p>
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">Customer Profile</p>
                                                             </div>
                                                         </div>
-                                                    ))}
-                                                    <div className="mt-4 p-4 bg-muted/30 rounded-2xl border border-border flex justify-between items-center">
-                                                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estimated Total</span>
-                                                        <span className="text-lg font-bold text-foreground">
-                                                            ₹{userCart.reduce((total, item) => total + ((item.price || 0) * (item.quantity || 1)), 0).toLocaleString()}
-                                                        </span>
                                                     </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </TabsContent>
 
-                                    <TabsContent value="orders">
-                                        <div className="space-y-4">
-                                            {isLoadingOrders ? (
-                                                <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground bg-muted/20 rounded-2xl border border-dashed border-border">
-                                                    <svg className="animate-spin w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                                                    <span className="text-xs font-medium">Fetching orders data...</span>
-                                                </div>
-                                            ) : userOrders.length === 0 ? (
-                                                <div className="flex flex-col items-center justify-center py-12 text-center bg-muted/10 border border-dashed border-border rounded-2xl">
-                                                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                                                        <Package className="w-8 h-8 text-muted-foreground/50" />
-                                                    </div>
-                                                    <h4 className="text-sm font-semibold text-foreground mb-1">No Orders Found</h4>
-                                                    <p className="text-xs text-muted-foreground max-w-[200px]">This user hasn't placed any orders yet.</p>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-3">
-                                                    {userOrders.map((order) => (
-                                                        <div key={order.id} className="p-4 bg-background/50 backdrop-blur-sm rounded-2xl border border-border/60 hover:border-primary/30 transition-all duration-300">
-                                                            <div className="flex justify-between items-start mb-4">
-                                                                <div>
-                                                                    <p className="text-xs font-bold text-foreground mb-1 uppercase tracking-wider">Order #{order.id}</p>
-                                                                    <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5">
-                                                                        <Calendar className="w-3.5 h-3.5" /> {order.date}
-                                                                    </p>
+                                                    {/* Personal Details */}
+                                                    <div className="grid grid-cols-1 gap-4">
+                                                        <div>
+                                                            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 block">Full Name</label>
+                                                            <div className="px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 text-sm text-slate-900 dark:text-white font-medium">{formName || "—"}</div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 block">Email Address</label>
+                                                            <div className="px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 text-sm text-slate-900 dark:text-white font-medium">{formEmail || "—"}</div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 block">Mobile Number</label>
+                                                            <div className="px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 text-sm text-slate-900 dark:text-white font-medium">{formMobile || "—"}</div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 block">Gender</label>
+                                                                <div className="px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 text-sm text-slate-900 dark:text-white font-medium flex items-center gap-2">
+                                                                    {(() => {
+                                                                        const genderMeta = getGenderMeta(formGender);
+                                                                        const GenderIcon = genderMeta.Icon;
+                                                                        return (
+                                                                            <>
+                                                                                <GenderIcon className={`w-4 h-4 ${genderMeta.iconClass}`} />
+                                                                                <span>{genderMeta.label}</span>
+                                                                            </>
+                                                                        );
+                                                                    })()}
                                                                 </div>
-                                                                <StatusBadge status={order.status} variant={
-                                                                    order.status === "DELIVERED" ? "green" :
-                                                                    order.status === "CANCELLED" ? "red" :
-                                                                    order.status === "ON_THE_WAY" ? "blue" : "yellow"
-                                                                } />
                                                             </div>
-                                                            <div className="space-y-3 mb-4 pt-1">
-                                                                {order.items.map((item, idx) => (
-                                                                    <div key={idx} className="flex items-center gap-3 p-2.5 bg-background/50 backdrop-blur-sm rounded-xl hover:bg-muted/40 transition-colors border border-border/40 hover:border-primary/30">
-                                                                        <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0 border border-border">
-                                                                            {item.image ? (
-                                                                                <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
+                                                            <div>
+                                                                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 block">Date of Birth</label>
+                                                                <div className="px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 text-sm text-slate-900 dark:text-white font-medium">{formDob || "—"}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* User Addresses */}
+                                                    <div>
+                                                        <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-3 block flex items-center gap-2">
+                                                            <MapPin className="w-4 h-4" /> Saved Addresses
+                                                        </label>
+                                                        <div className="space-y-3">
+                                                            {isLoadingAddresses ? (
+                                                                <div className="flex flex-col items-center justify-center py-8 gap-2 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                                                                    <svg className="animate-spin w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                                                    <span className="text-xs font-medium">Loading addresses...</span>
+                                                                </div>
+                                                            ) : formAddresses.length === 0 ? (
+                                                                <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
+                                                                    <MapPin className="w-6 h-6 text-slate-400 dark:text-slate-600 mb-2" />
+                                                                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No Addresses</p>
+                                                                    <p className="text-[10px] text-slate-500 dark:text-slate-400">No saved addresses found</p>
+                                                                </div>
+                                                            ) : (
+                                                                formAddresses.map((addr, idx) => (
+                                                                    <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200/50 dark:border-slate-700/50 hover:border-emerald-300 dark:hover:border-emerald-600/50 transition-colors">
+                                                                        <div className="flex items-start justify-between mb-3">
+                                                                            <span className="inline-block px-2 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase rounded">{addr.type}</span>
+                                                                            {addr.is_default === 1 && (
+                                                                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">★ Default</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="text-xs text-slate-900 dark:text-white font-medium">{addr.building_no} {addr.building_name}</p>
+                                                                        <p className="text-[10px] text-slate-500 dark:text-slate-400">{addr.area_name}, {addr.city} {addr.pincode}</p>
+                                                                    </div>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </TabsContent>
+
+                                                {/* Cart Tab */}
+                                                <TabsContent value="cart" className="space-y-4 mt-0">
+                                                    {isLoadingCart ? (
+                                                        <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                                                            <svg className="animate-spin w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                                            <span className="text-xs font-medium">Loading cart...</span>
+                                                        </div>
+                                                    ) : userCart.length === 0 ? (
+                                                        <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
+                                                            <ShoppingCart className="w-8 h-8 text-slate-400 dark:text-slate-600 mb-3" />
+                                                            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Cart is Empty</p>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">No items in cart</p>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="space-y-2">
+                                                                {userCart.map((item, idx) => (
+                                                                    <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200/50 dark:border-slate-700/50 hover:border-emerald-300 dark:hover:border-emerald-600/50 transition-colors">
+                                                                        <div className="w-12 h-12 rounded-lg bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                                            {item.product?.image || item.image ? (
+                                                                                <img src={item.product?.image || item.image} alt="Product" className="w-full h-full object-cover" />
                                                                             ) : (
-                                                                                <Package className="w-5 h-5 text-muted-foreground/50" />
+                                                                                <Package className="w-5 h-5 text-slate-400 dark:text-slate-600" />
                                                                             )}
                                                                         </div>
                                                                         <div className="flex-1 min-w-0">
-                                                                            <p className="text-sm font-semibold text-foreground truncate">{item.productName || "Unknown Product"}</p>
-                                                                            <p className="inline-block mt-0.5 px-1.5 py-0.5 bg-muted/50 rounded text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{item.variantName || "Standard"}</p>
+                                                                            <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{item.product?.name || item.name}</p>
+                                                                            <p className="text-[10px] text-slate-500 dark:text-slate-400">Qty: {item.quantity}</p>
                                                                         </div>
-                                                                        <div className="text-right shrink-0 min-w-16">
-                                                                            <p className="text-sm font-bold text-primary">₹{(item.price || 0).toLocaleString()}</p>
-                                                                            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Qty: {item.quantity}</p>
-                                                                        </div>
+                                                                        <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">₹{(item.price || 0).toLocaleString()}</p>
                                                                     </div>
                                                                 ))}
                                                             </div>
-                                                            <div className="pt-3 border-t border-border/50 flex justify-between items-center">
-                                                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Order Total</span>
-                                                                <span className="text-sm font-bold text-primary">{order.amount}</span>
+                                                            <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-900/30 flex justify-between items-center">
+                                                                <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Cart Total</span>
+                                                                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                                                                    ₹{userCart.reduce((total, item) => total + ((item.price || 0) * (item.quantity || 1)), 0).toLocaleString()}
+                                                                </span>
                                                             </div>
+                                                        </>
+                                                    )}
+                                                </TabsContent>
+
+                                                {/* Orders Tab */}
+                                                <TabsContent value="orders" className="space-y-4 mt-0">
+                                                    {isLoadingOrders ? (
+                                                        <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                                                            <svg className="animate-spin w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                                            <span className="text-xs font-medium">Loading orders...</span>
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </TabsContent>
-                                </Tabs>
+                                                    ) : userOrders.length === 0 ? (
+                                                        <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
+                                                            <Package className="w-8 h-8 text-slate-400 dark:text-slate-600 mb-3" />
+                                                            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No Orders</p>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">No orders placed yet</p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-4">
+                                                            {userOrders.map((order) => (
+                                                                <div key={order.id} className="p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200/50 dark:border-slate-700/50 hover:border-emerald-300 dark:hover:border-emerald-600/50 hover:shadow-md transition-all">
+                                                                    {/* Order Header */}
+                                                                    <div className="flex items-center justify-between mb-4">
+                                                                        <div>
+                                                                            <p className="text-sm font-bold text-slate-900 dark:text-white">Order #{order.id}</p>
+                                                                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                                                                <Calendar className="w-3 h-3" /> {order.date}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                                                                            order.status === "DELIVERED" ? "bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400" :
+                                                                            order.status === "CANCELLED" ? "bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400" :
+                                                                            order.status === "ON_THE_WAY" ? "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400" : 
+                                                                            "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                                                                        }`}>
+                                                                            <span className={`w-2 h-2 rounded-full ${
+                                                                                order.status === "DELIVERED" ? "bg-emerald-500" :
+                                                                                order.status === "CANCELLED" ? "bg-red-500" :
+                                                                                order.status === "ON_THE_WAY" ? "bg-blue-500" : 
+                                                                                "bg-amber-500"
+                                                                            }`} />
+                                                                            {order.status}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Order Items */}
+                                                                    <div className="space-y-2 mb-4">
+                                                                        {order.items.map((item, idx) => (
+                                                                            <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                                                                                <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                                                    {item.image ? (
+                                                                                        <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
+                                                                                    ) : (
+                                                                                        <Package className="w-4 h-4 text-slate-400 dark:text-slate-600" />
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{item.productName}</p>
+                                                                                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{item.variantName || "Standard"} • Qty: {item.quantity}</p>
+                                                                                </div>
+                                                                                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 text-right">₹{(item.price || 0).toLocaleString()}</p>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+
+                                                                    {/* Order Total */}
+                                                                    <div className="pt-3 border-t border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between">
+                                                                        <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Total Amount</span>
+                                                                        <span className="text-lg font-bold text-slate-900 dark:text-white">{order.amount}</span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </TabsContent>
+                                            </div>
+                                        </Tabs>
+                                    </>
+                                )}
                             </div>
 
-                            <div className="flex gap-3 mt-6 shrink-0 pt-4 border-t border-border/50">
-                                <button onClick={() => setShowPanel(false)} className="w-full px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">Close Details</button>
+                            {/* Footer */}
+                            <div className="shrink-0 px-8 py-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200/50 dark:border-slate-700/50 flex gap-3">
+                                <button onClick={() => setShowPanel(false)} className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors duration-200">
+                                    Close Details
+                                </button>
                             </div>
                         </motion.div>
                     </motion.div>

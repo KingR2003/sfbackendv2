@@ -199,6 +199,11 @@ export default function Banners() {
     if (filterCampaign !== "All" && b.campaign !== filterCampaign) return false;
     return true;
   }).sort((a, b) => {
+    // Primary sort: always by priority ascending (for drag-and-drop consistency)
+    const prioritySort = (a.priority || 999) - (b.priority || 999);
+    if (prioritySort !== 0) return prioritySort;
+    
+    // Secondary sort: apply sortBy criteria only for items with same priority
     if (sortBy === "A→Z") return a.title.localeCompare(b.title);
     if (sortBy === "Z→A") return b.title.localeCompare(a.title);
     if (sortBy === "Oldest") return Number(a.id) - Number(b.id);
@@ -440,7 +445,7 @@ export default function Banners() {
               <FilterDropdown label="Status" value={filterStatus}
                 options={["All", "Active", "Scheduled", "Expired", "Inactive"]} onChange={setFilterStatus} />
               <FilterDropdown label="Audience" value={filterAudience}
-                options={["All", "Men", "Women"]} onChange={setFilterAudience} />
+                options={["All", "Male", "Female"]} onChange={setFilterAudience} />
               <FilterDropdown label="Campaign" value={filterCampaign}
                 options={["All", "Festival", "Seasonal", "Discount", "New Product", "Announcement"]}
                 onChange={setFilterCampaign} />

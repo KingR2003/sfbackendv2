@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { clearAdminSession, getAdminUserFromStorage } from "@/lib/adminSession";
 import { adminLogout } from "@/lib/api";
+import { redirectTo } from "@/lib/routing";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -121,7 +122,7 @@ export function AppHeader({ onToggleSidebar }: AppHeaderProps) {
                     console.error("Logout API failed:", error);
                   } finally {
                     clearAdminSession();
-                    window.location.href = "/login";
+                    redirectTo("/login");
                   }
                 }}
                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/8 transition-colors"

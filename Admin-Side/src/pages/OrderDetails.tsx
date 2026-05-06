@@ -185,6 +185,12 @@ const OrderDetails = () => {
                 completed: !cancelled && current >= statusRank.DELIVERED,
                 icon: CheckCircle2,
             },
+            {
+                status: "Cancelled",
+                date: String(new Date().toISOString().split("T")[0]),
+                completed: cancelled,
+                icon: CheckCircle2,
+            },
         ];
     }, [currentStatus, order]);
 
@@ -253,18 +259,18 @@ const OrderDetails = () => {
 
     return (
         <DashboardLayout>
-            <div className="mb-6">
-                <Link to="/orders" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Back to Orders
+            <div className="mb-8">
+                <Link to="/orders" className="inline-flex items-center text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors mb-6 font-medium">
+                    <ChevronLeft className="w-3.5 h-3.5 mr-1.5" />
+                    BACK TO ORDERS
                 </Link>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-3 mb-1">
-                            <h1 className="text-3xl font-bold text-foreground">Order #{order.id}</h1>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-5">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Order #{order.id}</h1>
                             <StatusBadge status={currentStatus.replace(/_/g, " ")} variant={statusConfig[currentStatus]?.variant || "gray"} />
                         </div>
-                        <p className="text-muted-foreground flex items-center gap-2 text-sm">
+                        <p className="text-slate-500 dark:text-slate-400 flex items-center gap-2 text-sm font-medium">
                             <Calendar className="w-4 h-4" /> Placed on {order.date || "N/A"}
                         </p>
                     </div>
@@ -273,135 +279,135 @@ const OrderDetails = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
-                    <GlassCard className="p-0 overflow-hidden">
-                        <div className="p-4 border-b border-border/50 bg-muted/30">
-                            <h3 className="font-semibold flex items-center gap-2">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                            <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2 text-sm uppercase tracking-wide">
                                 <Package className="w-4 h-4" /> Order Items
                             </h3>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="text-left text-muted-foreground border-b border-border/50">
-                                        <th className="p-4 font-medium">Product</th>
-                                        <th className="p-4 font-medium text-right">Price</th>
-                                        <th className="p-4 font-medium text-center">Quantity</th>
-                                        <th className="p-4 font-medium text-right">Total</th>
+                                    <tr className="text-left text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
+                                        <th className="px-6 py-3 font-semibold text-xs uppercase tracking-wide">Product</th>
+                                        <th className="px-6 py-3 font-semibold text-xs uppercase tracking-wide text-right">Price</th>
+                                        <th className="px-6 py-3 font-semibold text-xs uppercase tracking-wide text-center">Quantity</th>
+                                        <th className="px-6 py-3 font-semibold text-xs uppercase tracking-wide text-right">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {order.items.length === 0 && (
                                         <tr>
-                                            <td colSpan={4} className="p-6 text-center text-muted-foreground">No item details available.</td>
+                                            <td colSpan={4} className="px-6 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">No item details available.</td>
                                         </tr>
                                     )}
                                     {order.items.map((item, idx) => (
-                                        <tr key={item.id ?? idx} className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
-                                            <td className="p-4">
+                                        <tr key={item.id ?? idx} className="border-b border-slate-200 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    {item.image && <img src={item.image} className="w-10 h-10 rounded-lg object-cover bg-muted" />}
+                                                    {item.image && <img src={item.image} className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800" />}
                                                     <div>
-                                                        <p className="font-medium text-foreground">{item.productName}</p>
-                                                        <p className="text-xs text-muted-foreground">{item.variantName}</p>
+                                                        <p className="font-medium text-slate-900 dark:text-white">{item.productName}</p>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">{item.variantName}</p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="p-4 text-right">Rs.{item.price}</td>
-                                            <td className="p-4 text-center">{item.quantity}</td>
-                                            <td className="p-4 text-right font-medium">Rs.{item.price * item.quantity}</td>
+                                            <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-medium">₹{item.price.toLocaleString('en-IN')}</td>
+                                            <td className="px-6 py-4 text-center text-slate-900 dark:text-white font-medium">{item.quantity}</td>
+                                            <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-bold">₹{(item.price * item.quantity).toLocaleString('en-IN')}</td>
                                         </tr>
                                     ))}
                                 </tbody>
-                                <tfoot className="bg-muted/20">
-                                    <tr className="border-t border-border/50">
-                                        <td colSpan={3} className="pt-4 px-4 pb-1 text-right text-sm font-medium text-muted-foreground">Subtotal</td>
-                                        <td className="pt-4 px-4 pb-1 text-right text-sm font-semibold text-foreground">Rs.{subtotal.toLocaleString("en-IN")}</td>
+                                <tfoot className="bg-slate-50 dark:bg-slate-800/30">
+                                    <tr className="border-t border-slate-200 dark:border-slate-800">
+                                        <td colSpan={3} className="px-6 pt-4 pb-2 text-right text-sm font-medium text-slate-600 dark:text-slate-400">Subtotal</td>
+                                        <td className="px-6 pt-4 pb-2 text-right text-sm font-semibold text-slate-900 dark:text-white">₹{subtotal.toLocaleString("en-IN")}</td>
                                     </tr>
                                     {discountAmount > 0 && (
                                         <tr>
-                                            <td colSpan={3} className="pt-1 px-4 pb-1 text-right text-sm font-medium text-emerald-600">
-                                                Discount {order.couponApplied ? <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded ml-1 font-bold">Code: {order.couponApplied}</span> : ""}
+                                            <td colSpan={3} className="px-6 pt-2 pb-2 text-right text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                                Discount {order.couponApplied ? <span className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded ml-2 font-bold inline-block">Code: {order.couponApplied}</span> : ""}
                                             </td>
-                                            <td className="pt-1 px-4 pb-1 text-right text-sm font-semibold text-emerald-600">
-                                                -Rs.{discountAmount.toLocaleString("en-IN")}
+                                            <td className="px-6 pt-2 pb-2 text-right text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                                                -₹{discountAmount.toLocaleString("en-IN")}
                                             </td>
                                         </tr>
                                     )}
-                                    <tr>
-                                        <td colSpan={3} className="pt-1 px-4 pb-4 text-right font-bold text-foreground">Total Amount</td>
-                                        <td className="pt-1 px-4 pb-4 text-right font-bold text-foreground text-xl">Rs.{finalAmount.toLocaleString("en-IN")}</td>
+                                    <tr className="border-t border-slate-200 dark:border-slate-800">
+                                        <td colSpan={3} className="px-6 pt-4 pb-4 text-right font-bold text-slate-900 dark:text-white text-sm uppercase tracking-wide">Total Amount</td>
+                                        <td className="px-6 pt-4 pb-4 text-right font-bold text-slate-900 dark:text-white text-2xl">₹{finalAmount.toLocaleString("en-IN")}</td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
-                    </GlassCard>
+                    </div>
 
-                    <GlassCard className="p-6 mt-6">
-                        <h3 className="font-semibold flex items-center gap-2 mb-6 text-foreground">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-6">
+                        <h3 className="font-semibold flex items-center gap-2 mb-6 text-slate-900 dark:text-white text-sm uppercase tracking-wide">
                             <Clock className="w-4 h-4" /> Order Timeline
                         </h3>
                         <div className="relative flex items-start justify-between w-full mt-4 mb-2 pb-6">
-                            <div className="absolute top-3 left-4 right-4 h-px bg-border/60" />
+                            <div className="absolute top-3 left-4 right-4 h-1 bg-slate-200 dark:bg-slate-700" />
 
                             {timeline.map((step, idx) => (
                                 <div key={idx} className="relative flex flex-col items-center flex-1 text-center">
                                     <div className={cn(
-                                        "relative w-6 h-6 rounded-full flex items-center justify-center bg-card border-2 z-10 mb-2",
-                                        step.completed ? "border-primary bg-primary text-primary-foreground shadow-glow-sm" : "border-border bg-muted/30 text-muted-foreground"
+                                        "relative w-8 h-8 rounded-full flex items-center justify-center bg-white dark:bg-slate-800 border-2 z-10 mb-3 transition-all",
+                                        step.completed ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-md" : "border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500"
                                     )}>
-                                        {step.completed ? <step.icon className="w-3.5 h-3.5" /> : <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />}
+                                        {step.completed ? <step.icon className="w-4 h-4" /> : <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40" />}
                                     </div>
                                     <div className="px-2">
-                                        <p className={cn("text-sm font-bold", currentStatus.replace(/_/g, " ").toLowerCase() === step.status.toLowerCase() ? "text-primary" : "text-foreground")}>
+                                        <p className={cn("text-xs font-bold tracking-wider", currentStatus.replace(/_/g, " ").toLowerCase() === step.status.toLowerCase() ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-300")}>
                                             {step.status}
                                         </p>
-                                        <p className="text-[10px] font-medium text-muted-foreground whitespace-nowrap mt-0.5">{step.completed ? step.date : "Pending"}</p>
+                                        <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap mt-1">{step.completed ? step.date : "Pending"}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </GlassCard>
+                    </div>
                 </div>
 
                 <div className="space-y-6">
-                    <GlassCard className="p-6">
-                        <h3 className="font-semibold flex items-center gap-2 mb-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-6">
+                        <h3 className="font-semibold flex items-center gap-2 mb-4 text-slate-900 dark:text-white text-sm uppercase tracking-wide">
                             <User className="w-4 h-4" /> Customer Details
                         </h3>
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-xs text-muted-foreground mb-1">Name</p>
-                                <p className="font-medium">{order.customer}</p>
+                        <div className="space-y-5">
+                            <div className="pb-4 border-b border-slate-200 dark:border-slate-800">
+                                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Name</p>
+                                <p className="font-semibold text-slate-900 dark:text-white text-base">{order.customer}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-muted-foreground mb-1">Contact</p>
-                                <p className="text-sm">{order.customerPhone || "Not available"}</p>
-                                <p className="text-sm text-primary break-all">{order.customerEmail || "Not available"}</p>
+                                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Contact</p>
+                                <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">{order.customerPhone || "Not available"}</p>
+                                <p className="text-sm text-emerald-600 dark:text-emerald-400 break-all font-medium mt-2">{order.customerEmail || "Not available"}</p>
                             </div>
                         </div>
-                    </GlassCard>
+                    </div>
 
-                    <GlassCard className="p-6">
-                        <h3 className="font-semibold flex items-center gap-2 mb-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-6">
+                        <h3 className="font-semibold flex items-center gap-2 mb-4 text-slate-900 dark:text-white text-sm uppercase tracking-wide">
                             <MapPin className="w-4 h-4" /> Shipping Address
                         </h3>
-                        <p className="text-sm leading-relaxed text-muted-foreground mb-4">{order.shippingAddress}</p>
+                        <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300 mb-5 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">{order.shippingAddress}</p>
 
-                        <div className="pt-4 border-t border-border/50">
-                            <label className="text-xs font-medium text-muted-foreground mb-1.5 block uppercase tracking-wider">Update Order Status</label>
+                        <div className="pt-5 border-t border-slate-200 dark:border-slate-800">
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 block uppercase tracking-wider">Update Order Status</label>
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <button className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm font-medium text-foreground outline-none hover:bg-muted/60 transition-all group" disabled={isUpdating}>
+                                    <button className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white outline-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group" disabled={isUpdating}>
                                         <div className="flex items-center gap-2.5">
                                             <StatusBadge status={currentStatus.replace(/_/g, " ")} variant={statusConfig[currentStatus]?.variant || "gray"} />
                                         </div>
-                                        {isUpdating ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-hover:translate-y-0.5" />}
+                                        {isUpdating ? <Loader2 className="w-4 h-4 animate-spin text-slate-500 dark:text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform group-hover:translate-y-0.5" />}
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-[calc(var(--radix-dropdown-menu-trigger-width)-2px)] p-1.5 rounded-2xl shadow-elevated border-border/50 backdrop-blur-xl">
-                                    <DropdownMenuLabel className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1.5">Change Status to</DropdownMenuLabel>
-                                    <DropdownMenuSeparator className="bg-border/50" />
+                                <DropdownMenuContent align="end" className="w-[calc(var(--radix-dropdown-menu-trigger-width)-2px)] p-1.5 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                                    <DropdownMenuLabel className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest px-3 py-2">Change Status to</DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="bg-slate-200 dark:bg-slate-700" />
                                     {allStatuses.map(status => (
                                         <DropdownMenuItem
                                             key={status}
@@ -425,17 +431,17 @@ const OrderDetails = () => {
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                    </GlassCard>
+                    </div>
 
-                    <GlassCard className="p-6">
-                        <h3 className="font-semibold flex items-center gap-2 mb-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-6">
+                        <h3 className="font-semibold flex items-center gap-2 mb-4 text-slate-900 dark:text-white text-sm uppercase tracking-wide">
                             <CreditCard className="w-4 h-4" /> Payment Status
                         </h3>
-                        <div className="flex items-center justify-between mt-2">
-                            <span className="text-sm text-muted-foreground">Status</span>
+                        <div className="flex items-center justify-between mt-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Status</span>
                             <StatusBadge status={order.payment} variant={paymentVariant as "green" | "yellow" | "red"} />
                         </div>
-                    </GlassCard>
+                    </div>
                 </div>
             </div>
         </DashboardLayout>

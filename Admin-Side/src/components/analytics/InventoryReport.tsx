@@ -1,93 +1,60 @@
+import { useState, useEffect } from "react";
 import { GlassCard } from "../shared/GlassCard";
+import { KPICard } from "./KPICard";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
     ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend,
 } from "recharts";
-import { Package, AlertTriangle, Archive, TrendingDown, Clock, ShoppingCart } from "lucide-react";
-import { mockProducts, mockOrders } from "@/data/mockData";
+import { Package, AlertTriangle, Archive, Clock, ShoppingCart, BarChart3, TrendingDown } from "lucide-react";
 import { AnalyticsFilters } from "./AnalyticsSidebar";
 import { CHART_COLORS, TOOLTIP_STYLE, AXIS_STYLE } from "@/lib/chartConfig";
+import { getAnalyticsInventory } from "@/lib/api";
+
+const statusColor: Record<string, string> = {
+    "In Stock": "#16a34a",
+    "Low Stock": "#f59e0b",
+    "Critical": "#f97316",
+    "Out of Stock": "#ef4444",
+};
 
 export function InventoryReport({ filters }: { filters: AnalyticsFilters | null }) {
-    const filteredOrders = mockOrders.filter(order => {
-        if (!filters) return true;
-        if (filters.startDate && order.date < filters.startDate) return false;
-        if (filters.endDate && order.date > filters.endDate) return false;
-        if (filters.gender !== "all" && order.customerDemographics.gender.toLowerCase() !== filters.gender) return false;
-        if (filters.location !== "all" && order.customerDemographics.location.toLowerCase() !== filters.location) return false;
-        return true;
-    });
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
-    const activeProductIds = filters
-        ? Object.entries(filters.products).filter(([, v]) => v).map(([k]) => Number(k))
-        : [];
+    useEffect(() => {
+        let mounted = true;
+        setLoading(true);
+        setData(null);
+        getAnalyticsInventory(filters)
+            .then(res => { if (mounted) { setData(res); setLoading(false); } })
+            .catch(() => { if (mounted) setLoading(false); });
+        return () => { mounted = false; };
+    }, [filters]);
 
-    // Compute sold units per product
-    const soldMap: Record<number, number> = {};
-    filteredOrders.forEach(order => {
-        order.items.forEach(item => {
-            if (activeProductIds.length === 0 || activeProductIds.includes(item.productId)) {
-                soldMap[item.productId] = (soldMap[item.productId] || 0) + item.quantity;
-            }
-        });
-    });
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-64 animate-pulse">
+                <div className="text-muted-foreground text-sm font-medium">Loading inventory data...</div>
+            </div>
+        );
+    }
 
-    const inventoryItems = mockProducts
-        .filter(p => activeProductIds.length === 0 || activeProductIds.includes(p.id))
-        .map(p => {
-            const totalStock = p.variants.reduce((s, v) => s + v.stock_quantity, 0);
-            const sold = soldMap[p.id] || 0;
-            const reorderLevel = 50;
-            const needsReorder = totalStock < reorderLevel && totalStock > 0;
-            const outOfStock = totalStock === 0;
-            // Simulate expiry — products with low stock considered expiry risk
-            const expirySoon = totalStock > 0 && totalStock < 30;
-            return {
-                id: p.id, name: p.name, category: p.category,
-                stock: totalStock, sold,
-                status: outOfStock ? "Out of Stock" : totalStock < 30 ? "Critical" : totalStock < reorderLevel ? "Low Stock" : "In Stock",
-                needsReorder: outOfStock || needsReorder,
-                expirySoon,
-            };
-        })
-        .sort((a, b) => a.stock - b.stock);
+    const totalStock: number = data?.totalStock ?? 0;
+    const outOfStock: number = data?.outOfStock ?? 0;
+    const expirySoon: number = data?.expirySoon ?? 0;
+    const reorderNeeded: number = data?.reorderNeeded ?? 0;
+    const stockStatusData: any[] = data?.stockStatusData ?? [];
+    const stockVsSold: any[] = data?.stockVsSold ?? [];
+    const movementData: any[] = data?.movementData ?? [];
+    const inventoryItems: any[] = data?.inventoryItems ?? [];
+    const reorderItems: any[] = data?.reorderItems ?? inventoryItems.filter((p: any) => p.needsReorder);
 
-    const totalStock = inventoryItems.reduce((s, p) => s + p.stock, 0);
-    const outOfStock = inventoryItems.filter(p => p.status === "Out of Stock").length;
-    const expirySoon = inventoryItems.filter(p => p.expirySoon).length;
-    const reorderNeeded = inventoryItems.filter(p => p.needsReorder).length;
-    const inStock = inventoryItems.filter(p => p.status === "In Stock").length;
-
-    // Status pie
-    const stockStatusData = [
-        { name: "In Stock", value: inStock, fill: "#16a34a" },
-        { name: "Low Stock", value: inventoryItems.filter(p => p.status === "Low Stock").length, fill: "#f59e0b" },
-        { name: "Critical", value: inventoryItems.filter(p => p.status === "Critical").length, fill: "#f97316" },
-        { name: "Out of Stock", value: outOfStock, fill: "#ef4444" },
-    ].filter(s => s.value > 0);
-
-    // Stock vs sold bar (top 8 products)
-    const stockVsSold = inventoryItems.slice(0, 8).map(p => ({
-        name: p.name.length > 16 ? p.name.slice(0, 14) + "…" : p.name,
-        stock: p.stock, sold: p.sold,
-    }));
-
-    // Monthly stock movement (simulated from orders)
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const monthlyMovement: Record<string, number> = {};
-    filteredOrders.forEach(o => {
-        const m = months[new Date(o.date).getMonth()];
-        o.items.forEach(item => {
-            if (activeProductIds.length === 0 || activeProductIds.includes(item.productId)) {
-                monthlyMovement[m] = (monthlyMovement[m] || 0) + item.quantity;
-            }
-        });
-    });
-    const movementData = months.filter(m => monthlyMovement[m]).map(m => ({ month: m, units: monthlyMovement[m] }));
-
-    const statusColor: Record<string, string> = {
-        "In Stock": "#16a34a", "Low Stock": "#f59e0b", "Critical": "#f97316", "Out of Stock": "#ef4444",
-    };
+    // Pagination logic
+    const totalPages = Math.ceil(inventoryItems.length / itemsPerPage);
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    const paginatedItems = inventoryItems.slice(startIdx, startIdx + itemsPerPage);
 
     return (
         <div className="space-y-5 py-1">
@@ -95,54 +62,78 @@ export function InventoryReport({ filters }: { filters: AnalyticsFilters | null 
                 <h2 className="text-lg font-bold text-foreground">Inventory Report</h2>
             </div>
 
-            {/* KPI Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                    { label: "Total Stock Units", value: totalStock.toLocaleString(), icon: Archive, color: "text-blue-600", bg: "bg-blue-50" },
-                    { label: "Out of Stock", value: outOfStock.toString(), icon: Package, color: "text-red-500", bg: "bg-red-50" },
-                    { label: "Expiry Soon", value: expirySoon.toString(), icon: Clock, color: "text-orange-500", bg: "bg-orange-50" },
-                    { label: "Reorder Needed", value: reorderNeeded.toString(), icon: ShoppingCart, color: "text-amber-600", bg: "bg-amber-50" },
-                ].map(kpi => (
-                    <GlassCard key={kpi.label} className="p-4 flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-lg ${kpi.bg} flex items-center justify-center flex-shrink-0`}>
-                            <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">{kpi.label}</p>
-                            <p className="text-base font-bold text-foreground">{kpi.value}</p>
-                        </div>
-                    </GlassCard>
-                ))}
+            {/* Enhanced KPI Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <KPICard
+                  index={0}
+                  title="Total Stock Units"
+                  value={totalStock.toLocaleString()}
+                  icon={<Archive className="w-5 h-5" />}
+                  trend={{ value: 5, direction: "up" }}
+                  color="blue"
+                />
+                <KPICard
+                  index={1}
+                  title="Out of Stock"
+                  value={outOfStock.toString()}
+                  icon={<Package className="w-5 h-5" />}
+                  trend={{ value: 2, direction: "down" }}
+                  color="red"
+                />
+                <KPICard
+                  index={2}
+                  title="Expiry Soon"
+                  value={expirySoon.toString()}
+                  icon={<Clock className="w-5 h-5" />}
+                  trend={{ value: 1, direction: "down" }}
+                  color="amber"
+                />
+                <KPICard
+                  index={3}
+                  title="Reorder Needed"
+                  value={reorderNeeded.toString()}
+                  icon={<ShoppingCart className="w-5 h-5" />}
+                  trend={{ value: 8, direction: "up" }}
+                  color="purple"
+                />
             </div>
 
             {/* Charts */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <GlassCard className="p-5">
                     <h3 className="text-sm font-semibold text-foreground mb-4">Stock Health Overview</h3>
-                    <ResponsiveContainer width="100%" height={220}>
-                        <PieChart>
-                            <Pie data={stockStatusData} cx="40%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
-                                {stockStatusData.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                            </Pie>
-                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
-                            <Legend iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                        </PieChart>
-                    </ResponsiveContainer>
+                    {stockStatusData.length === 0 ? (
+                        <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">No data available</div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={220}>
+                            <PieChart>
+                                <Pie data={stockStatusData} cx="40%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                                    {stockStatusData.map((d: any, i: number) => <Cell key={i} fill={d.fill ?? CHART_COLORS[i % CHART_COLORS.length]} />)}
+                                </Pie>
+                                <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                                <Legend iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
                 </GlassCard>
 
                 <GlassCard className="p-5">
                     <h3 className="text-sm font-semibold text-foreground mb-4">Stock vs. Sold (Top 8)</h3>
-                    <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={stockVsSold} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
-                            <XAxis dataKey="name" tick={AXIS_STYLE} />
-                            <YAxis tick={AXIS_STYLE} />
-                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
-                            <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
-                            <Bar dataKey="stock" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} name="Stock" />
-                            <Bar dataKey="sold" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} name="Sold" />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {stockVsSold.length === 0 ? (
+                        <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">No data available</div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={220}>
+                            <BarChart data={stockVsSold} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
+                                <XAxis dataKey="name" tick={AXIS_STYLE} />
+                                <YAxis tick={AXIS_STYLE} />
+                                <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                                <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
+                                <Bar dataKey="stock" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} name="Stock" />
+                                <Bar dataKey="sold" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} name="Sold" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </GlassCard>
             </div>
 
@@ -163,19 +154,19 @@ export function InventoryReport({ filters }: { filters: AnalyticsFilters | null 
             )}
 
             {/* Reorder Suggestions */}
-            {reorderNeeded > 0 && (
+            {reorderItems.length > 0 && (
                 <GlassCard className="overflow-hidden">
                     <div className="px-5 py-4 border-b border-border flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-amber-500" />
                         <h3 className="text-sm font-semibold text-foreground">Reorder Suggestions</h3>
                     </div>
                     <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {inventoryItems.filter(p => p.needsReorder).map(p => (
-                            <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50">
+                        {reorderItems.map((p: any, i: number) => (
+                            <div key={p.id ?? i} className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50">
                                 <ShoppingCart className="w-4 h-4 text-amber-600 flex-shrink-0" />
                                 <div>
                                     <p className="text-sm font-medium text-foreground">{p.name}</p>
-                                    <p className="text-xs text-amber-700">Stock: {p.stock} units · {p.status}</p>
+                                    <p className="text-xs text-amber-700">Stock: {p.stock ?? 0} units · {p.status}</p>
                                 </div>
                             </div>
                         ))}
@@ -185,8 +176,11 @@ export function InventoryReport({ filters }: { filters: AnalyticsFilters | null 
 
             {/* Inventory Table */}
             <GlassCard className="overflow-hidden">
-                <div className="px-5 py-4 border-b border-border">
-                    <h3 className="text-sm font-semibold text-foreground">Inventory Details</h3>
+                <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-semibold text-foreground">Inventory Details</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">Showing {startIdx + 1} to {Math.min(startIdx + itemsPerPage, inventoryItems.length)} of {inventoryItems.length} items</p>
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -202,25 +196,32 @@ export function InventoryReport({ filters }: { filters: AnalyticsFilters | null 
                             </tr>
                         </thead>
                         <tbody>
-                            {inventoryItems.map((p, i) => (
-                                <tr key={p.id} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                            {paginatedItems.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                        No inventory data available for the selected period.
+                                    </td>
+                                </tr>
+                            ) : paginatedItems.map((p: any, i: number) => (
+                                <tr key={p.id ?? i} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"} style={{borderBottom: "1px solid hsl(var(--border))"}}>
                                     <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
                                     <td className="px-4 py-3 text-muted-foreground">{p.category}</td>
-                                    <td className="px-4 py-3 text-right font-semibold">{p.stock}</td>
-                                    <td className="px-4 py-3 text-right">{p.sold}</td>
+                                    <td className="px-4 py-3 text-right font-semibold">{p.stock ?? 0}</td>
+                                    <td className="px-4 py-3 text-right text-muted-foreground">{p.sold ?? 0}</td>
                                     <td className="px-4 py-3">
-                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: statusColor[p.status], background: statusColor[p.status] + "18" }}>
-                                            {p.status}
+                                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold"
+                                            style={{ color: statusColor[p.status] ?? "#888", background: (statusColor[p.status] ?? "#888") + "1a" }}>
+                                            {p.status ?? "—"}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-center">
                                         {p.expirySoon
-                                            ? <span className="px-2 py-0.5 bg-orange-50 text-orange-600 rounded-full text-xs font-medium">Yes</span>
+                                            ? <span className="px-2.5 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-semibold">Expiring Soon</span>
                                             : <span className="text-muted-foreground text-xs">—</span>}
                                     </td>
                                     <td className="px-4 py-3 text-center">
                                         {p.needsReorder
-                                            ? <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">Reorder</span>
+                                            ? <span className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">Needed</span>
                                             : <span className="text-muted-foreground text-xs">—</span>}
                                     </td>
                                 </tr>
@@ -228,6 +229,47 @@ export function InventoryReport({ filters }: { filters: AnalyticsFilters | null 
                         </tbody>
                     </table>
                 </div>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="px-5 py-4 border-t border-border flex items-center justify-between">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-2 rounded-lg text-sm font-medium border border-border text-muted-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            ← Previous
+                        </button>
+                        
+                        <div className="flex items-center gap-2">
+                            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                                const pageNum = currentPage > 3 ? currentPage - 2 + i : i + 1;
+                                if (pageNum > totalPages) return null;
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
+                                            pageNum === currentPage
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'border border-border text-muted-foreground hover:bg-muted'
+                                        }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-2 rounded-lg text-sm font-medium border border-border text-muted-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Next →
+                        </button>
+                    </div>
+                )}
             </GlassCard>
         </div>
     );

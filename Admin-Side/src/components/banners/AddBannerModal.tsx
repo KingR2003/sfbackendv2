@@ -30,9 +30,17 @@ interface Props {
 function normalizeBannerFormData(banner: Banner, nextPriority: number) {
   const redirectValue = banner.redirectPage;
   const isKnownRedirect = REDIRECT_OPTIONS.includes(redirectValue as BannerRedirect);
+  const rawGender = banner.gender as unknown as string;
+  const normalizedGender: BannerGender =
+    rawGender === "All" ? "All"
+      : rawGender === "Men" ? "Male"
+      : rawGender === "Women" ? "Female"
+      : rawGender === "All Users" ? "All"
+      : (rawGender as BannerGender);
 
   return {
     ...banner,
+    gender: normalizedGender,
     redirectPage: (isKnownRedirect ? redirectValue : "Custom Page") as BannerRedirect,
     customPageUrl: isKnownRedirect ? "" : (redirectValue || ""),
     customButtonText: "",
@@ -45,7 +53,7 @@ const EMPTY_FORM = (priority: number) => ({
   description: "",
   imageUrl: null as string | null,
   platform: "Both" as BannerPlatform,
-  gender: "All Users" as BannerGender,
+  gender: "All" as BannerGender,
   ageGroup: "All Ages" as BannerAgeGroup,
   campaign: "Festival" as BannerCampaign,
   buttonText: "Shop Now",
@@ -133,10 +141,11 @@ export function AddBannerModal({ open, onClose, onSave, onDelete, editBanner, ne
     onClose();
   };
 
-  const audience =
-    form.gender === "All Users"
-      ? form.ageGroup === "All Ages" ? "All Users" : `All ${form.ageGroup}`
-      : form.ageGroup === "All Ages" ? form.gender : `${form.gender} ${form.ageGroup}`;
+  const audience = form.gender === "All" && form.ageGroup === "All Ages"
+    ? "All"
+    : form.ageGroup === "All Ages"
+      ? form.gender
+      : `${form.gender} ${form.ageGroup}`;
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { resetForm(null); onClose(); } }}>
@@ -305,7 +314,7 @@ export function AddBannerModal({ open, onClose, onSave, onDelete, editBanner, ne
                 </Select>
               </div>
             </div>
-            {(form.gender !== "All Users" || form.ageGroup !== "All Ages") && (
+            {form.ageGroup !== "All Ages" && (
               <p className="text-xs text-muted-foreground">
                 Targeting: <span className="text-foreground font-medium">{audience}</span>
               </p>

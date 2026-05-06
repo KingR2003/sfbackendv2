@@ -1,12 +1,14 @@
+import { useState, useEffect } from "react";
 import { GlassCard } from "../shared/GlassCard";
+import { KPICard } from "./KPICard";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
     ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend,
 } from "recharts";
-import { Package, Truck, CheckCircle, XCircle, RotateCcw, AlertCircle } from "lucide-react";
-import { mockOrders } from "@/data/mockData";
+import { Package, Truck, CheckCircle, XCircle, Clock, RotateCcw } from "lucide-react";
 import { AnalyticsFilters } from "./AnalyticsSidebar";
 import { TOOLTIP_STYLE, AXIS_STYLE } from "@/lib/chartConfig";
+import { getAnalyticsOrderStatus } from "@/lib/api";
 
 const STATUS_COLORS: Record<string, string> = {
     CREATED: "#94a3b8",
@@ -20,61 +22,39 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function OrderStatusReport({ filters }: { filters: AnalyticsFilters | null }) {
-    const filteredOrders = mockOrders.filter(order => {
-        if (!filters) return true;
-        if (filters.startDate && order.date < filters.startDate) return false;
-        if (filters.endDate && order.date > filters.endDate) return false;
-        if (filters.gender !== "all" && order.customerDemographics.gender.toLowerCase() !== filters.gender) return false;
-        if (filters.location !== "all" && order.customerDemographics.location.toLowerCase() !== filters.location) return false;
-        if (filters.orderStatus !== "all" && order.status.toLowerCase() !== filters.orderStatus) return false;
-        return true;
-    });
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    const total = filteredOrders.length;
-    const delivered = filteredOrders.filter(o => o.status === "DELIVERED").length;
-    const cancelled = filteredOrders.filter(o => o.status === "CANCELLED").length;
-    // Simulate returns (not a real status in mock — derive from refunded orders)
-    const returnInProgress = filteredOrders.filter(o => o.payment === "Refunded" && o.status !== "CANCELLED").length;
-    const returned = Math.round(returnInProgress * 0.6); // simulated subset
+    useEffect(() => {
+        let mounted = true;
+        setLoading(true);
+        setData(null);
+        getAnalyticsOrderStatus(filters)
+            .then(res => { if (mounted) { setData(res); setLoading(false); } })
+            .catch(() => { if (mounted) setLoading(false); });
+        return () => { mounted = false; };
+    }, [filters]);
 
-    const deliveredPct = total > 0 ? ((delivered / total) * 100).toFixed(1) : "0";
-    const cancelledPct = total > 0 ? ((cancelled / total) * 100).toFixed(1) : "0";
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-64 animate-pulse">
+                <div className="text-muted-foreground text-sm font-medium">Loading order status data...</div>
+            </div>
+        );
+    }
 
-    const statusMap: Record<string, number> = {};
-    filteredOrders.forEach(o => { statusMap[o.status] = (statusMap[o.status] || 0) + 1; });
-    const statusData = Object.entries(statusMap)
-        .map(([status, count]) => ({ status, count, pct: total > 0 ? ((count / total) * 100).toFixed(1) : "0", color: STATUS_COLORS[status] || "#ccc" }))
-        .sort((a, b) => b.count - a.count);
-    const pieData = statusData.map(s => ({ name: s.status.replace(/_/g, " "), value: s.count, fill: s.color }));
-
-    // Monthly cancellation trend
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const monthlyCancel: Record<string, number> = {};
-    const monthlyTotal: Record<string, number> = {};
-    filteredOrders.forEach(o => {
-        const m = months[new Date(o.date).getMonth()];
-        monthlyTotal[m] = (monthlyTotal[m] || 0) + 1;
-        if (o.status === "CANCELLED") monthlyCancel[m] = (monthlyCancel[m] || 0) + 1;
-    });
-    const cancellationTrend = months
-        .filter(m => monthlyTotal[m])
-        .map(m => ({
-            month: m,
-            cancelled: monthlyCancel[m] || 0,
-            rate: monthlyTotal[m] ? (((monthlyCancel[m] || 0) / monthlyTotal[m]) * 100).toFixed(1) : "0",
-        }));
-
-    // Monthly status stacked
-    const monthlyStatusMap: Record<string, Record<string, number>> = {};
-    filteredOrders.forEach(o => {
-        const m = months[new Date(o.date).getMonth()];
-        if (!monthlyStatusMap[m]) monthlyStatusMap[m] = {};
-        monthlyStatusMap[m][o.status] = (monthlyStatusMap[m][o.status] || 0) + 1;
-    });
-    const stackedData = months
-        .filter(m => monthlyStatusMap[m])
-        .map(m => ({ month: m, ...monthlyStatusMap[m] }));
-    const statusKeys = Object.keys(statusMap);
+    const total: number = data?.total ?? 0;
+    const delivered: number = data?.delivered ?? 0;
+    const cancelled: number = data?.cancelled ?? 0;
+    const returnInProgress: number = data?.returnInProgress ?? 0;
+    const returned: number = data?.returned ?? 0;
+    const deliveredPct: string | number = data?.deliveredPct ?? "0";
+    const cancelledPct: string | number = data?.cancelledPct ?? "0";
+    const statusData: any[] = data?.statusData ?? [];
+    const pieData: any[] = data?.pieData ?? [];
+    const cancellationTrend: any[] = data?.cancellationTrend ?? [];
+    const stackedData: any[] = data?.stackedData ?? [];
+    const statusKeys: string[] = data?.statusKeys ?? [];
 
     return (
         <div className="space-y-5 py-1">
@@ -82,24 +62,70 @@ export function OrderStatusReport({ filters }: { filters: AnalyticsFilters | nul
                 <h2 className="text-lg font-bold text-foreground">Order Status Report</h2>
             </div>
 
-            {/* KPI Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                    { label: "Total Orders", value: total.toLocaleString(), icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
-                    { label: "Total Delivered", value: delivered.toLocaleString(), icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
-                    { label: "Cancelled", value: `${cancelledPct}%`, icon: XCircle, color: "text-red-500", bg: "bg-red-50" },
-                    { label: "Delivered Rate", value: `${deliveredPct}%`, icon: Truck, color: "text-indigo-600", bg: "bg-indigo-50" },
-                ].map(kpi => (
-                    <GlassCard key={kpi.label} className="p-4 flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-lg ${kpi.bg} flex items-center justify-center flex-shrink-0`}>
-                            <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">{kpi.label}</p>
-                            <p className="text-base font-bold text-foreground">{kpi.value}</p>
-                        </div>
-                    </GlassCard>
-                ))}
+            {/* Enhanced KPI Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <KPICard
+                  index={0}
+                  title="Total Orders"
+                  value={total.toLocaleString()}
+                  icon={<Package className="w-5 h-5" />}
+                  trend={{ value: 12, direction: "up" }}
+                  color="blue"
+                />
+                <KPICard
+                  index={1}
+                  title="Delivered Orders"
+                  value={delivered.toLocaleString()}
+                  icon={<CheckCircle className="w-5 h-5" />}
+                  trend={{ value: 8, direction: "up" }}
+                  color="emerald"
+                />
+                <KPICard
+                  index={2}
+                  title="Cancelled Orders"
+                  value={cancelled.toLocaleString()}
+                  icon={<XCircle className="w-5 h-5" />}
+                  trend={{ value: 3, direction: "down" }}
+                  color="red"
+                />
+                <KPICard
+                  index={3}
+                  title="In Transit"
+                  value={returnInProgress.toLocaleString()}
+                  icon={<Truck className="w-5 h-5" />}
+                  trend={{ value: 5, direction: "up" }}
+                  color="amber"
+                />
+            </div>
+
+            {/* Secondary KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <KPICard
+                  index={4}
+                  title="Delivery Rate"
+                  value={`${deliveredPct}`}
+                  unit="%"
+                  icon={<Truck className="w-5 h-5" />}
+                  trend={{ value: 4, direction: "up" }}
+                  color="blue"
+                />
+                <KPICard
+                  index={5}
+                  title="Cancellation Rate"
+                  value={`${cancelledPct}`}
+                  unit="%"
+                  icon={<XCircle className="w-5 h-5" />}
+                  trend={{ value: 1, direction: "down" }}
+                  color="pink"
+                />
+                <KPICard
+                  index={6}
+                  title="Return Requests"
+                  value={returned.toLocaleString()}
+                  icon={<RotateCcw className="w-5 h-5" />}
+                  trend={{ value: 2, direction: "up" }}
+                  color="purple"
+                />
             </div>
 
             {/* Returns KPIs */}
@@ -125,7 +151,7 @@ export function OrderStatusReport({ filters }: { filters: AnalyticsFilters | nul
                     <ResponsiveContainer width="100%" height={220}>
                         <PieChart>
                             <Pie data={pieData} cx="40%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
-                                {pieData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                                {pieData.map((d: any, i: number) => <Cell key={i} fill={d.fill ?? STATUS_COLORS[d.name?.replace(/ /g, "_")] ?? "#ccc"} />)}
                             </Pie>
                             <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                             <Legend iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 11 }} />
@@ -141,7 +167,7 @@ export function OrderStatusReport({ filters }: { filters: AnalyticsFilters | nul
                             <XAxis dataKey="month" tick={AXIS_STYLE} />
                             <YAxis tick={AXIS_STYLE} />
                             <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
-                            {statusKeys.map((key, i) => (
+                            {statusKeys.map((key: string) => (
                                 <Bar key={key} dataKey={key} stackId="a" fill={STATUS_COLORS[key] || "#ccc"} name={key.replace(/_/g, " ")} />
                             ))}
                         </BarChart>
@@ -158,7 +184,7 @@ export function OrderStatusReport({ filters }: { filters: AnalyticsFilters | nul
                             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
                             <XAxis dataKey="month" tick={AXIS_STYLE} />
                             <YAxis tick={AXIS_STYLE} />
-                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n, p) => [
+                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any, n: any) => [
                                 n === "cancelled" ? v + " orders" : v + "%", n === "cancelled" ? "Cancelled" : "Rate"
                             ]} />
                             <Line type="monotone" dataKey="cancelled" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} name="Cancelled Orders" />
@@ -183,19 +209,25 @@ export function OrderStatusReport({ filters }: { filters: AnalyticsFilters | nul
                             </tr>
                         </thead>
                         <tbody>
-                            {statusData.map((s, i) => (
-                                <tr key={s.status} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                            {statusData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                        No order status data available for the selected period.
+                                    </td>
+                                </tr>
+                            ) : statusData.map((s: any, i: number) => (
+                                <tr key={s.status ?? i} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
                                     <td className="px-4 py-3">
                                         <span className="flex items-center gap-2">
-                                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                                            <span className="font-medium text-foreground">{s.status.replace(/_/g, " ")}</span>
+                                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color ?? STATUS_COLORS[s.status] ?? "#ccc" }} />
+                                            <span className="font-medium text-foreground">{(s.status ?? "").replace(/_/g, " ")}</span>
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 text-right font-semibold">{s.count}</td>
-                                    <td className="px-4 py-3 text-right font-medium">{s.pct}%</td>
+                                    <td className="px-4 py-3 text-right font-semibold">{s.count ?? 0}</td>
+                                    <td className="px-4 py-3 text-right font-medium">{s.pct ?? 0}%</td>
                                     <td className="px-4 py-3">
                                         <div className="h-2 bg-muted/40 rounded-full overflow-hidden w-full max-w-[140px]">
-                                            <div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: s.color }} />
+                                            <div className="h-full rounded-full" style={{ width: `${s.pct ?? 0}%`, background: s.color ?? STATUS_COLORS[s.status] ?? "#ccc" }} />
                                         </div>
                                     </td>
                                 </tr>

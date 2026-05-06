@@ -10,9 +10,7 @@ import { OrderStatusReport } from "@/components/analytics/OrderStatusReport";
 import { PaymentRefundReport } from "@/components/analytics/PaymentRefundReport";
 import { InventoryReport } from "@/components/analytics/InventoryReport";
 import { BannerAnalyticsDashboard } from "@/components/banners/BannerAnalyticsDashboard";
-import { INITIAL_BANNERS, computeStatus } from "@/components/banners/bannerTypes";
 
-const BANNERS_WITH_STATUS = INITIAL_BANNERS.map(b => ({ ...b, status: computeStatus(b) }));
 import { cn } from "@/lib/utils";
 import {
     BarChart2, TrendingUp, Users, Filter, ShoppingBag, CreditCard,
@@ -125,7 +123,7 @@ const Analytics = () => {
             case "order_status": return <OrderStatusReport filters={effectiveFilters} />;
             case "payment": return <PaymentRefundReport filters={effectiveFilters} />;
             case "inventory": return <InventoryReport filters={effectiveFilters} />;
-            case "banners": return <BannerAnalyticsDashboard banners={BANNERS_WITH_STATUS} />;
+            case "banners": return <BannerAnalyticsDashboard banners={[]} filters={effectiveFilters} />;
             default: return <RevenueReport filters={effectiveFilters} />;
         }
     };

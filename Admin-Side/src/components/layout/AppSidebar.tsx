@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, LayoutDashboard, Package, FolderTree, Ticket, ShoppingCart, CreditCard, Image, Users, User, BarChart as BarChartIcon, LogOut, ChevronDown, ChevronRight, Shield, LifeBuoy } from "lucide-react";
 import { clearAdminSession } from "@/lib/adminSession";
 import { adminLogout } from "@/lib/api";
+import { redirectTo } from "@/lib/routing";
 
 const menuItems = [
   { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -37,10 +38,9 @@ const menuItems = [
     subItems: [
       { title: "Overview",             path: "/support/overview" },
       { title: "All Tickets",          path: "/support/all" },
-      { title: "Queries",              path: "/support/queries" },
       { title: "In Progress",          path: "/support/inprogress" },
-      { title: "Waiting for Customer", path: "/support/waiting" },
       { title: "Resolved",             path: "/support/resolved" },
+      { title: "Closed",               path: "/support/closed" },
     ],
   },
   { title: "Manage", path: "/manage/permissions", icon: Shield },
@@ -173,7 +173,7 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
                 console.error("Logout API failed:", error);
               } finally {
                 clearAdminSession();
-                window.location.href = "/login";
+                redirectTo("/login");
               }
             }}
             className="w-full group"

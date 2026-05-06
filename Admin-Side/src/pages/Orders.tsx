@@ -49,7 +49,6 @@ const allStatuses = ["PROCESSING", "PACKED", "ON_THE_WAY", "DELIVERED", "CANCELL
 
 function enrichOrdersWithCustomer(orders: AdminOrder[], users: UserResponse[]): AdminOrder[] {
   return orders.map((order) => {
-    if (order.customer && order.customer !== "Unknown Customer") return order;
     const matchedUser = users.find((user) => Number(user.id) === Number(order.userId));
     if (!matchedUser) return order;
 
@@ -58,6 +57,7 @@ function enrichOrdersWithCustomer(orders: AdminOrder[], users: UserResponse[]): 
       customer: matchedUser.name || order.customer,
       customerEmail: order.customerEmail || matchedUser.email,
       customerPhone: order.customerPhone || matchedUser.mobile,
+      customerGender: matchedUser.gender || order.customerGender,
     };
   });
 }
@@ -68,6 +68,7 @@ const Orders = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [filterType, setFilterType] = useState<string>("All");
+  const [genderFilter, setGenderFilter] = useState<string>("All");
   const [sortBy, setSortBy] = useState<string>("Newest");
   const [searchTerm, setSearchTerm] = useState("");
   const [fromDate, setFromDate] = useState("");
@@ -141,8 +142,7 @@ const Orders = () => {
       if (filterType === "Completed" && order.status !== "DELIVERED") return false;
       if (filterType === "Refunded" && order.payment !== "Refunded") return false;
       if (allStatuses.includes(filterType) && order.status !== filterType) return false;
-    }
-    const term = searchTerm.toLowerCase();
+    }    if (genderFilter !== "All" && (order.customerGender || "") !== genderFilter) return false;    const term = searchTerm.toLowerCase();
     if (term && !order.id.toString().toLowerCase().includes(term) && !order.customer.toLowerCase().includes(term)) return false;
     if (fromDate && order.date && new Date(order.date) < new Date(fromDate)) return false;
     if (toDate && order.date && new Date(order.date) > new Date(toDate)) return false;
@@ -241,7 +241,7 @@ const Orders = () => {
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-muted/40 text-foreground hover:bg-muted transition-all border border-border">
                       <Filter className="w-3.5 h-3.5" />
-                      {filterType !== "All" || dateRangePreset ? "Filtered" : "All"}
+                      {filterType !== "All" || genderFilter !== "All" || dateRangePreset ? "Filtered" : "All"}
                       <ChevronDown className="w-3 h-3" />
                     </button>
                   </DropdownMenuTrigger>
@@ -258,6 +258,28 @@ const Orders = () => {
                           className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
                         >
                           {f.label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </div>
+
+                    <DropdownMenuSeparator className="my-1 opacity-50" />
+                    <div className="px-2 py-1.5">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Customer Gender</p>
+                    </div>
+                    <div className="space-y-0.5">
+                      {[
+                        { label: "All Genders", value: "All" },
+                        { label: "♂ Male", value: "Male" },
+                        { label: "♀ Female", value: "Female" },
+                        { label: "Other", value: "Other" }
+                      ].map((g) => (
+                        <DropdownMenuCheckboxItem
+                          key={g.value}
+                          checked={genderFilter === g.value}
+                          onCheckedChange={() => { setGenderFilter(g.value); setCurrentPage(1); }}
+                          className="rounded-lg py-2 cursor-pointer transition-colors focus:bg-primary/10 focus:text-primary"
+                        >
+                          {g.label}
                         </DropdownMenuCheckboxItem>
                       ))}
                     </div>
@@ -308,10 +330,11 @@ const Orders = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {(filterType !== "All" || fromDate || toDate || sortBy !== "Newest") && (
+                {(filterType !== "All" || genderFilter !== "All" || fromDate || toDate || sortBy !== "Newest") && (
                   <button
                     onClick={() => {
                       setFilterType("All");
+                      setGenderFilter("All");
                       setFromDate("");
                       setToDate("");
                       setDateRangePreset("");

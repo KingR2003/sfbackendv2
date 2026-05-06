@@ -1,53 +1,45 @@
+import { useState, useEffect } from "react";
 import { GlassCard } from "../shared/GlassCard";
 import {
     BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
     ResponsiveContainer,
 } from "recharts";
 import { ShoppingCart, CreditCard, CheckCircle2, Package, TrendingDown } from "lucide-react";
-import { mockOrders } from "@/data/mockData";
 import { AnalyticsFilters } from "./AnalyticsSidebar";
 import { CHART_COLORS, TOOLTIP_STYLE, AXIS_STYLE } from "@/lib/chartConfig";
+import { getAnalyticsFunnel } from "@/lib/api";
 
 export function SalesFunnelReport({ filters }: { filters: AnalyticsFilters | null }) {
-    const filteredOrders = mockOrders.filter(order => {
-        if (!filters) return true;
-        if (filters.startDate && order.date < filters.startDate) return false;
-        if (filters.endDate && order.date > filters.endDate) return false;
-        if (filters.gender !== "all" && order.customerDemographics.gender.toLowerCase() !== filters.gender) return false;
-        if (filters.location !== "all" && order.customerDemographics.location.toLowerCase() !== filters.location) return false;
-        if (filters.orderStatus !== "all" && order.status.toLowerCase() !== filters.orderStatus) return false;
-        return true;
-    });
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    const total = filteredOrders.length;
+    useEffect(() => {
+        let mounted = true;
+        setLoading(true);
+        setData(null);
+        getAnalyticsFunnel(filters)
+            .then(res => { if (mounted) { setData(res); setLoading(false); } })
+            .catch(() => { if (mounted) setLoading(false); });
+        return () => { mounted = false; };
+    }, [filters]);
 
-    // Funnel stages — derived from order data
-    const visitors = Math.round(total * 7.4);   // simulated from orders
-    const addToCart = Math.round(total * 3.8);
-    const checkoutStarted = Math.round(total * 2.1);
-    const paymentCompleted = filteredOrders.filter(o => o.payment === "Paid").length;
-    const delivered = filteredOrders.filter(o => o.status === "DELIVERED").length;
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-64 animate-pulse">
+                <div className="text-muted-foreground text-sm font-medium">Loading funnel data...</div>
+            </div>
+        );
+    }
 
-    const funnelStages = [
-        { stage: "Visitors", count: visitors, icon: Package, color: CHART_COLORS[1] },
-        { stage: "Add to Cart", count: addToCart, icon: ShoppingCart, color: CHART_COLORS[2] },
-        { stage: "Checkout Started", count: checkoutStarted, icon: CreditCard, color: CHART_COLORS[3] },
-        { stage: "Payment Completed", count: paymentCompleted, icon: CheckCircle2, color: CHART_COLORS[0] },
-        { stage: "Delivered", count: delivered, icon: CheckCircle2, color: CHART_COLORS[0] },
-    ];
-
-    // Drop-off between stages
-    const stagesWithDropoff = funnelStages.map((s, i) => {
-        const prev = i === 0 ? s.count : funnelStages[i - 1].count;
-        const dropoffPct = prev > 0 ? (((prev - s.count) / prev) * 100).toFixed(1) : "0";
-        const conversionRate = visitors > 0 ? ((s.count / visitors) * 100).toFixed(1) : "0";
-        return { ...s, dropoffPct: i === 0 ? null : parseFloat(dropoffPct), pct: parseFloat(conversionRate), prev };
-    });
-
-    const overallConversion = visitors > 0 ? ((paymentCompleted / visitors) * 100).toFixed(2) : "0";
-    const cartAbandonment = addToCart > 0 ? (((addToCart - checkoutStarted) / addToCart) * 100).toFixed(1) : "0";
-
-    const barData = stagesWithDropoff.map(s => ({ stage: s.stage, count: s.count }));
+    const visitors: number = data?.visitors ?? 0;
+    const addToCart: number = data?.addToCart ?? 0;
+    const checkoutStarted: number = data?.checkoutStarted ?? 0;
+    const paymentCompleted: number = data?.paymentCompleted ?? 0;
+    const delivered: number = data?.delivered ?? 0;
+    const overallConversion: string | number = data?.overallConversion ?? "0";
+    const cartAbandonment: string | number = data?.cartAbandonment ?? "0";
+    const stagesWithDropoff: any[] = data?.stagesWithDropoff ?? [];
+    const barData: any[] = data?.barData ?? [];
 
     return (
         <div className="space-y-5 py-1">
@@ -92,51 +84,55 @@ export function SalesFunnelReport({ filters }: { filters: AnalyticsFilters | nul
             </div>
 
             {/* Funnel Chart */}
-            <GlassCard className="p-5">
-                <h3 className="text-sm font-semibold text-foreground mb-4">Funnel — Count by Stage</h3>
-                <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={barData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
-                        <XAxis dataKey="stage" tick={{ ...AXIS_STYLE, fontSize: 11 }} />
-                        <YAxis tick={AXIS_STYLE} />
-                        <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
-                        <Bar dataKey="count" radius={[4, 4, 0, 0]} name="Count">
-                            {barData.map((_, i) => (
-                                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
-            </GlassCard>
+            {barData.length > 0 && (
+                <GlassCard className="p-5">
+                    <h3 className="text-sm font-semibold text-foreground mb-4">Funnel — Count by Stage</h3>
+                    <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={barData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 90%)" />
+                            <XAxis dataKey="stage" tick={{ ...AXIS_STYLE, fontSize: 11 }} />
+                            <YAxis tick={AXIS_STYLE} />
+                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                            <Bar dataKey="count" radius={[4, 4, 0, 0]} name="Count">
+                                {barData.map((_: any, i: number) => (
+                                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </GlassCard>
+            )}
 
             {/* Stage Rates with Drop-off */}
-            <GlassCard className="p-5">
-                <h3 className="text-sm font-semibold text-foreground mb-4">Stage Analysis with Drop-off</h3>
-                <div className="space-y-3">
-                    {stagesWithDropoff.map((s, i) => (
-                        <div key={s.stage} className="flex items-center gap-4">
-                            <div className="w-36 flex-shrink-0">
-                                <p className="text-sm font-medium text-foreground">{s.stage}</p>
-                                <p className="text-xs text-muted-foreground">{s.count.toLocaleString()} users</p>
-                            </div>
-                            <div className="flex-1 h-6 bg-muted/40 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full rounded-full transition-all"
-                                    style={{ width: `${s.pct}%`, background: s.color }}
-                                />
-                            </div>
-                            <div className="w-16 text-right flex-shrink-0">
-                                <p className="text-sm font-bold text-foreground">{s.pct}%</p>
-                            </div>
-                            {s.dropoffPct !== null && (
-                                <div className="w-24 text-right flex-shrink-0">
-                                    <span className="text-xs text-red-500 font-medium">↓ {s.dropoffPct}% drop</span>
+            {stagesWithDropoff.length > 0 && (
+                <GlassCard className="p-5">
+                    <h3 className="text-sm font-semibold text-foreground mb-4">Stage Analysis with Drop-off</h3>
+                    <div className="space-y-3">
+                        {stagesWithDropoff.map((s: any) => (
+                            <div key={s.stage} className="flex items-center gap-4">
+                                <div className="w-36 flex-shrink-0">
+                                    <p className="text-sm font-medium text-foreground">{s.stage}</p>
+                                    <p className="text-xs text-muted-foreground">{(s.count ?? 0).toLocaleString()} users</p>
                                 </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </GlassCard>
+                                <div className="flex-1 h-6 bg-muted/40 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full transition-all"
+                                        style={{ width: `${s.pct ?? 0}%`, background: s.color ?? CHART_COLORS[0] }}
+                                    />
+                                </div>
+                                <div className="w-16 text-right flex-shrink-0">
+                                    <p className="text-sm font-bold text-foreground">{s.pct ?? 0}%</p>
+                                </div>
+                                {s.dropoffPct !== null && s.dropoffPct !== undefined && (
+                                    <div className="w-24 text-right flex-shrink-0">
+                                        <span className="text-xs text-red-500 font-medium">↓ {s.dropoffPct}% drop</span>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </GlassCard>
+            )}
 
             {/* Table */}
             <GlassCard className="overflow-hidden">
@@ -154,15 +150,21 @@ export function SalesFunnelReport({ filters }: { filters: AnalyticsFilters | nul
                             </tr>
                         </thead>
                         <tbody>
-                            {stagesWithDropoff.map((s, i) => (
+                            {stagesWithDropoff.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                        No funnel data available for the selected period.
+                                    </td>
+                                </tr>
+                            ) : stagesWithDropoff.map((s: any, i: number) => (
                                 <tr key={s.stage} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
                                     <td className="px-4 py-3 font-medium text-foreground">{s.stage}</td>
-                                    <td className="px-4 py-3 text-right font-semibold">{s.count.toLocaleString()}</td>
+                                    <td className="px-4 py-3 text-right font-semibold">{(s.count ?? 0).toLocaleString()}</td>
                                     <td className="px-4 py-3 text-right">
-                                        <span className="font-medium text-foreground">{s.pct}%</span>
+                                        <span className="font-medium text-foreground">{s.pct ?? 0}%</span>
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        {s.dropoffPct !== null
+                                        {s.dropoffPct !== null && s.dropoffPct !== undefined
                                             ? <span className="text-red-500 font-medium">{s.dropoffPct}%</span>
                                             : <span className="text-muted-foreground">—</span>}
                                     </td>

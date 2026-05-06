@@ -717,27 +717,27 @@ const Products = () => {
       </div>
 
       {/* Table */}
-      <GlassCard className="p-0 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-border/50">
-          <div className="flex flex-col md:flex-row md:items-center gap-3">
+      <GlassCard className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+        <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-4 sm:px-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <SearchFilter
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
               placeholder="Search products, SKUs, variants..."
-              className="flex-1"
+              className="flex-1 w-full"
             />
 
             <div className="flex items-center gap-3 md:justify-end">
               <Popover>
                 <PopoverTrigger asChild>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-muted/40 text-foreground hover:bg-muted transition-all border border-border">
+                  <button className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50">
                     <Filter className="w-3.5 h-3.5" />
                     {activeFilterCount > 0 ? `Filtered (${activeFilterCount})` : "All Filters"}
                     <ChevronDown className="w-3 h-3" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-72 rounded-xl border border-border bg-card shadow-elevated p-0 overflow-hidden">
-                  <div className="bg-muted/30 px-4 py-3 border-b border-border/50 flex items-center justify-between">
+                <PopoverContent align="start" className="w-72 rounded-2xl border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.12)] p-0 overflow-hidden">
+                  <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3 flex items-center justify-between">
                     <span className="font-semibold text-sm">Filters & Sort</span>
                     {activeFilterCount > 0 && (
                       <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
@@ -920,105 +920,114 @@ const Products = () => {
             </div>
           </div>
         </div>
-        <div className="overflow-x-auto flex-1 relative min-h-[400px]">
+        <div className="overflow-x-auto relative min-h-[400px]">
           {isLoadingList ? (
-            <div className="absolute inset-0 flex items-center justify-center p-12 bg-background/50 backdrop-blur-sm z-10 w-full">
+            <div className="absolute inset-0 z-10 flex w-full items-center justify-center bg-white/65 p-12 backdrop-blur-sm">
               <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
             </div>
           ) : null}
-          <table className="w-full">
-            {/* ... */}
+          <table className="w-full min-w-[1180px]">
             <thead>
-              <tr className="text-left text-sm font-medium text-muted-foreground border-b border-border/50">
-                <th className="pb-3 px-5">Product</th>
-                <th className="pb-3 px-5">Category</th>
-                <th className="pb-3 px-5">Price Range</th>
-                <th className="pb-3 px-5">Stock</th>
-                <th className="pb-3 px-5">Sold</th>
-                <th className="pb-3 px-5">Active</th>
-                <th className="pb-3 px-5">Status</th>
-                <th className="pb-3 px-5">Actions</th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="px-6 py-4">Product</th>
+                <th className="px-6 py-4">Category</th>
+                <th className="px-6 py-4">Price Range</th>
+                <th className="px-6 py-4">Stock</th>
+                <th className="px-6 py-4">Sold</th>
+                <th className="px-6 py-4">Active</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-200">
               {paginatedProducts.map((product) => (
                 <>
-                  <motion.tr key={product.id} whileHover={{ backgroundColor: "hsla(130, 85%, 45%, 0.04)" }}
-                    className="border-b border-border/50 cursor-pointer" onClick={() => setExpandedProduct(expandedProduct === product.id ? null : product.id)}>
-                    <td className="py-3.5 px-5">
+                  <motion.tr
+                    key={product.id}
+                    whileHover={{ backgroundColor: "rgba(15, 23, 42, 0.02)" }}
+                    className="cursor-pointer"
+                    onClick={() => setExpandedProduct(expandedProduct === product.id ? null : product.id)}
+                  >
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        {/* Product thumbnail: show image if available, else professional placeholder */}
                         {product.images && product.images.length > 0 && product.images[0] ? (
                           <img
                             src={product.images[0]}
                             alt={product.name}
                             onClick={(e) => openLightbox(e, product.images, 0, product.name)}
-                            className="w-10 h-10 rounded-lg object-cover cursor-zoom-in hover:ring-2 hover:ring-primary/50 transition-all border border-border/30 flex-shrink-0"
+                            className="w-10 h-10 flex-shrink-0 rounded-xl border border-slate-200 object-cover transition-all cursor-zoom-in hover:ring-2 hover:ring-primary/20"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-muted/60 border border-border/40 flex items-center justify-center flex-shrink-0">
-                            <ImageIcon className="w-4 h-4 text-muted-foreground/50" />
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-100">
+                            <ImageIcon className="w-4 h-4 text-slate-400" />
                           </div>
                         )}
                         <div>
-                          <p className="font-medium text-foreground">{product.name}</p>
-                          <p className="text-xs text-muted-foreground truncate max-w-[150px]">{product.description}</p>
+                          <p className="font-semibold text-slate-900">{product.name}</p>
+                          <p className="max-w-[180px] truncate text-xs text-slate-500">{product.description}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3.5 px-5 text-sm text-muted-foreground">
-                      <Link to={`/category/${encodeURIComponent(getProductCategoryLabel(product))}`} onClick={(e) => e.stopPropagation()} className="hover:text-primary hover:underline transition-colors">
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      <Link
+                        to={`/category/${encodeURIComponent(getProductCategoryLabel(product))}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="transition-colors hover:text-primary hover:underline"
+                      >
                         {getProductCategoryLabel(product)}
                       </Link>
                     </td>
-                    <td className="py-3.5 px-5 text-sm font-medium text-foreground">
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                       {getPriceRangeLabel(product)}
                     </td>
-                    <td className="py-3.5 px-5 text-sm text-muted-foreground">
+                    <td className="px-6 py-4 text-sm text-slate-600">
                       {product.variants.reduce((acc, v) => acc + v.stock_quantity, 0)} Units
                     </td>
-                    <td className="py-3.5 px-5">
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden min-w-[60px]">
+                        <div className="min-w-[80px] flex-1 overflow-hidden rounded-full bg-slate-200 h-1.5">
                           <div
-                            className="h-full bg-amber-500 rounded-full"
+                            className="h-full rounded-full bg-amber-500"
                             style={{ width: `${Math.min(100, ((product.sold ?? 0) / Math.max(1, (product.sold ?? 0) + product.variants.reduce((acc, v) => acc + v.stock_quantity, 0))) * 100)}%` }}
                           />
                         </div>
-                        <span className="text-xs font-medium text-amber-600 whitespace-nowrap">{(product.sold ?? 0).toLocaleString()}</span>
+                        <span className="whitespace-nowrap text-xs font-semibold text-amber-600">{(product.sold ?? 0).toLocaleString()}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-5">
+                    <td className="px-6 py-4">
                       <button
                         onClick={(e) => handleToggleProduct(e, product.id)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${product.is_active ? 'bg-primary' : 'bg-muted-foreground/30'
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${product.is_active ? 'bg-[hsl(142,72%,29%)]' : 'bg-slate-300'
                           }`}
                         title={product.is_active ? 'Active — click to deactivate' : 'Inactive — click to activate'}
                       >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${product.is_active ? 'translate-x-6' : 'translate-x-1'
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${product.is_active ? 'translate-x-6' : 'translate-x-1'
                           }`} />
                       </button>
                     </td>
-                    <td className="py-3.5 px-5">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${product.is_active
-                        ? 'bg-green-500/10 text-green-600'
-                        : 'bg-red-500/10 text-red-500'
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${product.is_active
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-orange-50 text-orange-700'
                         }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${product.is_active ? 'bg-green-500' : 'bg-red-500'
+                        <span className={`w-1.5 h-1.5 rounded-full ${product.is_active ? 'bg-emerald-500' : 'bg-orange-500'
                           }`} />
                         {product.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="py-3.5 px-5">
-                      <button onClick={(e) => handleEditProduct(e, product)} className="p-2 rounded-lg hover:bg-accent transition-colors">
-                        <Edit2 className="w-4 h-4 text-muted-foreground" />
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={(e) => handleEditProduct(e, product)}
+                        className="rounded-xl p-2 transition-colors hover:bg-slate-100"
+                      >
+                        <Edit2 className="w-4 h-4 text-slate-500" />
                       </button>
                     </td>
                   </motion.tr>
                   {expandedProduct === product.id && (
-                    <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-muted/30">
+                    <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-slate-50/70">
                       <td colSpan={8} className="p-4">
-                        <div className="bg-background/50 rounded-xl p-5 border border-border/50">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
 
 
@@ -1059,7 +1068,7 @@ const Products = () => {
                                           </div>
                                         )}
                                       </td>
-                                      <td className="py-2 font-medium">{variant.variant_name}</td>
+                                      <td className="py-2 font-medium">{variant.variant_name ? `(${variant.variant_name})` : ""}</td>
                                       <td className="py-2 text-muted-foreground text-xs">{variant.sku}</td>
                                       <td className="py-2 font-semibold">₹{variant.price}</td>
                                       <td className="py-2">{variant.stock_quantity} units</td>
@@ -1108,21 +1117,21 @@ const Products = () => {
           </table>
         </div>
         {/* Pagination */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-border/50 bg-muted/10">
-          <span className="text-xs text-muted-foreground">Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} entries</span>
+        <div className="flex items-center justify-between border-t border-slate-200 bg-white px-5 py-4">
+          <span className="text-xs text-slate-500">Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} entries</span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium text-foreground"
+              className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Previous
             </button>
-            <span className="text-xs font-medium text-foreground">Page {currentPage} of {totalPages}</span>
+            <span className="text-xs font-medium text-slate-700">Page {currentPage} of {totalPages}</span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium text-foreground"
+              className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next
             </button>
@@ -1526,7 +1535,7 @@ const Products = () => {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Edit Variant</h3>
-                  <p className="text-sm text-muted-foreground">{selectedVariant.variant_name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedVariant.variant_name ? `(${selectedVariant.variant_name})` : ""}</p>
                 </div>
                 <button onClick={() => setShowEditVariantModal(false)} className="p-2 hover:bg-muted rounded-full transition-colors"><X className="w-5 h-5" /></button>
               </div>
