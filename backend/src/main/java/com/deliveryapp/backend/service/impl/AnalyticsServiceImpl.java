@@ -741,17 +741,17 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         long expirySoon = 0;
         long reorderNeeded = allVariants.stream().filter(v -> v.getStockQuantity() != null && v.getStockQuantity() > 0 && v.getStockQuantity() < 20).count(); 
         
-        Map<String, Long> healthOverview = new HashMap<>();
+        Map<String, Long> healthOverview = new LinkedHashMap<>();
         healthOverview.put("In Stock", allVariants.size() - outOfStock - reorderNeeded);
         healthOverview.put("Low Stock", reorderNeeded);
         healthOverview.put("Out of Stock", outOfStock);
         
         // Stock vs Sold for top 8 sold products
-        Map<String, Map<String, Long>> stockVsSold = new HashMap<>();
+        Map<String, Map<String, Long>> stockVsSold = new LinkedHashMap<>();
         List<ProductVariant> sortedVariants = new ArrayList<>(allVariants);
         sortedVariants.sort((v1, v2) -> Long.compare(variantSoldMap.getOrDefault(v2.getId(), 0L), variantSoldMap.getOrDefault(v1.getId(), 0L)));
         
-        for (int i = 0; i < Math.min(20, sortedVariants.size()); i++) {
+        for (int i = 0; i < Math.min(8, sortedVariants.size()); i++) {
             ProductVariant v = sortedVariants.get(i);
             Map<String, Long> data = new HashMap<>();
             data.put("Stock", v.getStockQuantity() != null ? v.getStockQuantity().longValue() : 0);
