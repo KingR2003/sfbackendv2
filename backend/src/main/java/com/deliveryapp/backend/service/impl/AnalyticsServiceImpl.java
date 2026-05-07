@@ -558,7 +558,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .views(b.getViews() != null ? b.getViews() : 0L)
                 .clicks(b.getClicks() != null ? b.getClicks() : 0L)
                 .clickThroughRate(b.getViews() != null && b.getViews() > 0 ? ((double) (b.getClicks() != null ? b.getClicks() : 0L) / b.getViews()) * 100.0 : 0.0)
-                .gender(b.getGender() != null ? b.getGender() : "All Users")
+                .gender(normalizeGenderLabel(b.getGender()))
                 .build()
         ).sorted(Comparator.comparingLong(BannerAnalyticsDto.BannerAnalyticsItem::getViews).reversed()).collect(Collectors.toList());
         
@@ -578,10 +578,16 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             BannerAnalyticsDto.BannerAnalyticsItem::getPlatform,
             Collectors.summingLong(BannerAnalyticsDto.BannerAnalyticsItem::getViews)
         ));
-        Map<String, Long> impressionsByGender = leaderboard.stream().collect(Collectors.groupingBy(
-            BannerAnalyticsDto.BannerAnalyticsItem::getGender,
-            Collectors.summingLong(BannerAnalyticsDto.BannerAnalyticsItem::getViews)
-        ));
+        Map<String, Long> impressionsByGender = new LinkedHashMap<>();
+        impressionsByGender.put("All Users", 0L);
+        impressionsByGender.put("Male", 0L);
+        impressionsByGender.put("Female", 0L);
+        impressionsByGender.put("Others", 0L);
+
+        for (BannerAnalyticsDto.BannerAnalyticsItem item : leaderboard) {
+            String g = item.getGender();
+            impressionsByGender.put(g, impressionsByGender.getOrDefault(g, 0L) + item.getViews());
+        }
         
         Map<String, Map<String, Long>> performanceComp = new HashMap<>();
         for (BannerAnalyticsDto.BannerAnalyticsItem item : leaderboard) {
@@ -791,5 +797,17 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .monthlyStockMovement(monthlyMovement)
                 .inventoryDetailsTable(table)
                 .build();
+    }
+
+    private String normalizeGenderLabel(String g) {
+        if (g == null) return "All Users";
+        String lower = g.trim().toLowerCase();
+        if (lower.isEmpty() || lower.equals("all") || lower.equals("all users")) return "All Users";
+        if (lower.equals("men") || lower.equals("male")) return "Male";
+        if (lower.equals("women") || lower.equals("female")) return "Female";
+        if (lower.equals("others") || lower.equals("other")) return "Others";
+        
+        // Fallback: Sentence Case
+        return g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase();
     }
 }
