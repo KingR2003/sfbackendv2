@@ -32,6 +32,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final AddressRepository addressRepository;
     private final PaymentRepository paymentRepository;
     private final VisitorRepository visitorRepository;
+    private final BannerInteractionRepository bannerInteractionRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -546,12 +547,14 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     @Override
     @Transactional(readOnly = true)
     public BannerAnalyticsDto getBannerAnalytics(int days) {
+        LocalDateTime startDate = LocalDateTime.now().minusDays(days);
         List<Banner> banners = bannerRepository.findAll();
+        
         List<BannerAnalyticsDto.BannerAnalyticsItem> leaderboard = banners.stream().map(b -> 
             BannerAnalyticsDto.BannerAnalyticsItem.builder()
                 .id(b.getId())
                 .title(b.getTitle())
-                .campaign(b.getTitle() != null ? b.getTitle() : "Unknown")
+                .campaign(b.getCampaignType() != null ? b.getCampaignType() : "General") // Correctly map campaign type
                 .status(b.getIsActive() != null && b.getIsActive() ? "Active" : "Inactive")
                 .campaignType(b.getCampaignType() != null ? b.getCampaignType() : "New Product")
                 .platform(b.getPlatform() != null ? b.getPlatform() : "Both")
@@ -562,33 +565,52 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .build()
         ).sorted(Comparator.comparingLong(BannerAnalyticsDto.BannerAnalyticsItem::getViews).reversed()).collect(Collectors.toList());
         
-        long totalImpressions = leaderboard.stream().mapToLong(BannerAnalyticsDto.BannerAnalyticsItem::getViews).sum();
-        long totalClicks = leaderboard.stream().mapToLong(BannerAnalyticsDto.BannerAnalyticsItem::getClicks).sum();
+        long totalImpressions = banners.stream().mapToLong(b -> b.getViews() != null ? b.getViews() : 0L).sum();
+        long totalClicks = banners.stream().mapToLong(b -> b.getClicks() != null ? b.getClicks() : 0L).sum();
         double avgCTR = totalImpressions > 0 ? (totalClicks * 100.0) / totalImpressions : 0.0;
         
         String topPerformer = leaderboard.isEmpty() ? "N/A" : leaderboard.get(0).getTitle();
         long topViews = leaderboard.isEmpty() ? 0L : leaderboard.get(0).getViews();
         
-        Map<String, Map<String, Long>> viewsClicksTrend = new HashMap<>();
-        Map<String, Long> viewsByCampaign = leaderboard.stream().collect(Collectors.groupingBy(
-            BannerAnalyticsDto.BannerAnalyticsItem::getCampaignType,
-            Collectors.summingLong(BannerAnalyticsDto.BannerAnalyticsItem::getViews)
-        ));
-        Map<String, Long> impressionsByPlatform = leaderboard.stream().collect(Collectors.groupingBy(
-            BannerAnalyticsDto.BannerAnalyticsItem::getPlatform,
-            Collectors.summingLong(BannerAnalyticsDto.BannerAnalyticsItem::getViews)
-        ));
+        // Calculate Gender Stats from actual interactions
+        List<Object[]> genderStats = bannerInteractionRepository.countViewsByGender(startDate);
         Map<String, Long> impressionsByGender = new LinkedHashMap<>();
-        impressionsByGender.put("All Users", 0L);
         impressionsByGender.put("Male", 0L);
         impressionsByGender.put("Female", 0L);
         impressionsByGender.put("Others", 0L);
-
-        for (BannerAnalyticsDto.BannerAnalyticsItem item : leaderboard) {
-            String g = item.getGender();
-            impressionsByGender.put(g, impressionsByGender.getOrDefault(g, 0L) + item.getViews());
-        }
         
+        long totalTrackedViews = 0;
+        for (Object[] row : genderStats) {
+            String g = normalizeGenderLabel((String) row[0]);
+            long count = (long) row[1];
+            if (impressionsByGender.containsKey(g)) {
+                impressionsByGender.put(g, impressionsByGender.get(g) + count);
+                totalTrackedViews += count;
+            }
+        }
+        // Guest/Untracked views fall under "All Users"
+        impressionsByGender.put("All Users", Math.max(0, totalImpressions - totalTrackedViews));
+        
+        // Calculate Platform Stats from actual interactions
+        List<Object[]> platformStats = bannerInteractionRepository.countViewsByPlatform(startDate);
+        Map<String, Long> impressionsByPlatform = new LinkedHashMap<>();
+        impressionsByPlatform.put("MOBILE_APP", 0L);
+        impressionsByPlatform.put("WEBSITE", 0L);
+        impressionsByPlatform.put("BOTH", 0L);
+        
+        long totalTrackedPlatformViews = 0;
+        for (Object[] row : platformStats) {
+            String p = (String) row[0];
+            long count = (long) row[1];
+            if (p != null) {
+                impressionsByPlatform.put(p.toUpperCase(), impressionsByPlatform.getOrDefault(p.toUpperCase(), 0L) + count);
+                totalTrackedPlatformViews += count;
+            }
+        }
+        if (totalImpressions > totalTrackedPlatformViews) {
+            impressionsByPlatform.put("BOTH", impressionsByPlatform.get("BOTH") + (totalImpressions - totalTrackedPlatformViews));
+        }
+
         Map<String, Map<String, Long>> performanceComp = new HashMap<>();
         for (BannerAnalyticsDto.BannerAnalyticsItem item : leaderboard) {
             Map<String, Long> perf = new HashMap<>();
@@ -599,19 +621,22 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         
         return BannerAnalyticsDto.builder()
                 .totalImpressions(totalImpressions)
-                .impressionChange(0.0) // Requires historical tracking
+                .impressionChange(0.0)
                 .totalClicks(totalClicks)
-                .clickChange(0.0) // Requires historical tracking
+                .clickChange(0.0)
                 .averageCTR(avgCTR)
-                .ctrChange(0.0) // Requires historical tracking
+                .ctrChange(0.0)
                 .topPerformerName(topPerformer)
                 .topPerformerViews(topViews)
-                .viewsClicksTrendLast14Days(viewsClicksTrend)
-                .viewsByCampaignType(viewsByCampaign)
+                .viewsByCampaignType(leaderboard.stream().collect(Collectors.groupingBy(
+                    BannerAnalyticsDto.BannerAnalyticsItem::getCampaignType,
+                    Collectors.summingLong(BannerAnalyticsDto.BannerAnalyticsItem::getViews)
+                )))
                 .impressionsByPlatform(impressionsByPlatform)
                 .impressionsByGender(impressionsByGender)
                 .bannerPerformanceComparison(performanceComp)
                 .bannerLeaderboard(leaderboard)
+                .viewsClicksTrendLast14Days(new HashMap<>())
                 .build();
     }
 

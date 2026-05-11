@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.deliveryapp.backend.entity.User;
+import com.deliveryapp.backend.entity.BannerInteraction;
+import com.deliveryapp.backend.repository.BannerInteractionRepository;
 import com.deliveryapp.backend.repository.UserRepository;
 
 @Service
@@ -28,6 +30,7 @@ public class BannerServiceImpl implements BannerService {
 
     private final BannerRepository bannerRepository;
     private final UserRepository userRepository;
+    private final BannerInteractionRepository bannerInteractionRepository;
 
     @Override
     @Transactional
@@ -174,21 +177,39 @@ public class BannerServiceImpl implements BannerService {
 
     @Override
     @Transactional
-    public void incrementViews(Long id) {
+    public void incrementViews(Long id, Long userId, String platform) {
         Banner banner = bannerRepository.findByIdAndStatus(id, "active").orElse(null);
         if (banner != null) {
             banner.setViews((banner.getViews() == null ? 0 : banner.getViews()) + 1);
             bannerRepository.save(banner);
+
+            // Record detailed interaction
+            BannerInteraction interaction = BannerInteraction.builder()
+                    .bannerId(id)
+                    .userId(userId)
+                    .interactionType(BannerInteraction.InteractionType.VIEW)
+                    .platform(platform != null ? platform.toUpperCase() : "BOTH")
+                    .build();
+            bannerInteractionRepository.save(interaction);
         }
     }
 
     @Override
     @Transactional
-    public void incrementClicks(Long id) {
+    public void incrementClicks(Long id, Long userId, String platform) {
         Banner banner = bannerRepository.findByIdAndStatus(id, "active").orElse(null);
         if (banner != null) {
             banner.setClicks((banner.getClicks() == null ? 0 : banner.getClicks()) + 1);
             bannerRepository.save(banner);
+
+            // Record detailed interaction
+            BannerInteraction interaction = BannerInteraction.builder()
+                    .bannerId(id)
+                    .userId(userId)
+                    .interactionType(BannerInteraction.InteractionType.CLICK)
+                    .platform(platform != null ? platform.toUpperCase() : "BOTH")
+                    .build();
+            bannerInteractionRepository.save(interaction);
         }
     }
 

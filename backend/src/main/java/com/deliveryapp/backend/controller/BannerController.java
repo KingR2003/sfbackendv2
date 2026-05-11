@@ -5,6 +5,8 @@ import com.deliveryapp.backend.dto.BannerCreateRequest;
 import com.deliveryapp.backend.dto.BannerDto;
 import com.deliveryapp.backend.dto.BannerUpdateRequest;
 import com.deliveryapp.backend.dto.DataResponse;
+import com.deliveryapp.backend.entity.User;
+import com.deliveryapp.backend.repository.UserRepository;
 import com.deliveryapp.backend.service.BannerService;
 import com.deliveryapp.backend.service.S3Service;
 import jakarta.validation.Valid;
@@ -12,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,6 +29,7 @@ public class BannerController {
 
     private final BannerService bannerService;
     private final S3Service s3Service;
+    private final UserRepository userRepository;
 
     // ----- Public Endpoints -----
 
@@ -36,15 +41,33 @@ public class BannerController {
     }
 
     @PostMapping("/banners/{id}/view")
-    public ResponseEntity<Void> incrementViews(@PathVariable Long id) {
-        bannerService.incrementViews(id);
+    public ResponseEntity<Void> incrementViews(
+            @PathVariable Long id,
+            @RequestParam(required = false) String platform) {
+        Long userId = getLoggedInUserId();
+        bannerService.incrementViews(id, userId, platform);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/banners/{id}/click")
-    public ResponseEntity<Void> incrementClicks(@PathVariable Long id) {
-        bannerService.incrementClicks(id);
+    public ResponseEntity<Void> incrementClicks(
+            @PathVariable Long id,
+            @RequestParam(required = false) String platform) {
+        Long userId = getLoggedInUserId();
+        bannerService.incrementClicks(id, userId, platform);
         return ResponseEntity.ok().build();
+    }
+
+    private Long getLoggedInUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
+            String username = authentication.getName();
+            return userRepository.findByEmail(username)
+                    .or(() -> userRepository.findByMobile(username))
+                    .map(User::getId)
+                    .orElse(null);
+        }
+        return null;
     }
 
     // ----- Admin Endpoints -----
