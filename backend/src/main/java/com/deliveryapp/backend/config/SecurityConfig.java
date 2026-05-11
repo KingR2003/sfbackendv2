@@ -44,15 +44,16 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ── Public endpoints ──────────────────────────────────────────────
                         .requestMatchers(
-                                "/api/v1/auth/**", // customer login + register
-                                "/api/v1/admin/auth/**", // admin login + register
-                                "/api/v1/products/**", // public product view
-                                "/api/v1/categories/**", // public category view
-                                "/api/v1/banners/active", // public banners
+                                "/api/v1/auth/**",
+                                "/api/v1/admin/auth/**",
+                                "/api/v1/products/**",
+                                "/api/v1/categories/**",
+                                "/api/v1/banners/active",
                                 "/api/v1/banners/*/view",
                                 "/api/v1/banners/*/click",
-                                "/api/v1/support/general", // general query submission
-                                "/api/v1/users/email/verify", // email change verification (token-based, no auth needed)
+                                "/api/v1/support/general",
+                                "/api/v1/users/email/verify",
+                                "/api/v1/ratings/product/*/",  // public average rating
                                 "/api/v1/health",
                                 "/h2-console/**",
                                 "/v3/api-docs/**",
