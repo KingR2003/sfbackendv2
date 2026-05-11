@@ -1,37 +1,39 @@
 package com.deliveryapp.backend.controller;
 
-import com.deliveryapp.backend.dto.DataResponse;
-import com.deliveryapp.backend.dto.UpdateTicketStatusRequest;
+import com.deliveryapp.backend.dto.ApiResponse;
 import com.deliveryapp.backend.dto.UserQueryResponse;
 import com.deliveryapp.backend.service.UserQueryService;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/admin/queries")
+@RequestMapping("/api/v1/admin/user-queries")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminUserQueryController {
 
     @Autowired
     private UserQueryService userQueryService;
 
     @GetMapping
-    public ResponseEntity<DataResponse<List<UserQueryResponse>>> getAllQueries() {
-        List<UserQueryResponse> queries = userQueryService.getAllQueries();
-        return ResponseEntity.ok(
-                new DataResponse<>(HttpStatus.OK.value(), "Queries retrieved successfully", queries));
+    public ResponseEntity<List<UserQueryResponse>> getAllQueries() {
+        return ResponseEntity.ok(userQueryService.getAllQueries());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<UserQueryResponse> getQueryById(@PathVariable Long id) {
+        return ResponseEntity.ok(userQueryService.getQueryById(id));
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<DataResponse<UserQueryResponse>> updateStatus(
+    public ResponseEntity<UserQueryResponse> updateStatus(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateTicketStatusRequest request) {
-        UserQueryResponse updated = userQueryService.updateStatus(id, request);
-        return ResponseEntity.ok(
-                new DataResponse<>(HttpStatus.OK.value(), "Ticket status updated successfully", updated));
+            @RequestBody Map<String, String> payload) {
+        String status = payload.get("status");
+        return ResponseEntity.ok(userQueryService.updateStatus(id, status));
     }
 }
