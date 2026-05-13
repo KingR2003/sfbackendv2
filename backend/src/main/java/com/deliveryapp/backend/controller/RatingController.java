@@ -50,6 +50,9 @@ public class RatingController {
             response.put("rating", savedRating);
             return ResponseEntity.ok(response);
 
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(403, e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse(400, e.getMessage()));
