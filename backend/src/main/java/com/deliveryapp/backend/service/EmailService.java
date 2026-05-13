@@ -30,4 +30,13 @@ public interface EmailService {
      * @param verifyLink   The full verification URL with token
      */
     void sendEmailVerification(String toNewEmail, String userName, String verifyLink);
+
+    /**
+     * Sends a 6-digit OTP to the user's NEW email address for email change verification.
+     *
+     * @param toNewEmail  The new email address to verify
+     * @param userName    User's name for personalization
+     * @param otp         The 6-digit OTP code
+     */
+    void sendEmailChangeOtp(String toNewEmail, String userName, String otp);
 }

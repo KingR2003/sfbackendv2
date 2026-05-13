@@ -52,8 +52,7 @@ public class SecurityConfig {
                                 "/api/v1/banners/*/view",
                                 "/api/v1/banners/*/click",
                                 "/api/v1/support/general",
-                                "/api/v1/users/email/verify",
-                                "/api/v1/ratings/product/*/",  // public average rating
+                                "/api/v1/ratings/product/*/",
                                 "/api/v1/health",
                                 "/h2-console/**",
                                 "/v3/api-docs/**",
