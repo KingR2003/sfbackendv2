@@ -104,13 +104,19 @@ public class AdminAuthController {
                         .body(new ApiResponse(403, "Invalid admin secret key"));
             }
 
-            // 2. Parameterised duplicate-email check (SQL-injection safe)
+            // 2. Duplicate-email check
             if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
                 return ResponseEntity.status(HttpStatus.CONFLICT)
                         .body(new ApiResponse(409, "Email already registered"));
             }
 
-            // 3. Create admin user — role is always ADMIN regardless of request body
+            // 3. Duplicate-mobile check
+            if (userRepository.findByMobile(registerRequest.getMobile()).isPresent()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(new ApiResponse(409, "Mobile number already registered"));
+            }
+
+            // 4. Create admin user — role is always ADMIN regardless of request body
             User newAdmin = new User();
             newAdmin.setName(registerRequest.getName());
             newAdmin.setEmail(registerRequest.getEmail());

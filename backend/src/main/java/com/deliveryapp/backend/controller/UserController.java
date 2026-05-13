@@ -10,7 +10,6 @@ import com.deliveryapp.backend.service.EmailService;
 import com.deliveryapp.backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,7 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.Random;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -36,9 +35,6 @@ public class UserController {
 
     @Autowired
     private EmailService emailService;
-
-    @Value("${app.customer-frontend-url:http://localhost:5173}")
-    private String customerFrontendUrl;
 
     private static final List<String> VALID_STATUSES = Arrays.asList("ACTIVE", "INACTIVE", "PENDING", "BLOCKED");
 
@@ -128,7 +124,7 @@ public class UserController {
 
     // ---------------------------------------------------------------
     // POST /api/v1/users/email/request-change
-    // Authenticated user requests to change their email
+    // Sends a 6-digit OTP to the new email address (authenticated)
     // ---------------------------------------------------------------
     @PostMapping("/email/request-change")
     public ResponseEntity<Object> requestEmailChange(@Valid @RequestBody EmailChangeRequest request) {
@@ -147,60 +143,79 @@ public class UserController {
                     .body(new ApiResponse(409, "This email address is already registered to another account."));
         }
 
-        // Delete any existing pending token for this user
+        // Delete any existing pending OTP for this user
         emailChangeTokenRepository.deleteByUserId(user.getId());
 
-        // Create a new token
-        EmailChangeToken token = new EmailChangeToken();
-        token.setToken(UUID.randomUUID().toString());
-        token.setUser(user);
-        token.setNewEmail(request.getNewEmail());
-        emailChangeTokenRepository.save(token);
+        // Generate a 6-digit OTP
+        String otp = String.format("%06d", new Random().nextInt(999999));
 
-        // Build the verification link
-        String verifyLink = customerFrontendUrl + "/verify-email?token=" + token.getToken();
+        // Save OTP in email_change_tokens table
+        EmailChangeToken otpRecord = new EmailChangeToken();
+        otpRecord.setToken(otp);
+        otpRecord.setUser(user);
+        otpRecord.setNewEmail(request.getNewEmail());
+        emailChangeTokenRepository.save(otpRecord);
 
-        // Send verification email to the NEW address
-        emailService.sendEmailVerification(request.getNewEmail(), user.getName(), verifyLink);
+        // Send OTP to the NEW email address
+        emailService.sendEmailChangeOtp(request.getNewEmail(), user.getName(), otp);
 
         Map<String, Object> response = new HashMap<>();
         response.put("status", 200);
-        response.put("message", "A verification email has been sent to " + request.getNewEmail() + ". Please check your inbox and click the link to confirm the change.");
+        response.put("message", "A 6-digit OTP has been sent to " + request.getNewEmail() + ". Enter it to confirm your email change.");
         return ResponseEntity.ok(response);
     }
 
     // ---------------------------------------------------------------
-    // POST /api/v1/users/email/verify
-    // Public endpoint — verifies the token and updates the email
+    // POST /api/v1/users/email/verify-otp
+    // User submits the OTP received in their new email (authenticated)
+    // Account data, orders & history are preserved — only email field changes
     // ---------------------------------------------------------------
-    @PostMapping("/email/verify")
-    public ResponseEntity<Object> verifyEmailChange(@RequestParam String token) {
-        Optional<EmailChangeToken> tokenOpt = emailChangeTokenRepository.findByToken(token);
+    @PostMapping("/email/verify-otp")
+    public ResponseEntity<Object> verifyEmailOtp(@RequestBody Map<String, String> body) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String identifier = authentication.getName();
 
-        if (tokenOpt.isEmpty()) {
+        String otp = body.get("otp");
+        if (otp == null || otp.isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ApiResponse(400, "Invalid or expired verification link."));
+                    .body(new ApiResponse(400, "OTP is required."));
         }
 
-        EmailChangeToken emailToken = tokenOpt.get();
+        Optional<User> userOpt = userService.getUserByIdentifier(identifier);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse(404, "User not found"));
+        }
+        User user = userOpt.get();
 
-        if (emailToken.isExpired()) {
-            emailChangeTokenRepository.delete(emailToken);
+        // Find the pending OTP record for this user
+        Optional<EmailChangeToken> otpRecordOpt = emailChangeTokenRepository.findByToken(otp);
+
+        if (otpRecordOpt.isEmpty() || !otpRecordOpt.get().getUser().getId().equals(user.getId())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ApiResponse(400, "Verification link has expired. Please request a new one."));
+                    .body(new ApiResponse(400, "Invalid OTP. Please try again."));
         }
 
-        // Update the user's email
-        User user = emailToken.getUser();
-        user.setEmail(emailToken.getNewEmail());
+        EmailChangeToken otpRecord = otpRecordOpt.get();
+
+        if (otpRecord.isExpired()) {
+            emailChangeTokenRepository.delete(otpRecord);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(400, "OTP has expired. Please request a new one."));
+        }
+
+        // Update only the email field on the SAME user record
+        // All other data (orders, cart, wishlist, profile) stays intact
+        user.setEmail(otpRecord.getNewEmail());
         userService.saveUser(user);
 
-        // Delete the token so it cannot be reused
-        emailChangeTokenRepository.delete(emailToken);
+        // Delete OTP so it cannot be reused
+        emailChangeTokenRepository.delete(otpRecord);
 
         Map<String, Object> response = new HashMap<>();
         response.put("status", 200);
-        response.put("message", "Email address updated successfully!");
+        response.put("message", "Email address updated successfully! Your account information and order history remain intact.");
+        response.put("newEmail", otpRecord.getNewEmail());
         return ResponseEntity.ok(response);
     }
 }
+

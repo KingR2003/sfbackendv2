@@ -13,7 +13,7 @@ public interface BannerService {
     BannerDto getBannerById(Long id);
     List<BannerDto> getAllBanners();
     List<BannerDto> getActiveBanners(String platform, String gender);
-    void incrementViews(Long id);
-    void incrementClicks(Long id);
+    void incrementViews(Long id, Long userId, String platform);
+    void incrementClicks(Long id, Long userId, String platform);
     void uploadBannerImage(Long id, String imageUrl);
 }

@@ -5,6 +5,7 @@ import com.deliveryapp.backend.dto.RatingSummaryResponse;
 import com.deliveryapp.backend.entity.Product;
 import com.deliveryapp.backend.entity.ProductRating;
 import com.deliveryapp.backend.entity.User;
+import com.deliveryapp.backend.repository.OrderRepository;
 import com.deliveryapp.backend.repository.ProductRatingRepository;
 import com.deliveryapp.backend.repository.ProductRepository;
 import com.deliveryapp.backend.repository.UserRepository;
@@ -29,6 +30,9 @@ public class RatingServiceImpl implements RatingService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private OrderRepository orderRepository;
+
     @Override
     public int submitOrUpdateRating(Long userId, RatingRequest request) {
         User user = userRepository.findById(userId)
@@ -37,7 +41,12 @@ public class RatingServiceImpl implements RatingService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + request.getProductId()));
 
-        // Check if user already rated this product — update it if so
+        // Enforce: only users who have ordered this product can rate it
+        boolean hasPurchased = orderRepository.hasUserOrderedProduct(userId, request.getProductId());
+        if (!hasPurchased) {
+            throw new SecurityException("You can only rate products you have ordered.");
+        }
+
         Optional<ProductRating> existing = ratingRepository.findByUserIdAndProductId(userId, request.getProductId());
 
         ProductRating ratingEntity = existing.orElseGet(ProductRating::new);
