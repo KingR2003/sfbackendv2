@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Svasthya Fresh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <!-- Preload critical images to prevent layout shift -->
+  <link rel="preload" as="image" href="/1st.png" fetchpriority="high">
+  <link rel="preload" as="image" href="/2nd.jpg" fetchpriority="high">
+  <link rel="preload" as="image" href="/logo.png" fetchpriority="high">
+  <link rel="preload" as="image" href="/wild_honey.png" fetchpriority="medium">
+  <link rel="preload" as="image" href="/chikki_pic.png" fetchpriority="medium">
+  <link rel="preload" as="image" href="/ghee_pic.png" fetchpriority="medium">
+    <!-- Deferred images for secondary sections/pages are loaded normally instead of preloaded
+      to avoid "preloaded but not used" warnings and unnecessary early network work. -->
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>

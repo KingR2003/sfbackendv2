@@ -1,0 +1,269 @@
+import React, { useState } from "react";
+import { ShieldCheck, ArrowRight, Plus, MapPin, Home, Briefcase, Edit3, Trash2, CheckCircle } from "lucide-react";
+import ProgressStepper from "./ProgressStepper";
+import AddressForm from "./AddressForm";
+
+const FALLBACK_ITEMS = [
+  {
+    id: "honey",
+    name: "Wild Forest Honey",
+    category: "Honey",
+    price: 450,
+    quantity: 1,
+    img: "/wild_honey.png",
+  },
+  {
+    id: "chikki",
+    name: "Peanut Chikki Bar",
+    category: "Chikki",
+    price: 300,
+    quantity: 1,
+    img: "/chikki_pic.png",
+  },
+];
+
+const formatCurrency = (value) => `₹${value.toLocaleString("en-IN")}`;
+
+const getDiscountFromCoupon = (coupon, subtotal) => {
+  if (!coupon) return 0;
+  const toNumber = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const directDiscount = toNumber(coupon.discountAmount);
+  if (directDiscount > 0) return Math.min(directDiscount, subtotal);
+
+  if (coupon.type === "percentage") {
+    return Math.min((subtotal * toNumber(coupon.discount)) / 100, subtotal);
+  }
+  return Math.min(toNumber(coupon.discount), subtotal);
+};
+
+const Checkout = ({
+  cart = [],
+  onBackToCart = () => { },
+  onContinue = () => { },
+  onNavigateStep = null,
+  details = {},
+  addresses = [],
+  selectedAddressId = null,
+  appliedCoupon = null,
+  onSelectAddress = () => { },
+  onAddAddress = () => { },
+  onUpdateAddress = () => { },
+  onDeleteAddress = () => { },
+  onDetailsChange = () => { },
+  onShowToast = null,
+}) => {
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
+
+  const items = cart.length ? cart : FALLBACK_ITEMS;
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.price * (item.quantity || 1),
+    0
+  );
+  const discount = getDiscountFromCoupon(appliedCoupon, subtotal);
+  const shippingLabel = "Free";
+  const total = subtotal - discount;
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!selectedAddressId) {
+      if (onShowToast) {
+        onShowToast("Please select or add a shipping address.", "error");
+      } else {
+        alert("Please select or add a shipping address.");
+      }
+      return;
+    }
+    onContinue();
+  };
+
+  const handleEditClick = (e, address) => {
+    e.stopPropagation();
+    setEditingAddress(address);
+    setShowAddressForm(true);
+  };
+
+  const handleDeleteClick = (e, id) => {
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this address?")) {
+      onDeleteAddress(id);
+    }
+  };
+
+  const handleSaveAddress = (address) => {
+    if (editingAddress) {
+      onUpdateAddress(address);
+    } else {
+      onAddAddress(address);
+    }
+    setShowAddressForm(false);
+    setEditingAddress(null);
+  };
+
+  return (
+    <section className="checkout-page">
+      <div className="checkout-container">
+        <ProgressStepper
+          currentStep={1}
+          backLabel="← BACK TO CART"
+          onBack={onBackToCart}
+          showBackLink
+          onStepClick={onNavigateStep}
+        />
+
+        <div className="checkout-grid">
+          <div className="checkout-card">
+            <form className="checkout-form" onSubmit={handleSubmit}>
+
+              <div className="address-section">
+                <p className="checkout-subtitle">Shipping Address</p>
+                <div className="address-grid">
+                  {addresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className={`address-card-item ${selectedAddressId === addr.id ? 'selected' : ''}`}
+                      onClick={() => onSelectAddress(addr.id)}
+                    >
+                      <div className="address-card-header">
+                        <div className="address-type-badge">
+                          {addr.type === 'Home' && <Home size={14} />}
+                          {addr.type === 'Office' && <Briefcase size={14} />}
+                          {addr.type === 'Other' && <MapPin size={14} />}
+                          {addr.type === 'Other' && addr.other_type ? addr.other_type : addr.type}
+                          {addr.is_default && <span className="address-default-tag">DEFAULT</span>}
+                          {selectedAddressId === addr.id && <CheckCircle size={16} className="selected-icon" color="#1AA60B" fill="#E7F5E5" />}
+                        </div>
+                        <div className="address-actions">
+                          <button
+                            type="button"
+                            className="address-action-btn"
+                            onClick={(e) => handleEditClick(e, addr)}
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="address-action-btn"
+                            onClick={(e) => handleDeleteClick(e, addr.id)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="address-content">
+                        {addr.building_no}, {addr.building_name}<br />
+                        {addr.street_no}, {addr.area_name}<br />
+                        {addr.city}, {addr.state} - {addr.pincode}
+                      </div>
+
+                      {selectedAddressId === addr.id && (
+                        <div className="deliver-here-badge">
+                          DELIVER HERE
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="add-address-btn-card"
+                    onClick={() => {
+                      setEditingAddress(null);
+                      setShowAddressForm(true);
+                    }}
+                  >
+                    <Plus size={24} />
+                    <span>Add New Address</span>
+                  </button>
+                </div>
+              </div>
+
+              <label className="save-info-row">
+                <input type="checkbox" defaultChecked />
+                Save this information for next time
+              </label>
+
+              <button className="checkout-submit" type="submit">
+                CONTINUE TO DELIVERY <ArrowRight size={18} />
+              </button>
+            </form>
+          </div>
+
+          <aside className="checkout-card summary-card">
+            <div className="summary-header">
+              <div>
+                <h2>Order Summary</h2>
+              </div>
+            </div>
+
+            <div className="summary-items">
+              {items.map((item) => {
+                const quantity = item.quantity || 1;
+                return (
+                  <div key={item.id} className="summary-item">
+                    <div className="summary-thumb-container">
+                      <div className="summary-thumb">
+                        <span className="summary-qty-badge">{item.quantity || 1}</span>
+                        <img src={item.img || "/wild_honey.png"} alt={item.name} />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="summary-name">{item.name}</p>
+                      <p className="summary-meta">
+                        {(item.category || "Artisanal").toUpperCase()}
+                      </p>
+                    </div>
+                    <div className="summary-price">
+                      <strong>
+                        {formatCurrency(item.price * (item.quantity || 1))}
+                      </strong>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="summary-divider" />
+
+            <div className="summary-row">
+              <span>Subtotal</span>
+              <span>{formatCurrency(subtotal)}</span>
+            </div>
+            {appliedCoupon && (
+              <div className="summary-row" style={{ color: '#2E7D32' }}>
+                <span>Discount ({appliedCoupon.code})</span>
+                <span>-{formatCurrency(discount)}</span>
+              </div>
+            )}
+            <div className="summary-row">
+              <span>Shipping</span>
+              <span>{shippingLabel}</span>
+            </div>
+            <div className="summary-divider" />
+
+            <div className="summary-total">
+              <span>Total</span>
+              <span>{formatCurrency(total)}</span>
+            </div>
+
+            <div className="ssl-badge">
+              <ShieldCheck size={18} /> Secure SSL Encryption
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      {showAddressForm && (
+        <AddressForm
+          initialAddress={editingAddress || {}}
+          onSave={handleSaveAddress}
+          onCancel={() => setShowAddressForm(false)}
+        />
+      )}
+    </section>
+  );
+};
+
+export default Checkout;

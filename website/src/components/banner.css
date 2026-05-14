@@ -1,0 +1,85 @@
+/* Banner Carousel Custom Styles */
+.banner-carousel-wrapper {
+  width: 100%;
+}
+
+.banner-carousel-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+.banner-carousel-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.banner-carousel-scroll::-webkit-scrollbar-track {
+  background: #FEF8F0;
+  border-radius: 10px;
+}
+
+.banner-carousel-scroll::-webkit-scrollbar-thumb {
+  background: #7C3225;
+  border-radius: 10px;
+}
+
+.banner-carousel-scroll::-webkit-scrollbar-thumb:hover {
+  background: #5a2419;
+}
+
+.banner-carousel-container {
+  border-radius: 48px !important;
+  overflow: hidden !important;
+  border-bottom-left-radius: 48px !important;
+  border-bottom-right-radius: 48px !important;
+  border-top-left-radius: 48px !important;
+  border-top-right-radius: 48px !important;
+}
+
+.banner-carousel-container * {
+  border-radius: 48px !important;
+  border-bottom-left-radius: 48px !important;
+  border-bottom-right-radius: 48px !important;
+  border-top-left-radius: 48px !important;
+  border-top-right-radius: 48px !important;
+}
+
+.banner-slide {
+  border-radius: 48px !important;
+  overflow: hidden !important;
+  border-bottom-left-radius: 48px !important;
+  border-bottom-right-radius: 48px !important;
+  border-top-left-radius: 48px !important;
+  border-top-right-radius: 48px !important;
+}
+
+.banner-slide img {
+  border-radius: 48px !important;
+  border-bottom-left-radius: 48px !important;
+  border-bottom-right-radius: 48px !important;
+  border-top-left-radius: 48px !important;
+  border-top-right-radius: 48px !important;
+}
+
+.banner-overlay {
+  border-radius: 48px !important;
+  border-bottom-left-radius: 48px !important;
+  border-bottom-right-radius: 48px !important;
+  border-top-left-radius: 48px !important;
+  border-top-right-radius: 48px !important;
+}
+
+.banner-gradient {
+  border-radius: 48px !important;
+  border-bottom-left-radius: 48px !important;
+  border-bottom-right-radius: 48px !important;
+  border-top-left-radius: 48px !important;
+  border-top-right-radius: 48px !important;
+}
+
+/* Force all banner elements to have rounded corners */
+section.w-full.bg-\[\#FDF8F1\] {
+  border-radius: 48px !important;
+}
+
+section.w-full.bg-\[\#FDF8F1\] > div {
+  border-radius: 48px !important;
+}
