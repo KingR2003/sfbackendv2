@@ -135,7 +135,10 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void deleteOrder(Long id) {
-        orderRepository.deleteById(id);
+        orderRepository.findById(id).ifPresent(order -> {
+            order.setOrderStatus("CANCELLED");
+            orderRepository.save(order);
+        });
     }
 
     @Autowired

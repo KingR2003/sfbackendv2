@@ -230,7 +230,7 @@ public class AdminAuthController {
             Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
 
             // Always return 200 even if email not found (security best practice - prevents email enumeration)
-            if (userOpt.isEmpty() || !"ADMIN".equalsIgnoreCase(userOpt.get().getRole())) {
+            if (userOpt.isEmpty() || "CUSTOMER".equalsIgnoreCase(userOpt.get().getRole())) {
                 return ResponseEntity.ok(new ApiResponse(200,
                         "If this email is registered, a password reset link has been sent."));
             }

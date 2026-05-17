@@ -30,7 +30,7 @@ public class AdminMemberController {
     private com.deliveryapp.backend.service.UserService userService;
 
     private static final List<String> VALID_STATUSES = Arrays.asList("ACTIVE", "PENDING", "BLOCKED");
-    private static final List<String> MEMBER_ROLES = Arrays.asList("ADMIN", "MANAGER", "STAFF");
+    private static final List<String> MEMBER_ROLES = Arrays.asList("ADMIN", "MANAGER", "STAFF", "INVENTORY");
 
     @GetMapping
     public ResponseEntity<Object> getAllMembers() {

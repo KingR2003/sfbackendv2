@@ -62,6 +62,15 @@ public class CustomUserDetailsService implements UserDetailsService {
         // but status should be the primary source of truth for approvals.
         boolean enabled = "ACTIVE".equalsIgnoreCase(user.getStatus());
 
+        java.util.List<org.springframework.security.core.GrantedAuthority> authorities = new java.util.ArrayList<>();
+        if (user.getRole() != null) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().toUpperCase()));
+            // Grant a base ROLE_ADMIN to all non-customer staff members to bypass standard @PreAuthorize checks
+            if (!"CUSTOMER".equalsIgnoreCase(user.getRole()) && !"ADMIN".equalsIgnoreCase(user.getRole())) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            }
+        }
+
         return new org.springframework.security.core.userdetails.User(
                 username,
                 passwordHash,
@@ -69,7 +78,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                 true, // accountNonExpired
                 true, // credentialsNonExpired
                 true, // accountNonLocked
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole()))
+                authorities
         );
     }
 }
