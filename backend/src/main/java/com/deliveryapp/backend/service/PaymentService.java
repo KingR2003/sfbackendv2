@@ -1,8 +1,12 @@
 package com.deliveryapp.backend.service;
 
-import com.deliveryapp.backend.dto.PaymentRequest;
-import com.deliveryapp.backend.dto.PaymentResponse;
+import com.deliveryapp.backend.dto.PaymentAdminDto;
+
+import java.util.List;
+import java.util.Map;
 
 public interface PaymentService {
-    PaymentResponse processPayment(PaymentRequest request);
+    Map<String, Object> getPaymentSummary();
+    Map<String, Object> getPaymentMethodsCount();
+    List<PaymentAdminDto> getAllPayments();
 }
